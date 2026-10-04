@@ -502,7 +502,7 @@ const forthTraceBanner = (bg, ink, hem) => {
   return banner(
     bg,
     hem,
-    `<path d="${MARK}" fill="${ink}" transform="translate(${textX - 9 - markW} ${(BANNER_H - markH) / 2}) scale(${k})"/>
+    `<path d="${MARK}" fill="${ink}" fill-rule="evenodd" transform="translate(${textX - 9 - markW} ${(BANNER_H - markH) / 2}) scale(${k})"/>
 <text x="${textX}" y="29.5" font-family="MontserratBanner, Montserrat, sans-serif" font-weight="900" font-size="12.4" fill="${ink}" textLength="117" lengthAdjust="spacingAndGlyphs">FORTH TRACE</text>
 <rect x="${textX}" y="33.6" width="12" height="1.1" fill="${BRAND.accent}"/>
 <text x="${textX + 15}" y="34.8" font-family="MontserratBanner, Montserrat, sans-serif" font-weight="600" font-size="2.6" letter-spacing="1" fill="${BRAND.sage}">DRY FIRE · STAGE TRAINING</text>`,
