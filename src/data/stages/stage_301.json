@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_301",
+  "name": "El Prez Style",
+  "description": "Three paper side by side, then steel left and right in depth.",
+  "environment": "outdoor_02",
+  "parTime": 5,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": 0.4156,
+      "y": 0.5875,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": 0.5,
+      "y": 0.5875,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 0.5844,
+      "y": 0.5875,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": 0.35,
+      "y": 0.5429,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_5",
+      "type": "steel_plate",
+      "x": 0.65,
+      "y": 0.5429,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "beginner",
+    "tags": [
+      "transitions",
+      "steel"
+    ]
+  }
+}

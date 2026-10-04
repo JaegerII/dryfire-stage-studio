@@ -126,11 +126,101 @@ m3.push(
   ),
 );
 
+// ------------------------------------------------------------------ Match 04 – Outdoor Classics
+const m4 = [];
+n = 0;
+m4.push(
+  add(
+    stage('stage_301', 'El Prez Style', 'Three paper side by side, then steel left and right in depth.', 'outdoor_02', 5, [
+      o('paper_full', -1.2, 9),
+      o('paper_full', 0, 9),
+      o('paper_full', 1.2, 9),
+      o('steel_popper', -2.8, 12.5),
+      o('steel_plate', 2.8, 12.5),
+    ], { difficulty: 'beginner', tags: ['transitions', 'steel'] }),
+  ),
+);
+n = 0;
+m4.push(
+  add(
+    stage('stage_302', 'Slider', 'A mover slides behind two walls — catch it in the gap.', 'outdoor_03', 6.5, [
+      o('crate', -3.0, 6.8),
+      o('paper_card', -3.0, 6.8, { elevation: 0.6 }),
+      o('paper_full', 0, 10, { motion: { kind: 'horizontal', amplitude: 1.3, period: 3.2, delay: 0 } }),
+      o('mesh_wall_short', -1.05, 8.2),
+      o('mesh_wall_short', 1.05, 8.2),
+      o('paper_hc_bottom', 3.0, 7),
+      o('steel_popper', 3.2, 14),
+    ], { difficulty: 'intermediate', tags: ['mover', 'boxes'] }),
+  ),
+);
+n = 0;
+m4.push(
+  add(
+    stage('stage_303', 'Long Steel', 'One close paper, then steel at distance — plate rack to finish.', 'outdoor_01', 7, [
+      o('paper_full', -1.8, 6.4),
+      o('steel_popper', -4.2, 14),
+      o('steel_plate', 2.9, 13.5),
+      o('steel_popper', 1.6, 15),
+      o('steel_plate_rack', -0.2, 15.5),
+    ], { difficulty: 'intermediate', tags: ['steel', 'plate rack', 'distance'] }),
+  ),
+);
+
+// ------------------------------------------------------------------ Match 05 – Indoor Tactics
+const m5 = [];
+n = 0;
+m5.push(
+  add(
+    stage('stage_401', 'Flash Target', 'Hit the popper — a target pops up for only 1.5 seconds.', 'indoor_03', 6, (() => {
+      const popper = o('steel_popper', -1.4, 12.5, { motion: { kind: 'fall', delay: 1.0 } });
+      return [
+        o('paper_hc_vertical', -2.5, 7),
+        popper,
+        o('paper_full', 1.5, 10.5, { motion: { kind: 'popup', trigger: popper.id, delay: 0.2, duration: 1.5 } }),
+        o('paper_stack_double', 0.2, 8),
+        o('paper_mini', 2.7, 7.2),
+      ];
+    })(), { difficulty: 'advanced', tags: ['activator', 'pop-up', 'disappearing'] }),
+  ),
+);
+n = 0;
+m5.push(
+  add(
+    stage('stage_402', 'Twin Ports', 'Two ports, one target behind each, hard cover and steel in the middle.', 'indoor_02', 6.5, [
+      o('mesh_wall_port', -1.6, 6.6),
+      o('paper_full', -2.34, 8.8), // seen through the left port
+      o('mesh_wall_port', 1.6, 6.6, { flip: true }),
+      o('paper_full', 2.34, 8.8), // seen through the right port
+      o('paper_hc_half', 0, 9.6),
+      o('steel_plate', 0.85, 13),
+    ], { difficulty: 'advanced', tags: ['port', 'partial', 'hard cover'] }),
+  ),
+);
+n = 0;
+m5.push(
+  add(
+    stage('stage_403', 'Box Row', 'Cards on boxes, a swinger behind the wall, steel to finish.', 'indoor_01', 7, [
+      o('paper_full', -3.3, 9.5),
+      o('crate_wide', -1.6, 7),
+      o('paper_hc_vertical_card', -1.95, 7, { elevation: 0.6 }),
+      o('no_shoot_overlay', -1.35, 7, { elevation: 0.6, rotation: 8 }),
+      o('mesh_wall', 0.4, 9.6),
+      o('paper_swinger', 0.4, 10, { motion: { kind: 'swing', angle: 35, period: 1.8, delay: 0 } }),
+      o('crate', 1.9, 7),
+      o('paper_hc_diagonal_card', 1.9, 7, { elevation: 0.6 }),
+      o('steel_popper', 4.4, 12.5),
+    ], { difficulty: 'intermediate', tags: ['boxes', 'swinger', 'hard cover'] }),
+  ),
+);
+
 for (const s of stages) writeFileSync(join(root, 'stages', `${s.id}.json`), JSON.stringify(s, null, 2) + '\n');
 
 const matches = [
   { id: 'match_002', name: 'Match 02 – Steel & Activators', description: 'Boxes, an activated swinger and a plate rack finish.', stageIds: m2 },
   { id: 'match_003', name: 'Match 03 – Indoor Movers', description: 'A swinger behind a wall, window and port, a pop-up finale.', stageIds: m3 },
+  { id: 'match_004', name: 'Match 04 – Outdoor Classics', description: 'El Prez style, a sliding mover and long steel.', stageIds: m4 },
+  { id: 'match_005', name: 'Match 05 – Indoor Tactics', description: 'A flash target, twin ports and a row of boxes.', stageIds: m5 },
 ];
 for (const m of matches) {
   writeFileSync(

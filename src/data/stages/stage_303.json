@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_303",
+  "name": "Long Steel",
+  "description": "One close paper, then steel at distance — plate rack to finish.",
+  "environment": "outdoor_01",
+  "parTime": 7,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": 0.3352,
+      "y": 0.6442,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_popper_2",
+      "type": "steel_popper",
+      "x": 0.2958,
+      "y": 0.5296,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_3",
+      "type": "steel_plate",
+      "x": 0.6455,
+      "y": 0.5338,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": 0.5733,
+      "y": 0.5221,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_rack_5",
+      "type": "steel_plate_rack",
+      "x": 0.4911,
+      "y": 0.5186,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "intermediate",
+    "tags": [
+      "steel",
+      "plate rack",
+      "distance"
+    ]
+  }
+}

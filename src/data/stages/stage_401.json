@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_401",
+  "name": "Flash Target",
+  "description": "Hit the popper — a target pops up for only 1.5 seconds.",
+  "environment": "indoor_03",
+  "parTime": 6,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_hc_vertical_2",
+      "type": "paper_hc_vertical",
+      "x": 0.286,
+      "y": 0.6283,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_popper_1",
+      "type": "steel_popper",
+      "x": 0.425,
+      "y": 0.5429,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "motion": {
+        "kind": "fall",
+        "delay": 1
+      }
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 0.593,
+      "y": 0.5654,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "motion": {
+        "kind": "popup",
+        "trigger": "steel_popper_1",
+        "delay": 0.2,
+        "duration": 1.5
+      }
+    },
+    {
+      "id": "paper_stack_double_4",
+      "type": "paper_stack_double",
+      "x": 0.5154,
+      "y": 0.6059,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_mini_5",
+      "type": "paper_mini",
+      "x": 0.7262,
+      "y": 0.6234,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "advanced",
+    "tags": [
+      "activator",
+      "pop-up",
+      "disappearing"
+    ]
+  }
+}

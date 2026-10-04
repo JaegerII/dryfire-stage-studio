@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "match_005",
+  "name": "Match 05 – Indoor Tactics",
+  "description": "A flash target, twin ports and a row of boxes.",
+  "stageIds": [
+    "stage_401",
+    "stage_402",
+    "stage_403"
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "tags": [
+      "demo"
+    ]
+  }
+}

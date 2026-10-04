@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "match_004",
+  "name": "Match 04 – Outdoor Classics",
+  "description": "El Prez style, a sliding mover and long steel.",
+  "stageIds": [
+    "stage_301",
+    "stage_302",
+    "stage_303"
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "tags": [
+      "demo"
+    ]
+  }
+}

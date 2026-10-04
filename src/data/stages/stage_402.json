@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_402",
+  "name": "Twin Ports",
+  "description": "Two ports, one target behind each, hard cover and steel in the middle.",
+  "environment": "indoor_02",
+  "parTime": 6.5,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_wall_port_1",
+      "type": "mesh_wall_port",
+      "x": 0.3568,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": 0.3325,
+      "y": 0.5909,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_wall_port_3",
+      "type": "mesh_wall_port",
+      "x": 0.6432,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "flip": true
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 0.6675,
+      "y": 0.5909,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_hc_half_5",
+      "type": "paper_hc_half",
+      "x": 0.5,
+      "y": 0.578,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 0.544,
+      "y": 0.5382,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "advanced",
+    "tags": [
+      "port",
+      "partial",
+      "hard cover"
+    ]
+  }
+}
