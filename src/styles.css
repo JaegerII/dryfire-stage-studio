@@ -227,14 +227,6 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .hud-right { text-align: right; font-size: 3.1cqh; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .hud-label { font-size: 0.55em; letter-spacing: 0.22em; color: var(--muted); font-weight: 700; margin-right: 0.4em; vertical-align: 0.25em; }
 .hud-bottom { position: absolute; left: 0; right: 0; bottom: 4.2cqh; display: flex; flex-direction: column; align-items: center; gap: 0.8cqh; }
-.hud-status {
-  font-size: 4.4cqh; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase;
-  padding: 0.6cqh 2.2cqh; border-radius: 0.8cqh; background: rgba(8, 9, 9, 0.55);
-}
-.hud-status:empty { display: none; }
-.hud-status.reset { color: var(--muted); font-size: 2.6cqh; }
-.hud-status.standby { color: var(--standby); }
-.hud-status.time { color: var(--time); }
 .hud-timer { font-size: 6cqh; font-weight: 800; font-variant-numeric: tabular-nums; text-shadow: 0 0.3cqh 1.2cqh rgba(0, 0, 0, 0.6); }
 .hud-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 0.55cqh; background: rgba(255, 255, 255, 0.06); }
 .hud-progress > div { height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--faint); }
@@ -260,24 +252,23 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .complete { background: rgba(5, 6, 5, 0.86); }
 .complete p { color: var(--muted); font-size: 3cqh; margin: 2.6cqh 0 0; }
 .complete-actions { display: flex; gap: 12px; margin-top: 5cqh; }
-/* range command: dark band across the screen, spaced white type, white bars at both ends */
-.hud-center {
-  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%) scaleY(0.6);
-  padding: 2.4cqh 0; background: rgba(12, 13, 13, 0.68);
-  text-align: center; font-size: 8.5cqh; font-weight: 600; letter-spacing: 0.16em; padding-left: 0.16em;
-  text-transform: uppercase; color: #ffffff; line-height: 1;
+/* range command card — FORTH TRACE style: dark surface, Montserrat Black, sage eyebrow, red accent rule */
+.hud-cmd {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.96);
+  min-width: 52cqh; padding: 2.6cqh 6cqh 3cqh; text-align: center;
+  background: rgba(15, 16, 16, 0.86); border: 1px solid rgba(237, 237, 230, 0.12); border-radius: 1.4cqh;
+  box-shadow: 0 3cqh 8cqh -2cqh rgba(0, 0, 0, 0.85);
   opacity: 0; transition: opacity 0.16s ease-out, transform 0.16s ease-out;
 }
-.hud-center::before,
-.hud-center::after {
-  content: ''; position: absolute; top: 18%; bottom: 18%; width: 0.6cqh; background: #ffffff;
-}
-.hud-center::before { left: 3.5%; }
-.hud-center::after { right: 3.5%; }
-.hud-center.show { opacity: 1; transform: translateY(-50%) scaleY(1); }
-.hud-center.standby { color: var(--standby); font-weight: 800; letter-spacing: 0.24em; padding-left: 0.24em; }
-.hud-center.standby::before,
-.hud-center.standby::after { background: var(--standby); }
+.hud-cmd.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.cmd-rep { display: block; font-size: 1.8cqh; font-weight: 600; letter-spacing: 0.34em; padding-left: 0.34em; text-transform: uppercase; color: var(--sage); margin-bottom: 1.4cqh; }
+.cmd-text { display: block; font-size: 7.6cqh; font-weight: 900; letter-spacing: 0.09em; padding-left: 0.09em; text-transform: uppercase; line-height: 1; color: var(--text); white-space: nowrap; }
+.cmd-rule { display: block; width: 6cqh; height: 0.35cqh; margin: 2.2cqh auto 0; background: var(--accent); border-radius: 0.2cqh; }
+.hud-cmd.ready .cmd-text,
+.hud-cmd.reset .cmd-text { color: var(--sage); }
+.hud-cmd.standby .cmd-text { color: var(--standby); }
+.hud-cmd.standby .cmd-rule { background: var(--standby); }
+.hud-cmd.time .cmd-text { color: var(--accent); }
 .hud-caption { font-size: 1.9cqh; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6cqh; }
 
 /* stage layer: hidden behind intro / title cards, pushes in when the stage starts */

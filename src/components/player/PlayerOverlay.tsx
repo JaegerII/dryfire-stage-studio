@@ -19,14 +19,14 @@ const ASK_SECONDS = 1.6;
 
 type Cue = 'ready' | 'reset' | 'time' | 'ask' | 'standby' | 'active' | '';
 
-/** Small status line at the bottom. */
-const BOTTOM: Partial<Record<Cue, { text: string; cls: string }>> = {
-  ready: { text: 'Make Ready', cls: 'reset' },
-  reset: { text: 'Reset', cls: 'reset' },
-  time: { text: 'Time', cls: 'time' },
+/** Range commands, all shown in the FORTH TRACE command card in the centre. */
+const COMMAND: Partial<Record<Cue, string>> = {
+  ready: 'Make Ready',
+  ask: 'Are you ready?',
+  standby: 'Standby',
+  time: 'Time',
+  reset: 'Reset',
 };
-/** Big centre command. */
-const CENTER: Partial<Record<Cue, string>> = { ask: 'Are you ready?', standby: 'Standby' };
 
 /**
  * Minimal training HUD. Updated imperatively every animation frame
@@ -34,11 +34,12 @@ const CENTER: Partial<Record<Cue, string>> = { ask: 'Are you ready?', standby: '
  */
 export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOverlay({ stage, caption, showTimer, signalBorder }, ref) {
   const rep = useRef<HTMLSpanElement>(null);
-  const status = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const timer = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const center = useRef<HTMLDivElement>(null);
+  const cmdText = useRef<HTMLSpanElement>(null);
+  const cmdRep = useRef<HTMLSpanElement>(null);
   const last = useRef({ cue: '' as Cue, rep: -1 });
 
   useImperativeHandle(ref, () => ({
@@ -52,17 +53,11 @@ export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOve
           ? 'ask'
           : (s.phase as Cue);
       if (s.rep !== l.rep && rep.current) rep.current.textContent = String(Math.max(1, s.rep));
-      if (cue !== l.cue) {
-        const st = BOTTOM[cue] ?? { text: '', cls: '' };
-        if (status.current) {
-          status.current.textContent = st.text;
-          status.current.className = `hud-status ${st.cls}`;
-        }
-        if (center.current) {
-          const text = CENTER[cue];
-          center.current.textContent = text ?? '';
-          center.current.className = `hud-center${text ? ` show ${cue}` : ''}`;
-        }
+      if (cue !== l.cue || s.rep !== l.rep) {
+        const text = COMMAND[cue];
+        if (text && cmdText.current) cmdText.current.textContent = text;
+        if (cmdRep.current) cmdRep.current.textContent = `Rep ${Math.max(1, s.rep)} / ${stage.repetitions}`;
+        if (center.current) center.current.className = `hud-cmd${text ? ` show ${cue}` : ''}`;
         if (root.current) root.current.dataset.signal = signalBorder ? (cue === 'time' ? 'time' : s.phase) : '';
       }
       if (bar.current) {
@@ -90,11 +85,12 @@ export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOve
           </div>
         </div>
       </div>
-      <div className="hud-center" ref={center} />
-      <div className="hud-bottom">
-        {showTimer && <div className="hud-timer" ref={timer}>0.00</div>}
-        <div className="hud-status" ref={status} />
+      <div className="hud-cmd" ref={center}>
+        <span className="cmd-rep" ref={cmdRep} />
+        <span className="cmd-text" ref={cmdText} />
+        <span className="cmd-rule" />
       </div>
+      <div className="hud-bottom">{showTimer && <div className="hud-timer" ref={timer}>0.00</div>}</div>
       <div className="hud-progress">
         <div ref={bar} />
       </div>
