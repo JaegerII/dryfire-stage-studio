@@ -36,11 +36,14 @@ import meshWallShort from './barriers/mesh_wall_short.svg';
 import meshWallDiagonal from './barriers/mesh_wall_diagonal.svg';
 import meshWallPort from './barriers/mesh_wall_port.svg';
 import meshWallWindow from './barriers/mesh_wall_window.svg';
+import bannerForthTraceBlack from './banners/banner_forth_trace_black.svg';
+import bannerForthTraceWhite from './banners/banner_forth_trace_white.svg';
+import bannerWestArms from './banners/banner_west_arms.svg';
 import crate from './other/crate.svg';
 import crateWide from './other/crate_wide.svg';
 import startBox from './other/start_box.svg';
 
-export type AssetCategory = 'target' | 'barrier' | 'other';
+export type AssetCategory = 'target' | 'barrier' | 'banner' | 'other';
 
 export interface AssetDef {
   type: ObjectType;
@@ -60,6 +63,8 @@ export interface AssetDef {
   stackable?: boolean;
   /** Height (m) of the top surface, for objects things can stand on. */
   topHeight?: number;
+  /** Advertising banner: hangs on a selected wall when added. */
+  banner?: boolean;
 }
 
 export const ASSETS: Record<ObjectType, AssetDef> = {
@@ -91,6 +96,9 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   wood_wall: { type: 'wood_wall', category: 'barrier', label: 'Wooden Wall (3 m)', src: woodWall, viewW: 330, viewH: 204, groundY: 200, scoring: false },
   barrel: { type: 'barrel', category: 'barrier', label: 'Blue Barrel', src: barrel, viewW: 80, viewH: 99, groundY: 95, scoring: false, topHeight: 0.9 },
   barrel_barricade: { type: 'barrel_barricade', category: 'barrier', label: 'Barrel Barricade', src: barrelBarricade, viewW: 220, viewH: 154, groundY: 150, scoring: false },
+  banner_forth_trace_black: { type: 'banner_forth_trace_black', category: 'banner', label: 'Banner FORTH TRACE (black)', src: bannerForthTraceBlack, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
+  banner_forth_trace_white: { type: 'banner_forth_trace_white', category: 'banner', label: 'Banner FORTH TRACE (white)', src: bannerForthTraceWhite, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
+  banner_west_arms: { type: 'banner_west_arms', category: 'banner', label: 'Banner West Arms', src: bannerWestArms, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
   crate_wide: { type: 'crate_wide', category: 'other', label: 'Box wide (120 cm)', src: crateWide, viewW: 136, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },

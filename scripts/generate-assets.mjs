@@ -5,7 +5,7 @@
 // Units inside every SVG are centimetres. The viewBox is centred on x = 0,
 // the ground line sits at y = C (content height), plus a 4 cm margin below
 // for the contact shadow. registry.ts mirrors these numbers.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -462,6 +462,59 @@ ${plywood(-half, 0, w, H)}
   );
 };
 
+// ------------------------------------------------------------------ advertising banners (mesh banner, 160 × 50 cm)
+
+const BANNER_W = 160;
+const BANNER_H = 50;
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const b64 = (p) => readFileSync(p).toString('base64');
+const FONT = b64(join(root, 'fonts', 'montserrat-latin.woff2'));
+const MARK = readFileSync(join(root, 'brand', 'mark.ts'), 'utf8').match(/MARK_PATH =\s*'([^']+)'/)[1];
+const BRAND = { ink: '#0f1010', paper: '#edede6', sage: '#a3a398', accent: '#ff3131' };
+
+/** Printed mesh banner: fabric with a hem and eyelets, content drawn on top. */
+const banner = (bg, hem, body) => {
+  const x = -BANNER_W / 2;
+  const eyelets = [x + 3, -BANNER_W / 4, 0, BANNER_W / 4, -x - 3]
+    .flatMap((ex) => [3, BANNER_H - 3].map((ey) => `<circle cx="${ex}" cy="${ey}" r="1.15" fill="#c9c9c4" stroke="#6b6b66" stroke-width="0.35"/><circle cx="${ex}" cy="${ey}" r="0.5" fill="rgba(0,0,0,0.55)"/>`))
+    .join('');
+  return svg(
+    BANNER_W,
+    BANNER_H,
+    `<rect x="${x}" y="0" width="${BANNER_W}" height="${BANNER_H}" fill="${bg}"/>
+<rect x="${x + 0.8}" y="0.8" width="${BANNER_W - 1.6}" height="${BANNER_H - 1.6}" fill="none" stroke="${hem}" stroke-width="0.5" stroke-dasharray="1.2 0.8"/>
+${body}
+<rect x="${x}" y="0" width="${BANNER_W}" height="${BANNER_H}" fill="url(#bannerShade)"/>
+<rect x="${x}" y="0" width="${BANNER_W}" height="${BANNER_H}" fill="url(#bannerMesh)"/>
+${eyelets}`,
+    `<style>@font-face{font-family:'MontserratBanner';font-weight:100 900;src:url(data:font/woff2;base64,${FONT}) format('woff2');}</style>
+<linearGradient id="bannerShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.07"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.16"/></linearGradient>
+<pattern id="bannerMesh" width="0.6" height="0.6" patternUnits="userSpaceOnUse"><circle cx="0.3" cy="0.3" r="0.09" fill="rgba(0,0,0,0.22)"/></pattern>`,
+  );
+};
+
+/** FORTH TRACE: mark + wordmark + red rule. */
+const forthTraceBanner = (bg, ink, hem) => {
+  const markH = 32;
+  const k = markH / 908.7;
+  const markW = 166.6 * k;
+  const textX = -50;
+  return banner(
+    bg,
+    hem,
+    `<path d="${MARK}" fill="${ink}" transform="translate(${textX - 9 - markW} ${(BANNER_H - markH) / 2}) scale(${k})"/>
+<text x="${textX}" y="29.5" font-family="MontserratBanner, Montserrat, sans-serif" font-weight="900" font-size="12.4" fill="${ink}" textLength="117" lengthAdjust="spacingAndGlyphs">FORTH TRACE</text>
+<rect x="${textX}" y="33.6" width="12" height="1.1" fill="${BRAND.accent}"/>
+<text x="${textX + 15}" y="34.8" font-family="MontserratBanner, Montserrat, sans-serif" font-weight="600" font-size="2.6" letter-spacing="1" fill="${BRAND.sage}">DRY FIRE · STAGE TRAINING</text>`,
+  );
+};
+
+const westArmsBanner = () => {
+  const h = 36;
+  const w = (h * 1000) / 392;
+  return banner(BRAND.ink, 'rgba(237,237,230,0.18)', `<image href="data:image/png;base64,${b64(join(scriptDir, 'brand', 'west_arms_logo.png'))}" x="${-w / 2}" y="${(BANNER_H - h) / 2}" width="${w}" height="${h}"/>`);
+};
+
 const startBox = () => {
   // a 1 × 1 m box on the floor, pre-foreshortened (seen from behind the box)
   const H = 30;
@@ -552,6 +605,9 @@ out('other/crate_wide.svg', crate(120));
 out('barriers/barrel.svg', barrel());
 out('barriers/barrel_barricade.svg', barrelBarricade());
 out('barriers/wood_wall.svg', woodWall());
+out('banners/banner_forth_trace_black.svg', forthTraceBanner(BRAND.ink, BRAND.paper, 'rgba(237,237,230,0.18)'));
+out('banners/banner_forth_trace_white.svg', forthTraceBanner(BRAND.paper, BRAND.ink, 'rgba(15,16,16,0.18)'));
+out('banners/banner_west_arms.svg', westArmsBanner());
 // start: single 2.1 kHz, 400 ms — par: double 1.6 kHz, 2 × 160 ms
 out('audio/start_beep.wav', wav(tones([{ freq: 2100, start: 0, dur: 0.4 }], 0.45)));
 out('audio/par_beep.wav', wav(tones([{ freq: 1600, start: 0, dur: 0.16 }, { freq: 1600, start: 0.24, dur: 0.16 }], 0.45)));

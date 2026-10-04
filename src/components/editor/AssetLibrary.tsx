@@ -8,6 +8,7 @@ export const DND_TYPE = 'application/x-dryfire-asset';
 const SECTIONS: { title: string; category: AssetCategory }[] = [
   { title: 'Targets', category: 'target' },
   { title: 'Barriers', category: 'barrier' },
+  { title: 'Banners', category: 'banner' },
   { title: 'Other', category: 'other' },
 ];
 

@@ -39,7 +39,8 @@ export type BarrierType =
   | 'barrel'
   | 'barrel_barricade';
 export type OtherType = 'start_box' | 'crate' | 'crate_wide';
-export type ObjectType = TargetType | BarrierType | OtherType;
+export type BannerType = 'banner_forth_trace_black' | 'banner_forth_trace_white' | 'banner_west_arms';
+export type ObjectType = TargetType | BarrierType | OtherType | BannerType;
 
 /**
  * Target behaviour during the par window. Times are seconds after the start

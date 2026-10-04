@@ -15,7 +15,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 
 const SNAP_STEP = 0.0125;
-const DEFAULT_Y: Record<string, number> = { target: 0.62, barrier: 0.68, other: 0.97 };
+const DEFAULT_Y: Record<string, number> = { target: 0.62, barrier: 0.68, banner: 0.68, other: 0.97 };
 
 interface Props {
   initial: Stage;
@@ -119,6 +119,10 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
       const top = base && ASSETS[base.type].topHeight;
       if (top && ASSETS[type].stackable && y === undefined) {
         obj = { ...obj, x: base.x, y: base.y, zIndex: base.zIndex, elevation: +(top * base.scale + (base.elevation ?? 0)).toFixed(3) };
+      }
+      // a wall is selected → hang the banner on it (same spot and angle, drawn in front)
+      if (base && ASSETS[base.type].category === 'barrier' && ASSETS[type].banner && y === undefined) {
+        obj = { ...obj, x: base.x, y: base.y, yaw: base.yaw, zIndex: base.zIndex + 1, elevation: +(1.0 * base.scale + (base.elevation ?? 0)).toFixed(3) };
       }
       update((s) => ({ ...s, objects: [...s.objects, obj] }));
       setSelectedIds([obj.id]);
