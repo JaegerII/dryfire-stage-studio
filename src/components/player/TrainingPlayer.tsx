@@ -55,7 +55,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     intro: isMatch,
     timer: false,
     voice: true,
-    signalBorder: false,
+    signalBorder: true,
     seed: stages.map((s) => s.id).join('+'),
     volume: 1,
     record: false,
