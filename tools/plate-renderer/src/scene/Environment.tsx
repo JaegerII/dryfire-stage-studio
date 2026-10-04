@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { random } from 'remotion';
 import { useTextures } from './assets';
 
-export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03';
+export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04';
 
 const repeat = (t: THREE.Texture, x: number, y: number) => {
   const c = t.clone();
@@ -425,7 +425,126 @@ const OutdoorMeadow: React.FC = () => {
   );
 };
 
+// ------------------------------------------------------------------ indoor 04: white beam ceiling, dark walls
+
+const IndoorBeams: React.FC = () => {
+  const tex = useTextures();
+  const W = 14;
+  const D = 38;
+  const H = 4.6;
+  const z0 = -4;
+  const back = 32;
+  const wallMap = useMemo(() => repeat(tex.concrete, D / 4, 1.2), [tex]);
+  const backMap = useMemo(() => repeat(tex.concrete, W / 4, 1.2), [tex]);
+  const beams = [-4.8, -1.6, 1.6, 4.8];
+  const spots = beams.flatMap((x) => [2, 7, 12, 17, 22, 27].map((z) => [x, z] as const));
+
+  return (
+    <>
+      <color attach="background" args={['#d9d9d6']} />
+      <ambientLight intensity={0.6} />
+      <hemisphereLight args={['#ffffff', '#6a6662', 0.7]} />
+      <KeyLight position={[2, 14, -3]} intensity={1.3} color="#fbf7ef" />
+      {spots.filter((_, i) => i % 2 === 0).map(([x, z], i) => (
+        <pointLight key={i} position={[x, H - 0.7, z]} intensity={6} distance={9} decay={1.5} color="#fff6e8" />
+      ))}
+
+      {/* light concrete floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, z0 + D / 2]} receiveShadow>
+        <planeGeometry args={[W, D]} />
+        <meshStandardMaterial map={tex.concrete} color="#d6d4cf" roughness={0.5} />
+      </mesh>
+      {/* dark speckled walls */}
+      {[-1, 1].map((sx) => (
+        <mesh key={sx} position={[sx * (W / 2), H / 2, z0 + D / 2]} rotation={[0, (sx * Math.PI) / 2, 0]} receiveShadow>
+          <planeGeometry args={[D, H]} />
+          <meshStandardMaterial map={wallMap} color="#b4b7bb" roughness={1} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      <mesh position={[0, H / 2, back]} receiveShadow>
+        <planeGeometry args={[W, H]} />
+        <meshStandardMaterial map={backMap} color="#a2a5aa" roughness={1} side={THREE.DoubleSide} />
+      </mesh>
+      {/* bright ceiling with longitudinal beams and spots */}
+      <mesh position={[0, H, z0 + D / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[W, D]} />
+        <meshStandardMaterial color="#f4f3ef" emissive="#ffffff" emissiveIntensity={0.25} side={THREE.DoubleSide} />
+      </mesh>
+      {beams.map((x) => (
+        <mesh key={x} position={[x, H - 0.35, z0 + D / 2]}>
+          <boxGeometry args={[0.55, 0.7, D]} />
+          <meshStandardMaterial color="#e9e8e4" roughness={0.6} />
+        </mesh>
+      ))}
+      {spots.map(([x, z], i) => (
+        <mesh key={`s${i}`} position={[x, H - 0.72, z]}>
+          <boxGeometry args={[0.3, 0.05, 0.3]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={3} />
+        </mesh>
+      ))}
+    </>
+  );
+};
+
+// ------------------------------------------------------------------ outdoor 04: sunset, covered shooting bays
+
+const OutdoorSunset: React.FC = () => {
+  const { grass, berm, sunset } = useTextures();
+  const posts = Array.from({ length: 15 }, (_, i) => -28 + i * 4);
+  return (
+    <>
+      <color attach="background" args={['#e7a067']} />
+      <fog attach="fog" args={['#d99a6a', 35, 95]} />
+      <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#ffc48f', '#3d4a28', 0.9]} />
+      <KeyLight position={[6, 5, 30]} intensity={1.6} color="#ffb070" />
+      <directionalLight position={[-3, 10, -6]} intensity={0.7} color="#ffe2c2" />
+
+      <mesh position={[0, 16, 64]}>
+        <planeGeometry args={[240, 72]} />
+        <meshBasicMaterial map={sunset} fog={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* grass */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 14]} receiveShadow>
+        <planeGeometry args={[70, 60]} />
+        <meshStandardMaterial map={grass} color="#e0e6b8" roughness={1} />
+      </mesh>
+
+      {/* covered firing line in the distance: posts, sloped roof, dirt backstop behind */}
+      <group position={[0, 0, 30]}>
+        <mesh position={[0, 3.3, 0]} rotation={[0.12, 0, 0]} castShadow receiveShadow>
+          <boxGeometry args={[56, 0.18, 5]} />
+          <meshStandardMaterial color="#3E4A5E" roughness={0.6} metalness={0.3} />
+        </mesh>
+        <mesh position={[0, 3.05, -2.9]}>
+          <boxGeometry args={[56, 0.25, 0.12]} />
+          <meshStandardMaterial color="#3A4456" roughness={0.6} />
+        </mesh>
+        {posts.map((x) => (
+          <mesh key={x} position={[x, 1.6, -2.7]} castShadow>
+            <boxGeometry args={[0.18, 3.2, 0.18]} />
+            <meshStandardMaterial color="#C8A94E" roughness={0.6} />
+          </mesh>
+        ))}
+        {posts.map((x) => (
+          <mesh key={`b${x}`} position={[x + 2, 0.45, 1]} castShadow receiveShadow>
+            <boxGeometry args={[1.6, 0.9, 0.6]} />
+            <meshStandardMaterial color="#5d564c" roughness={0.9} />
+          </mesh>
+        ))}
+        <mesh position={[0, 1.3, 3.6]} rotation={[0.35, 0, 0]} receiveShadow>
+          <planeGeometry args={[50, 3]} />
+          <meshStandardMaterial map={berm} roughness={1} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+    </>
+  );
+};
+
 export const RangeEnvironment: React.FC<{ id: EnvironmentId }> = ({ id }) => {
+  if (id === 'indoor_04') return <IndoorBeams />;
+  if (id === 'outdoor_04') return <OutdoorSunset />;
   if (id === 'indoor_03') return <IndoorTunnel />;
   if (id === 'outdoor_03') return <OutdoorMeadow />;
   return id === 'indoor_01' || id === 'indoor_02' ? <Indoor style={INDOOR[id]} /> : <Outdoor style={OUTDOOR[id]} seed={id} />;

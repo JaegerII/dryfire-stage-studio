@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 0 80 99" width="480" height="594">
+<defs>
+<radialGradient id="shadow"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#DCAB68"/><stop offset="0.55" stop-color="#C4934F"/><stop offset="1" stop-color="#9E7238"/></linearGradient>
+<linearGradient id="drum" x1="0" x2="1"><stop offset="0" stop-color="#14508F"/><stop offset="0.35" stop-color="#2F7FD0"/><stop offset="0.55" stop-color="#4A97E2"/><stop offset="1" stop-color="#123F72"/></linearGradient>
+<linearGradient id="ply" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0" stop-color="#E2CDA6"/><stop offset="1" stop-color="#CDB487"/></linearGradient>
+</defs>
+<ellipse cx="0" cy="95" rx="36" ry="3.2399999999999998" fill="url(#shadow)"/><path d="M-29 9L-29 92Q0 98 29 92L29 9Z" fill="url(#drum)"/>
+<g fill="none" stroke="rgba(10,40,80,0.55)" stroke-width="2.2"><path d="M-29 35Q0 40 29 35"/><path d="M-29 65Q0 70 29 65"/></g>
+<ellipse cx="0" cy="9" rx="29" ry="5" fill="#2A6FB8" stroke="#103E6E" stroke-width="1"/>
+<ellipse cx="0" cy="9" rx="25" ry="3.4" fill="#1D5A9C"/>
+</svg>

@@ -214,6 +214,51 @@ m5.push(
   ),
 );
 
+// ------------------------------------------------------------------ Match 06 – Range Day
+const m6 = [];
+n = 0;
+m6.push(
+  add(
+    stage('stage_501', 'Wooden Wall', 'Partial target up close, then work around the big wooden wall.', 'indoor_04', 6, [
+      o('paper_full', -2.6, 5.8),
+      o('no_shoot_overlay', -2.6, 5.75, { elevation: 0.55 }),
+      o('wood_wall', -1.0, 9.2),
+      o('paper_full', 0.9, 10),
+      o('paper_full', 1.8, 10.2),
+      o('no_shoot_overlay', 1.8, 10.15, { elevation: 0.55 }),
+      o('paper_full', 2.7, 10),
+      o('steel_popper', 4.0, 13.5),
+    ], { difficulty: 'intermediate', tags: ['no-shoot', 'wall'] }),
+  ),
+);
+n = 0;
+m6.push(
+  add(
+    stage('stage_502', 'Barrel Barricade', 'Sunset bay: shoot over and around the barrel barricade.', 'outdoor_04', 6, [
+      o('paper_full', -2.7, 6.6),
+      o('barrel_barricade', -0.1, 7),
+      o('paper_full', -0.3, 10.5, { elevation: 0.55 }), // peeks over the plywood
+      o('steel_popper', -1.9, 13.5),
+      o('paper_full', 1.7, 9.6),
+      o('paper_full', 2.7, 6.8),
+      o('mesh_wall', 3.9, 6.4, { yaw: -50 }),
+    ], { difficulty: 'intermediate', tags: ['barricade', 'barrels'] }),
+  ),
+);
+n = 0;
+m6.push(
+  add(
+    stage('stage_503', 'Overlap', 'Close paper with an overlapping no-shoot, then reach out to the far targets.', 'indoor_04', 6.5, [
+      o('paper_full', -2.1, 5.3),
+      o('no_shoot', -2.4, 5.0),
+      o('paper_full', 2.2, 5.5),
+      o('paper_full', -0.5, 14),
+      o('steel_plate', 1.2, 15),
+      o('paper_full', 4.6, 18),
+    ], { difficulty: 'beginner', tags: ['no-shoot', 'distance'] }),
+  ),
+);
+
 for (const s of stages) writeFileSync(join(root, 'stages', `${s.id}.json`), JSON.stringify(s, null, 2) + '\n');
 
 const matches = [
@@ -221,6 +266,7 @@ const matches = [
   { id: 'match_003', name: 'Match 03 – Indoor Movers', description: 'A swinger behind a wall, window and port, a pop-up finale.', stageIds: m3 },
   { id: 'match_004', name: 'Match 04 – Outdoor Classics', description: 'El Prez style, a sliding mover and long steel.', stageIds: m4 },
   { id: 'match_005', name: 'Match 05 – Indoor Tactics', description: 'A flash target, twin ports and a row of boxes.', stageIds: m5 },
+  { id: 'match_006', name: 'Match 06 – Range Day', description: 'Wooden wall, a barrel barricade at sunset and an overlap drill.', stageIds: m6 },
 ];
 for (const m of matches) {
   writeFileSync(

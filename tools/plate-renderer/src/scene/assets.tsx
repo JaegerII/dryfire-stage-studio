@@ -7,6 +7,7 @@ import {
   grassTexture,
   greenFloorTexture,
   overcastSkyTexture,
+  sunsetSkyTexture,
   bermTexture,
   blockWallTexture,
   concreteTexture,
@@ -16,7 +17,7 @@ import {
 } from './textures';
 
 type Textures = Record<
-  'concrete' | 'gravel' | 'panel' | 'block' | 'rubber' | 'berm' | 'sky' | 'tile' | 'greenFloor' | 'grass' | 'grassBerm' | 'overcast',
+  'concrete' | 'gravel' | 'panel' | 'block' | 'rubber' | 'berm' | 'sky' | 'tile' | 'greenFloor' | 'grass' | 'grassBerm' | 'overcast' | 'sunset',
   THREE.Texture
 >;
 
@@ -38,6 +39,7 @@ export const RangeAssets: React.FC<{ children: React.ReactNode }> = ({ children 
       grass: grassTexture(),
       grassBerm: grassBermTexture(),
       overcast: overcastSkyTexture(),
+      sunset: sunsetSkyTexture(),
     }),
     [],
   );

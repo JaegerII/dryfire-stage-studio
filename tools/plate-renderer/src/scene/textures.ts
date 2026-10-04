@@ -283,3 +283,28 @@ export const overcastSkyTexture = () => {
   blotches(ctx, 1024, 512, 'oc-light', 18, 'rgba(232,235,237,1)', 0.35);
   return finish(c);
 };
+
+// ---------------------------------------------------------------- indoor 04 / outdoor 04
+
+/** Orange sunset sky with streaky clouds. */
+export const sunsetSkyTexture = () => {
+  const [c, ctx] = canvas(1024, 512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#2F3A5A');
+  g.addColorStop(0.45, '#C9643A');
+  g.addColorStop(0.8, '#F0A95E');
+  g.addColorStop(1, '#F6CB8C');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 512);
+  ctx.filter = 'blur(10px)';
+  for (let i = 0; i < 26; i++) {
+    const x = random(`ss-x${i}`) * 1024;
+    const y = 50 + random(`ss-y${i}`) * 230;
+    ctx.fillStyle = random(`ss-c${i}`) > 0.4 ? 'rgba(255,170,100,0.7)' : 'rgba(140,70,85,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 60 + random(`ss-w${i}`) * 140, 6 + random(`ss-h${i}`) * 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.filter = 'none';
+  return finish(c);
+};

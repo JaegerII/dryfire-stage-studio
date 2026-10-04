@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "match_006",
+  "name": "Match 06 – Range Day",
+  "description": "Wooden wall, a barrel barricade at sunset and an overlap drill.",
+  "stageIds": [
+    "stage_501",
+    "stage_502",
+    "stage_503"
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "tags": [
+      "demo"
+    ]
+  }
+}

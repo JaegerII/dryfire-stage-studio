@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_503",
+  "name": "Overlap",
+  "description": "Close paper with an overlapping no-shoot, then reach out to the far targets.",
+  "environment": "indoor_04",
+  "parTime": 6.5,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": 0.2795,
+      "y": 0.68,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "no_shoot_2",
+      "type": "no_shoot",
+      "x": 0.2375,
+      "y": 0.6917,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 0.725,
+      "y": 0.6727,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 0.4757,
+      "y": 0.5296,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_5",
+      "type": "steel_plate",
+      "x": 0.5549,
+      "y": 0.5221,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_6",
+      "type": "paper_full",
+      "x": 0.6793,
+      "y": 0.504,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "beginner",
+    "tags": [
+      "no-shoot",
+      "distance"
+    ]
+  }
+}

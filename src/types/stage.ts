@@ -6,7 +6,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03';
+export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04';
 
 export type TargetType =
   | 'paper_full'
@@ -28,7 +28,16 @@ export type TargetType =
   | 'steel_popper'
   | 'steel_plate'
   | 'steel_plate_rack';
-export type BarrierType = 'mesh_wall' | 'mesh_wall_short' | 'mesh_wall_window' | 'mesh_wall_diagonal' | 'mesh_wall_port' | 'mesh_corner';
+export type BarrierType =
+  | 'mesh_wall'
+  | 'mesh_wall_short'
+  | 'mesh_wall_window'
+  | 'mesh_wall_diagonal'
+  | 'mesh_wall_port'
+  | 'mesh_corner'
+  | 'wood_wall'
+  | 'barrel'
+  | 'barrel_barricade';
 export type OtherType = 'start_box' | 'crate' | 'crate_wide';
 export type ObjectType = TargetType | BarrierType | OtherType;
 

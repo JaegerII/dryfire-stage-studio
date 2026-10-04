@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-165 0 330 204" width="1980" height="1224">
+<defs>
+<radialGradient id="shadow"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#DCAB68"/><stop offset="0.55" stop-color="#C4934F"/><stop offset="1" stop-color="#9E7238"/></linearGradient>
+<linearGradient id="drum" x1="0" x2="1"><stop offset="0" stop-color="#14508F"/><stop offset="0.35" stop-color="#2F7FD0"/><stop offset="0.55" stop-color="#4A97E2"/><stop offset="1" stop-color="#123F72"/></linearGradient>
+<linearGradient id="ply" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0" stop-color="#E2CDA6"/><stop offset="1" stop-color="#CDB487"/></linearGradient>
+</defs>
+<ellipse cx="0" cy="200" rx="160" ry="14.399999999999999" fill="url(#shadow)"/>
+<path d="M-160 198L-160 8L-150 0L-150 200Z" fill="#9C7A47"/>
+<rect x="-150" y="0" width="300" height="200" fill="url(#ply)" stroke="rgba(110,85,50,0.5)" stroke-width="0.8"/>
+<g fill="none" stroke="rgba(150,120,80,0.25)" stroke-width="0.6"><path d="M-150 3q100 -1.5 300 0" /><path d="M-150 9q100 1.5 300 0" /><path d="M-150 15q100 -1.5 300 0" /><path d="M-150 21q100 1.5 300 0" /><path d="M-150 27q100 -1.5 300 0" /><path d="M-150 33q100 1.5 300 0" /><path d="M-150 39q100 -1.5 300 0" /><path d="M-150 45q100 1.5 300 0" /><path d="M-150 51q100 -1.5 300 0" /><path d="M-150 57q100 1.5 300 0" /><path d="M-150 63q100 -1.5 300 0" /><path d="M-150 69q100 1.5 300 0" /><path d="M-150 75q100 -1.5 300 0" /><path d="M-150 81q100 1.5 300 0" /><path d="M-150 87q100 -1.5 300 0" /><path d="M-150 93q100 1.5 300 0" /><path d="M-150 99q100 -1.5 300 0" /><path d="M-150 105q100 1.5 300 0" /><path d="M-150 111q100 -1.5 300 0" /><path d="M-150 117q100 1.5 300 0" /><path d="M-150 123q100 -1.5 300 0" /><path d="M-150 129q100 1.5 300 0" /><path d="M-150 135q100 -1.5 300 0" /><path d="M-150 141q100 1.5 300 0" /><path d="M-150 147q100 -1.5 300 0" /><path d="M-150 153q100 1.5 300 0" /><path d="M-150 159q100 -1.5 300 0" /><path d="M-150 165q100 1.5 300 0" /><path d="M-150 171q100 -1.5 300 0" /><path d="M-150 177q100 1.5 300 0" /><path d="M-150 183q100 -1.5 300 0" /><path d="M-150 189q100 1.5 300 0" /><path d="M-150 195q100 -1.5 300 0" /></g>
+<g fill="#C9A46C" stroke="rgba(110,85,50,0.45)" stroke-width="0.6">
+<rect x="-150" y="0" width="300" height="5"/><rect x="-150" y="195" width="300" height="5"/>
+<rect x="-150" y="0" width="5" height="200"/><rect x="145" y="0" width="5" height="200"/>
+</g>
+</svg>

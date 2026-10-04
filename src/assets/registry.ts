@@ -27,7 +27,10 @@ import paperStackDouble from './targets/paper_stack_double.svg';
 import paperSwinger from './targets/paper_swinger.svg';
 import steelPlate from './targets/steel_plate.svg';
 import steelPopper from './targets/steel_popper.svg';
+import barrel from './barriers/barrel.svg';
+import barrelBarricade from './barriers/barrel_barricade.svg';
 import meshCorner from './barriers/mesh_corner.svg';
+import woodWall from './barriers/wood_wall.svg';
 import meshWall from './barriers/mesh_wall.svg';
 import meshWallShort from './barriers/mesh_wall_short.svg';
 import meshWallDiagonal from './barriers/mesh_wall_diagonal.svg';
@@ -85,6 +88,9 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   mesh_wall_diagonal: { type: 'mesh_wall_diagonal', category: 'barrier', label: 'Mesh Wall Diagonal', src: meshWallDiagonal, viewW: 220, viewH: 189, groundY: 185, scoring: false },
   mesh_wall_port: { type: 'mesh_wall_port', category: 'barrier', label: 'Mesh Wall with Port', src: meshWallPort, viewW: 240, viewH: 189, groundY: 185, scoring: false },
   mesh_corner: { type: 'mesh_corner', category: 'barrier', label: 'Corner / Angled Wall', src: meshCorner, viewW: 290, viewH: 189, groundY: 185, scoring: false },
+  wood_wall: { type: 'wood_wall', category: 'barrier', label: 'Wooden Wall (3 m)', src: woodWall, viewW: 330, viewH: 204, groundY: 200, scoring: false },
+  barrel: { type: 'barrel', category: 'barrier', label: 'Blue Barrel', src: barrel, viewW: 80, viewH: 99, groundY: 95, scoring: false, topHeight: 0.9 },
+  barrel_barricade: { type: 'barrel_barricade', category: 'barrier', label: 'Barrel Barricade', src: barrelBarricade, viewW: 220, viewH: 154, groundY: 150, scoring: false },
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
   crate_wide: { type: 'crate_wide', category: 'other', label: 'Box wide (120 cm)', src: crateWide, viewW: 136, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },

@@ -405,6 +405,63 @@ const crate = (w = 60) => {
   );
 };
 
+// ------------------------------------------------------------------ props: barrels, plywood
+
+const BARREL_DEFS = `<linearGradient id="drum" x1="0" x2="1"><stop offset="0" stop-color="#14508F"/><stop offset="0.35" stop-color="#2F7FD0"/><stop offset="0.55" stop-color="#4A97E2"/><stop offset="1" stop-color="#123F72"/></linearGradient>
+<linearGradient id="ply" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0" stop-color="#E2CDA6"/><stop offset="1" stop-color="#CDB487"/></linearGradient>`;
+
+/** One blue plastic drum (58 cm Ø, 90 cm high) drawn at x, standing on the ground line H. */
+const drum = (x, H) => {
+  const w = 58;
+  const h = 90;
+  const top = H - h;
+  return `<path d="M${x - w / 2} ${top + 4}L${x - w / 2} ${H - 3}Q${x} ${H + 3} ${x + w / 2} ${H - 3}L${x + w / 2} ${top + 4}Z" fill="url(#drum)"/>
+<g fill="none" stroke="rgba(10,40,80,0.55)" stroke-width="2.2"><path d="M${x - w / 2} ${top + 30}Q${x} ${top + 35} ${x + w / 2} ${top + 30}"/><path d="M${x - w / 2} ${top + 60}Q${x} ${top + 65} ${x + w / 2} ${top + 60}"/></g>
+<ellipse cx="${x}" cy="${top + 4}" rx="${w / 2}" ry="5" fill="#2A6FB8" stroke="#103E6E" stroke-width="1"/>
+<ellipse cx="${x}" cy="${top + 4}" rx="${w / 2 - 4}" ry="3.4" fill="#1D5A9C"/>`;
+};
+
+/** Plywood sheet with a faint grain. */
+const plywood = (x, y, w, h) => {
+  const grain = Array.from({ length: Math.round(h / 6) }, (_, i) => `<path d="M${x} ${y + 3 + i * 6}q${w / 3} ${i % 2 ? 1.5 : -1.5} ${w} 0" />`).join('');
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#ply)" stroke="rgba(110,85,50,0.5)" stroke-width="0.8"/>
+<g fill="none" stroke="rgba(150,120,80,0.25)" stroke-width="0.6">${grain}</g>`;
+};
+
+const barrel = () => svg(80, 95, `${shadow(95, 36)}${drum(0, 95)}`, BARREL_DEFS);
+
+/** Barricade: plywood sheet standing behind three drums (like a VTAC-style barrel wall). */
+const barrelBarricade = () => {
+  const H = 150;
+  return svg(
+    220,
+    H,
+    `${shadow(H, 105)}${plywood(-92, H - 150, 184, 112)}
+<rect x="-92" y="${H - 40}" width="184" height="6" fill="#B89C6C"/>
+${drum(-62, H)}${drum(0, H)}${drum(62, H)}`,
+    BARREL_DEFS,
+  );
+};
+
+/** Large wooden wall: plywood face on a 2×4 frame, seen slightly from the left (thickness visible), 3 m × 2 m. */
+const woodWall = () => {
+  const H = 200;
+  const w = 300;
+  const half = w / 2;
+  return svg(
+    w + 30,
+    H,
+    `${shadow(H, half + 10)}
+<path d="M${-half - 10} ${H - 2}L${-half - 10} 8L${-half} 0L${-half} ${H}Z" fill="#9C7A47"/>
+${plywood(-half, 0, w, H)}
+<g fill="#C9A46C" stroke="rgba(110,85,50,0.45)" stroke-width="0.6">
+<rect x="${-half}" y="0" width="${w}" height="5"/><rect x="${-half}" y="${H - 5}" width="${w}" height="5"/>
+<rect x="${-half}" y="0" width="5" height="${H}"/><rect x="${half - 5}" y="0" width="5" height="${H}"/>
+</g>`,
+    BARREL_DEFS,
+  );
+};
+
 const startBox = () => {
   // a 1 × 1 m box on the floor, pre-foreshortened (seen from behind the box)
   const H = 30;
@@ -492,6 +549,9 @@ out('barriers/mesh_corner.svg', cornerWall());
 out('other/start_box.svg', startBox());
 out('other/crate.svg', crate(60));
 out('other/crate_wide.svg', crate(120));
+out('barriers/barrel.svg', barrel());
+out('barriers/barrel_barricade.svg', barrelBarricade());
+out('barriers/wood_wall.svg', woodWall());
 // start: single 2.1 kHz, 400 ms — par: double 1.6 kHz, 2 × 160 ms
 out('audio/start_beep.wav', wav(tones([{ freq: 2100, start: 0, dur: 0.4 }], 0.45)));
 out('audio/par_beep.wav', wav(tones([{ freq: 1600, start: 0, dur: 0.16 }, { freq: 1600, start: 0.24, dur: 0.16 }], 0.45)));
