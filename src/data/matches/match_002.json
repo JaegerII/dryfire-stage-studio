@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "match_002",
+  "name": "Match 02 – Steel & Activators",
+  "description": "Boxes, an activated swinger and a plate rack finish.",
+  "stageIds": [
+    "stage_101",
+    "stage_102",
+    "stage_103"
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "tags": [
+      "demo"
+    ]
+  }
+}

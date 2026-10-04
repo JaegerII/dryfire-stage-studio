@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_102",
+  "name": "Activator",
+  "description": "Hit the popper — the swinger behind the wall starts rocking.",
+  "environment": "outdoor_01",
+  "parTime": 6.5,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": 0.2375,
+      "y": 0.6333,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_popper_1",
+      "type": "steel_popper",
+      "x": 0.5277,
+      "y": 0.5479,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "motion": {
+        "kind": "fall",
+        "delay": 1.2
+      }
+    },
+    {
+      "id": "paper_swinger_3",
+      "type": "paper_swinger",
+      "x": 0.4102,
+      "y": 0.5842,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.5,
+        "trigger": "steel_popper_1",
+        "delay": 0
+      }
+    },
+    {
+      "id": "mesh_wall_short_4",
+      "type": "mesh_wall_short",
+      "x": 0.4078,
+      "y": 0.5892,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_stack_5",
+      "type": "paper_stack",
+      "x": 0.6929,
+      "y": 0.6143,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 0.5857,
+      "y": 0.5429,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "intermediate",
+    "tags": [
+      "activator",
+      "swinger",
+      "steel"
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_201",
+  "name": "Swinger Lane",
+  "description": "A swinger rocks behind the wall from the start beep — time your shots.",
+  "environment": "indoor_02",
+  "parTime": 6,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_hc_vertical_1",
+      "type": "paper_hc_vertical",
+      "x": 0.2673,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_wall_2",
+      "type": "mesh_wall",
+      "x": 0.5,
+      "y": 0.6234,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_swinger_3",
+      "type": "paper_swinger",
+      "x": 0.5,
+      "y": 0.6143,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.4,
+        "delay": 0
+      }
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": 0.3768,
+      "y": 0.5429,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_hc_diagonal_5",
+      "type": "paper_hc_diagonal",
+      "x": 0.7327,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "flip": true
+    },
+    {
+      "id": "no_shoot_6",
+      "type": "no_shoot",
+      "x": 0.7687,
+      "y": 0.6471,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "intermediate",
+    "tags": [
+      "swinger",
+      "hard cover"
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_103",
+  "name": "Plate Rack Finish",
+  "description": "Paper left and right, one through the port, finish on the plate rack.",
+  "environment": "indoor_03",
+  "parTime": 7,
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": 0.4277,
+      "y": 0.6143,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_hc_bottom_2",
+      "type": "paper_hc_bottom",
+      "x": 0.6712,
+      "y": 0.6283,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_wall_port_3",
+      "type": "mesh_wall_port",
+      "x": 0.2563,
+      "y": 0.65,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 0.2309,
+      "y": 0.5944,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_rack_5",
+      "type": "steel_plate_rack",
+      "x": 0.5166,
+      "y": 0.5479,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "intermediate",
+    "tags": [
+      "plate rack",
+      "port"
+    ]
+  }
+}
