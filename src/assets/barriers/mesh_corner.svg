@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-145 0 290 189" width="1740" height="1134">
+<defs>
+<radialGradient id="shadow"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#DCAB68"/><stop offset="0.55" stop-color="#C4934F"/><stop offset="1" stop-color="#9E7238"/></linearGradient>
+
+<pattern id="mesh" width="6" height="5" patternUnits="userSpaceOnUse">
+<rect x="0" y="0" width="1.4" height="5" fill="#FF5A1A"/>
+<rect x="0" y="0" width="6" height="1.2" fill="#FF5A1A"/>
+<rect x="0" y="0" width="1.4" height="1.2" fill="#D9440E"/>
+</pattern><pattern id="meshFar" width="4.2" height="4.4" patternUnits="userSpaceOnUse" patternTransform="skewY(-8)">
+<rect x="0" y="0" width="1.2" height="4.4" fill="#D9440E"/>
+<rect x="0" y="0" width="4.2" height="1.1" fill="#D9440E"/>
+</pattern>
+</defs>
+<ellipse cx="0" cy="185" rx="150" ry="13.5" fill="url(#shadow)"/>
+<rect x="-125" y="5" width="180" height="170" fill="url(#mesh)"/>
+<path d="M55 5L125 23.648648648648646L125 166.35135135135135L55 175Z" fill="url(#meshFar)"/>
+<rect x="121.4" y="15" width="7.2" height="160" fill="url(#wood)"/>
+<g transform="translate(125 -10) scale(0.85 1)">
+<rect x="-13" y="181" width="26" height="4" fill="#151515"/>
+<rect x="-11.5" y="180" width="23" height="1.4" fill="#2C2C2C"/>
+<rect x="-6" y="167" width="12" height="14" fill="#151515"/>
+<rect x="-6" y="167" width="12" height="1.6" fill="#2C2C2C"/></g>
+<rect x="-129.5" y="0" width="9" height="185" fill="url(#wood)"/><rect x="50.5" y="0" width="9" height="185" fill="url(#wood)"/>
+<rect x="-140" y="181" width="30" height="4" fill="#151515"/>
+<rect x="-138.5" y="180" width="27" height="1.4" fill="#2C2C2C"/>
+<rect x="-132" y="165" width="14" height="16" fill="#151515"/>
+<rect x="-132" y="165" width="14" height="1.6" fill="#2C2C2C"/>
+<rect x="40" y="181" width="30" height="4" fill="#151515"/>
+<rect x="41.5" y="180" width="27" height="1.4" fill="#2C2C2C"/>
+<rect x="48" y="165" width="14" height="16" fill="#151515"/>
+<rect x="48" y="165" width="14" height="1.6" fill="#2C2C2C"/>
+</svg>

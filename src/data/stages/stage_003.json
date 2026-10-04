@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_003",
+  "name": "Stage 3 – Challenge",
+  "description": "Window, narrow angles and partial exposures — earn every A.",
+  "environment": "indoor_02",
+  "parTime": 7,
+  "repetitions": 6,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_01",
+      "type": "paper_full",
+      "x": 0.2094,
+      "y": 0.65,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "yaw": 40
+    },
+    {
+      "id": "steel_02",
+      "type": "steel_popper",
+      "x": 0.3114,
+      "y": 0.5479,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_03",
+      "type": "paper_full",
+      "x": 0.3453,
+      "y": 0.5875,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_04",
+      "type": "paper_full",
+      "x": 0.5,
+      "y": 0.5875,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_05",
+      "type": "paper_mini",
+      "x": 0.6312,
+      "y": 0.5591,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_06",
+      "type": "steel_popper",
+      "x": 0.6664,
+      "y": 0.5479,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_07",
+      "type": "paper_full",
+      "x": 0.7712,
+      "y": 0.6333,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "no_08",
+      "type": "no_shoot",
+      "x": 0.752,
+      "y": 0.64,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_09",
+      "type": "mesh_wall_window",
+      "x": 0.5,
+      "y": 0.6442,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_10",
+      "type": "mesh_wall_short",
+      "x": 0.3835,
+      "y": 0.6143,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "difficulty": "advanced",
+    "discipline": "handgun",
+    "tags": [
+      "window",
+      "partial",
+      "steel"
+    ]
+  }
+}

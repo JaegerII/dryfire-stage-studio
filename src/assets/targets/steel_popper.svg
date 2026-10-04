@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-27 0 54 103" width="324" height="618">
+<defs>
+<radialGradient id="shadow"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#DCAB68"/><stop offset="0.55" stop-color="#C4934F"/><stop offset="1" stop-color="#9E7238"/></linearGradient>
+<linearGradient id="steel" x1="0" x2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.65" stop-color="#F0F1EE"/><stop offset="1" stop-color="#CFD2CD"/></linearGradient><linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B9BEC4"/><stop offset="1" stop-color="#7F858C"/></linearGradient>
+</defs>
+<ellipse cx="0" cy="99" rx="26" ry="2.34" fill="url(#shadow)"/>
+
+
+<path d="M-24 99L-16 99L-17 95L-23 95Z" fill="#6E747B"/>
+<path d="M16 99L24 99L23 95L17 95Z" fill="#6E747B"/>
+<rect x="-20" y="92.5" width="40" height="3.2" fill="url(#metal)"/>
+<rect x="-20" y="92.5" width="40" height="0.7" fill="#D3D7DB"/>
+
+<rect x="-8" y="83" width="16" height="10" rx="1" fill="url(#metal)"/>
+<rect x="-8" y="83" width="16" height="1" fill="#D9DDE1"/>
+<circle cx="-4.5" cy="88" r="1" fill="#5D6268"/><circle cx="4.5" cy="88" r="1" fill="#5D6268"/>
+<path d="M-6.39 28.57A15 15 0 1 1 6.39 28.57L7 85L-7 85Z" fill="url(#steel)" stroke="rgba(0,0,0,0.15)" stroke-width="0.35"/>
+</svg>

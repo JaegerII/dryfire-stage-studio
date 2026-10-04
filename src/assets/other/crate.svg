@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-38 0 76 76" width="456" height="456">
+<defs>
+<radialGradient id="shadow"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="wood" x1="0" x2="1"><stop offset="0" stop-color="#DCAB68"/><stop offset="0.55" stop-color="#C4934F"/><stop offset="1" stop-color="#9E7238"/></linearGradient>
+<linearGradient id="ply" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#2A2B2C"/><stop offset="1" stop-color="#121212"/></linearGradient><linearGradient id="plyTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E2F31"/><stop offset="1" stop-color="#46484B"/></linearGradient>
+</defs>
+<ellipse cx="0" cy="72" rx="36" ry="3.2399999999999998" fill="url(#shadow)"/><rect x="-30" y="12" width="60" height="60" fill="url(#ply)"/><g fill="#1C1C1C"><rect x="-30" y="12" width="5" height="60"/><rect x="25" y="12" width="5" height="60"/><rect x="-25" y="12" width="50" height="4"/><rect x="-25" y="68" width="50" height="4"/></g><path d="M-30 12L-25 0L25 0L30 12Z" fill="url(#plyTop)"/><g fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="0.6"><rect x="-30" y="12" width="60" height="60"/><path d="M-30 12L-25 0L25 0L30 12"/></g>
+</svg>

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_001",
+  "name": "Stage 1 – Training",
+  "description": "Basic target transitions — drive the gun, stop, call the shot.",
+  "environment": "indoor_01",
+  "parTime": 5,
+  "repetitions": 6,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_01",
+      "type": "paper_full",
+      "x": 0.2584,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_02",
+      "type": "paper_full",
+      "x": 0.4499,
+      "y": 0.578,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_03",
+      "type": "paper_full",
+      "x": 0.5501,
+      "y": 0.578,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_04",
+      "type": "paper_full",
+      "x": 0.7416,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_05",
+      "type": "mesh_wall",
+      "x": 0.3581,
+      "y": 0.6442,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "yaw": 60
+    },
+    {
+      "id": "mesh_06",
+      "type": "mesh_wall",
+      "x": 0.6419,
+      "y": 0.6442,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "yaw": -60
+    }
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "difficulty": "beginner",
+    "discipline": "handgun",
+    "tags": [
+      "transitions",
+      "paper"
+    ]
+  }
+}

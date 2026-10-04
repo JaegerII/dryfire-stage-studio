@@ -1,0 +1,4 @@
+node_modules
+dist
+tools/plate-renderer/node_modules
+tools/plate-renderer/out

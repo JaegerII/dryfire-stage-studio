@@ -1,0 +1,71 @@
+/**
+ * Central visual asset library. Every stage uses exactly these files,
+ * so every wall, target, popper, no-shoot and start box looks identical.
+ * The SVGs are generated once by scripts/generate-assets.mjs.
+ *
+ * Geometry is in centimetres and mirrors the SVG viewBox:
+ *   viewW × viewH  full image incl. shadow margin
+ *   groundY        distance from the image top to the ground line
+ */
+import type { ObjectType } from '../types/stage';
+import noShoot from './targets/no_shoot.svg';
+import noShootOverlay from './targets/no_shoot_overlay.svg';
+import paperFull from './targets/paper_full.svg';
+import paperCard from './targets/paper_card.svg';
+import paperMini from './targets/paper_mini.svg';
+import paperStack from './targets/paper_stack.svg';
+import paperStackDouble from './targets/paper_stack_double.svg';
+import paperSwinger from './targets/paper_swinger.svg';
+import steelPlate from './targets/steel_plate.svg';
+import steelPopper from './targets/steel_popper.svg';
+import meshCorner from './barriers/mesh_corner.svg';
+import meshWall from './barriers/mesh_wall.svg';
+import meshWallShort from './barriers/mesh_wall_short.svg';
+import meshWallWindow from './barriers/mesh_wall_window.svg';
+import crate from './other/crate.svg';
+import crateWide from './other/crate_wide.svg';
+import startBox from './other/start_box.svg';
+
+export type AssetCategory = 'target' | 'barrier' | 'other';
+
+export interface AssetDef {
+  type: ObjectType;
+  category: AssetCategory;
+  label: string;
+  src: string;
+  viewW: number;
+  viewH: number;
+  groundY: number;
+  /** Engaged target (paper / steel) — not a no-shoot or prop. */
+  scoring: boolean;
+  /** Steel that can fall when "hit" (activator). */
+  canFall?: boolean;
+  /** Elevation (m) given to new objects of this type. */
+  defaultElevation?: number;
+  /** Lands on top of a selected box when added. */
+  stackable?: boolean;
+  /** Height (m) of the top surface, for objects things can stand on. */
+  topHeight?: number;
+}
+
+export const ASSETS: Record<ObjectType, AssetDef> = {
+  paper_full: { type: 'paper_full', category: 'target', label: 'Paper Target', src: paperFull, viewW: 54, viewH: 147, groundY: 143, scoring: true },
+  paper_mini: { type: 'paper_mini', category: 'target', label: 'Mini Paper Target', src: paperMini, viewW: 54, viewH: 124.96, groundY: 120.96, scoring: true },
+  no_shoot: { type: 'no_shoot', category: 'target', label: 'No-Shoot', src: noShoot, viewW: 54, viewH: 147, groundY: 143, scoring: false },
+  paper_stack: { type: 'paper_stack', category: 'target', label: 'Stack: Target / No-Shoot / Target', src: paperStack, viewW: 54, viewH: 154, groundY: 150, scoring: true },
+  paper_stack_double: { type: 'paper_stack_double', category: 'target', label: 'Stack: 2 Targets', src: paperStackDouble, viewW: 54, viewH: 144, groundY: 140, scoring: true },
+  paper_swinger: { type: 'paper_swinger', category: 'target', label: 'Swinger (on pole)', src: paperSwinger, viewW: 54, viewH: 147, groundY: 143, scoring: true },
+  paper_card: { type: 'paper_card', category: 'target', label: 'Paper Target (card only)', src: paperCard, viewW: 54, viewH: 62, groundY: 58, scoring: true, defaultElevation: 0.85, stackable: true },
+  no_shoot_overlay: { type: 'no_shoot_overlay', category: 'target', label: 'No-Shoot (card only)', src: noShootOverlay, viewW: 54, viewH: 62, groundY: 58, scoring: false, defaultElevation: 0.85, stackable: true },
+  steel_popper: { type: 'steel_popper', category: 'target', label: 'Steel Popper', src: steelPopper, viewW: 54, viewH: 103, groundY: 99, scoring: true, canFall: true, stackable: true },
+  steel_plate: { type: 'steel_plate', category: 'target', label: 'Steel Plate', src: steelPlate, viewW: 54, viewH: 88, groundY: 84, scoring: true, canFall: true, stackable: true },
+  mesh_wall: { type: 'mesh_wall', category: 'barrier', label: 'Straight Mesh Wall', src: meshWall, viewW: 220, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_short: { type: 'mesh_wall_short', category: 'barrier', label: 'Short Mesh Wall', src: meshWallShort, viewW: 130, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_window: { type: 'mesh_wall_window', category: 'barrier', label: 'Mesh Wall with Window', src: meshWallWindow, viewW: 280, viewH: 189, groundY: 185, scoring: false },
+  mesh_corner: { type: 'mesh_corner', category: 'barrier', label: 'Corner / Angled Wall', src: meshCorner, viewW: 290, viewH: 189, groundY: 185, scoring: false },
+  start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
+  crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
+  crate_wide: { type: 'crate_wide', category: 'other', label: 'Box wide (120 cm)', src: crateWide, viewW: 136, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
+};
+
+export const ASSET_LIST = Object.values(ASSETS);
