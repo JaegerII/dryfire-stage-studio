@@ -40,7 +40,7 @@ export const EditorToolbar = (p: Props) => {
       <nav>
         <div className="group">
           <button onClick={p.onNew}>New</button>
-          <button onClick={p.onOpen}>Load</button>
+          <button onClick={p.onOpen} title="Matches and stages">Library</button>
           <button onClick={p.onSave} title="Ctrl+S">Save</button>
           <button onClick={p.onDuplicate}>Duplicate</button>
           <button onClick={p.onReset} disabled={!p.dirty} title="Revert to the last saved version">Reset</button>

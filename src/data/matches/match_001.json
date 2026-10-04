@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "match_001",
+  "name": "Match 01 – Indoor & Outdoor",
+  "description": "Four stages from basic transitions to an activated swinger.",
+  "stageIds": ["stage_001", "stage_002", "stage_003", "stage_004"],
+  "meta": { "author": "FORTH TRACE", "tags": ["handgun", "mixed"] }
+}

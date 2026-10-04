@@ -6,13 +6,15 @@ import type { EnvironmentId, ObjectType, Stage, StageObject } from '../../types/
 import { newId } from '../../utils/random';
 import { screenToStage } from '../../utils/view';
 import { ENVIRONMENTS } from '../../assets/environments';
-import { StageFormatError, createObject, createStage, exportStageFile, importStageFile } from '../../utils/stageIO';
+import { StageFormatError, createObject, createStage, exportStageFile } from '../../utils/stageIO';
+import { readImportFile, saveImportedMatch } from '../../utils/matchIO';
+import { matchRepository } from '../../data/matchRepository';
+import { Library } from '../library/Library';
 import { StageCanvas } from '../stage/StageCanvas';
 import { useStageHistory } from '../../hooks/useStageHistory';
 import { AssetLibrary, DND_TYPE } from './AssetLibrary';
 import { EditorToolbar } from './EditorToolbar';
 import { PropertiesPanel } from './PropertiesPanel';
-import { StageBrowser } from './StageBrowser';
 
 const SNAP_STEP = 0.0125;
 const DEFAULT_Y: Record<string, number> = { target: 0.62, barrier: 0.68, other: 0.97 };
@@ -21,7 +23,8 @@ interface Props {
   initial: Stage;
   /** Hidden while the player is open (state stays alive). */
   hidden: boolean;
-  onPlay: (stage: Stage) => void;
+  /** Play one stage, or a whole match (stages in order + match name). */
+  onPlay: (stages: Stage[], matchName?: string, matchId?: string) => void;
   onStageIdChange: (id: string) => void;
 }
 
@@ -256,12 +259,19 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
           setToast('Duplicated — save to keep it');
         }}
         onImport={(f) =>
-          importStageFile(f)
-            .then((s) => {
+          readImportFile(f)
+            .then((res) => {
+              if (res.kind === 'match') {
+                // a match bundle: store its stages + the match, then show it in the library
+                saveImportedMatch(res.match, res.stages);
+                setToast(`Imported match "${res.match.name}" (${res.stages.length} stages)`);
+                setBrowser(true);
+                return;
+              }
               if (!confirmDiscard()) return;
-              load(s);
+              load(res.stage);
               setSaved('');
-              setToast(`Imported "${s.name}" — save to keep it`);
+              setToast(`Imported "${res.stage.name}" — save to keep it`);
             })
             .catch((err) => alert(err instanceof StageFormatError ? err.message : 'Import failed.'))
         }
@@ -271,7 +281,7 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
         onRedo={redo}
         onToggleGrid={() => setShowGrid((v) => !v)}
         onToggleSnap={() => setSnap((v) => !v)}
-        onPlay={() => onPlay(stage)}
+        onPlay={() => onPlay([stage])}
       />
       <AssetLibrary environment={stage.environment} onAdd={onAdd} onEnvironment={onEnvironment} />
       <main className="canvas-area" ref={areaRef} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
@@ -294,18 +304,35 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
         onClearSelection={() => setSelectedIds([])}
       />
       {browser && (
-        <StageBrowser
-          currentId={stage.id}
+        <Library
+          currentStageId={stage.id}
           onClose={() => setBrowser(false)}
-          onOpen={(id) => {
+          onOpenStage={(id) => {
             const s = stageRepository.get(id);
             if (s && confirmDiscard()) load(s);
             setBrowser(false);
           }}
-          onPlay={(id) => {
-            const s = stageRepository.get(id);
+          onPlayStage={(id) => {
+            // the stage open in the editor plays with its unsaved changes
+            const s = id === stage.id ? stage : stageRepository.get(id);
             setBrowser(false);
-            if (s) onPlay(s);
+            if (s) onPlay([s]);
+          }}
+          onPlayMatch={(matchId) => {
+            const m = matchRepository.get(matchId);
+            if (!m) return;
+            const list = m.stageIds.map((id) => (id === stage.id ? stage : stageRepository.get(id))).filter((s): s is Stage => !!s);
+            setBrowser(false);
+            if (list.length) onPlay(list, m.name, m.id);
+          }}
+          onNewStageInMatch={(matchId) => {
+            const m = matchRepository.get(matchId);
+            if (!m || !confirmDiscard()) return;
+            const s = stageRepository.save({ ...createStage(), name: `Stage ${m.stageIds.length + 1}` });
+            matchRepository.save({ ...m, stageIds: [...m.stageIds, s.id] });
+            load(s);
+            setBrowser(false);
+            setToast(`New stage added to "${m.name}"`);
           }}
         />
       )}

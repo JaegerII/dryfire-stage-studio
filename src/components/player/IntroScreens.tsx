@@ -1,4 +1,6 @@
 import topo from '../../assets/brand/topo.svg';
+import { ASSETS } from '../../assets/registry';
+import type { Stage } from '../../types/stage';
 import { BrandMark } from '../BrandMark';
 
 const RULES = [
@@ -42,14 +44,35 @@ export const BrandScreen = () => (
   </div>
 );
 
-export const CompleteScreen = ({ reps, onRestart, onExit }: { reps: number; onRestart: () => void; onExit: () => void }) => (
+/** Title card before each stage: "Stage 2 / 3", name, par, reps. */
+export const StageTitleScreen = ({ stage, index, count, matchName }: { stage: Stage; index: number; count: number; matchName?: string }) => {
+  const targets = stage.objects.filter((o) => ASSETS[o.type].scoring).length;
+  return (
+    <div className="screen stage-title-card fade-in">
+      {matchName && <div className="eyebrow">{matchName}</div>}
+      <div className="title-index">
+        Stage {index + 1}
+        <span> / {count}</span>
+      </div>
+      <h1>{stage.name}</h1>
+      {stage.description && <p className="title-desc">{stage.description}</p>}
+      <div className="title-stats">
+        <div><span>Par time</span><b>{stage.parTime.toFixed(1)} s</b></div>
+        <div><span>Reps</span><b>{stage.repetitions}</b></div>
+        <div><span>Targets</span><b>{targets}</b></div>
+      </div>
+    </div>
+  );
+};
+
+export const CompleteScreen = ({ title, detail, onRestart, onExit }: { title: string; detail: string; onRestart: () => void; onExit: () => void }) => (
   <div className="screen complete fade-in">
     <div className="eyebrow go">Session ended</div>
-    <h1>Training Complete</h1>
-    <p>{reps} repetitions</p>
+    <h1>{title}</h1>
+    <p>{detail}</p>
     <div className="complete-actions">
       <button onClick={onRestart}>Run again</button>
-      <button onClick={onExit}>Back to editor</button>
+      <button onClick={onExit}>Back</button>
     </div>
   </div>
 );

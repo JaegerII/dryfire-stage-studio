@@ -8,6 +8,8 @@ export interface OverlayHandle {
 
 interface Props {
   stage: Stage;
+  /** Small line above the stage name, e.g. "Match 01 · Stage 2/3". */
+  caption?: string;
   showTimer: boolean;
   signalBorder: boolean;
 }
@@ -23,7 +25,7 @@ const STATUS: Partial<Record<Phase, { text: string; cls: string }>> = {
  * Minimal training HUD. Updated imperatively every animation frame
  * (no React re-render), so the clock stays smooth at 60 fps.
  */
-export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOverlay({ stage, showTimer, signalBorder }, ref) {
+export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOverlay({ stage, caption, showTimer, signalBorder }, ref) {
   const rep = useRef<HTMLSpanElement>(null);
   const status = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
@@ -57,7 +59,10 @@ export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOve
   return (
     <div className="hud" ref={root}>
       <div className="hud-top">
-        <div className="hud-stage">{stage.name}</div>
+        <div>
+          {caption && <div className="hud-caption">{caption}</div>}
+          <div className="hud-stage">{stage.name}</div>
+        </div>
         <div className="hud-right">
           <div>
             <span className="hud-label">Par</span> {stage.parTime.toFixed(2)} s
