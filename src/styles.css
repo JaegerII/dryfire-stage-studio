@@ -183,19 +183,12 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .card-text { padding: 12px 14px 4px; display: grid; gap: 4px; }
 .card-text strong { font-size: 15px; }
 .card-text span { color: var(--muted); font-size: 12px; }
-.card-text .note { color: var(--sage); font-style: italic; }
 .card-actions { display: flex; gap: 6px; padding: 10px 14px 14px; flex-wrap: wrap; margin-top: auto; }
 .card-actions button { padding: 5px 9px; font-size: 12px; }
 
-.match-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 26px; align-items: start; }
-.match-layout section { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.match-page .page-body { display: flex; flex-direction: column; gap: 10px; max-width: 1020px; }
 .match-page .match-name { font-size: 22px; }
 .match-stages .meta.linkish { text-align: left; display: grid; padding: 0; }
-.versions { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
-.versions h4 { margin: 0 0 10px; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
-.versions ul { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
-.version { width: 100%; display: flex; gap: 8px; align-items: center; text-align: left; white-space: normal; }
-.version.on { border-color: var(--accent); background: var(--accent-soft); }
 
 .match-head { display: flex; gap: 10px; align-items: center; }
 .match-head h3 { margin: 0; font-size: 16px; }

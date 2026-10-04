@@ -4,7 +4,7 @@ import { createMatch, matchRepository } from '../../data/matchRepository';
 import { stageRepository } from '../../data/stageRepository';
 import type { Match } from '../../types/match';
 import { exportMatchFile, readImportFile, saveImportedMatch } from '../../utils/matchIO';
-import { createNextVersion, formatLength, matchLength, matchVersion } from '../../utils/matchVersion';
+import { formatLength, matchLength } from '../../utils/matchUtils';
 import { StageFormatError, createStage } from '../../utils/stageIO';
 import { BrandMark } from '../BrandMark';
 
@@ -29,7 +29,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }:
   const stages = stageRepository.list();
   const shown = matches
     .filter((m) => (tab === 'archived' ? m.archived : !m.archived))
-    .sort((a, b) => a.name.localeCompare(b.name) || matchVersion(b) - matchVersion(a));
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const importFile = async (f: File) => {
     try {
@@ -50,14 +50,6 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }:
   const archive = (m: Match, archived: boolean) => {
     matchRepository.save({ ...m, archived });
     reload();
-  };
-
-  const newVersion = (m: Match) => {
-    const note = prompt(`New version of "${m.name}" (v${matchVersion(m) + 1}).\nWhat changes? (optional)`, '');
-    if (note === null) return;
-    const archiveOld = confirm(`Archive v${matchVersion(m)} now?\n(It stays unchanged and can be restored any time.)`);
-    const created = createNextVersion(m, { archiveOld, note });
-    onOpenMatch(created.id);
   };
 
   return (
@@ -127,7 +119,6 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }:
                 <article key={m.id} className={`match-card${m.archived ? ' archived' : ''}`}>
                   <button className="card-main" onClick={() => onOpenMatch(m.id)} title="Open match">
                     <div className="card-thumb" style={first ? { backgroundImage: `url(${ENVIRONMENTS[first.environment].src})` } : undefined}>
-                      <span className="badge">v{matchVersion(m)}</span>
                       {m.archived && <span className="badge archived">Archived</span>}
                     </div>
                     <div className="card-text">
@@ -136,15 +127,11 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }:
                         {m.stageIds.length} stages · ≈ {formatLength(matchLength(m))} min
                         {m.meta?.updatedAt ? ` · ${date(m.meta.updatedAt)}` : m.builtIn ? ' · built-in' : ''}
                       </span>
-                      {m.versionNote && <span className="note">{m.versionNote}</span>}
                     </div>
                   </button>
                   <div className="card-actions">
                     <button className="primary" disabled={!m.stageIds.length} onClick={() => onPlayMatch(m.id)}>
                       ▶ Play
-                    </button>
-                    <button onClick={() => newVersion(m)} title="Copy as next version (with its own stage copies)">
-                      New version
                     </button>
                     <button onClick={() => archive(m, !m.archived)}>{m.archived ? 'Restore' : 'Archive'}</button>
                     <button onClick={() => exportMatchFile(m)}>Export</button>
@@ -165,7 +152,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }:
                   <strong>{s.name}</strong>
                   <span>
                     {s.id} · par {s.parTime}s · {s.repetitions} reps {s.builtIn ? '· built-in' : ''}
-                    {matches.filter((m) => m.stageIds.includes(s.id)).map((m) => ` · ${m.name} v${matchVersion(m)}`).join('')}
+                    {matches.filter((m) => m.stageIds.includes(s.id)).map((m) => ` · ${m.name}`).join('')}
                   </span>
                 </div>
                 <button onClick={() => onOpenStage(s.id)}>Open</button>

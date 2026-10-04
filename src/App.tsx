@@ -7,12 +7,12 @@ import { matchRepository } from './data/matchRepository';
 import { stageRepository } from './data/stageRepository';
 import type { Stage } from './types/stage';
 import { createStage } from './utils/stageIO';
-import { matchStages } from './utils/matchVersion';
+import { matchStages } from './utils/matchUtils';
 
 /**
  * Routes (hash based, so the app works from any static host):
  *   #/                          start page: matches (active / archive) + all stages
- *   #/match/<id>                one match: its stages, versions
+ *   #/match/<id>                one match: its stages
  *   #/match/<id>/play           play the whole match (logo → safety → stages) — e.g. for OBS
  *   #/match/<id>/edit/<stage>   edit a stage of that match (breadcrumb back to the match)
  *   #/edit/<stage>              edit a stage on its own
@@ -129,7 +129,7 @@ export const App = () => {
           key={`edit:${view.stageId}`}
           initial={stageRepository.get(view.stageId) ?? { ...createStage(), id: view.stageId }}
           hidden={!!playing}
-          matchName={match ? `${match.name} v${match.version ?? 1}` : undefined}
+          matchName={match?.name}
           onHome={() => go({ page: 'home' })}
           onBackToMatch={match ? () => go({ page: 'match', matchId: match.id }) : undefined}
           onDirtyChange={(d) => {

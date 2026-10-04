@@ -4,7 +4,7 @@ import { matchRepository } from '../../data/matchRepository';
 import { stageRepository } from '../../data/stageRepository';
 import type { Match } from '../../types/match';
 import { exportMatchFile } from '../../utils/matchIO';
-import { createNextVersion, formatLength, matchFamily, matchLength, matchVersion } from '../../utils/matchVersion';
+import { formatLength, matchLength } from '../../utils/matchUtils';
 import { newId } from '../../utils/random';
 import { createStage } from '../../utils/stageIO';
 import { BrandMark } from '../BrandMark';
@@ -18,7 +18,7 @@ interface Props {
   onPlayMatch: (id: string) => void;
 }
 
-/** One match: its stages in play order, versions and match-level actions. */
+/** One match: its stages in play order and match-level actions. */
 export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlayStage, onPlayMatch }: Props) => {
   const [, refresh] = useState(0);
   const reload = () => refresh((n) => n + 1);
@@ -40,18 +40,6 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
     matchRepository.save(m);
     reload();
   };
-  const versions = matchRepository
-    .list()
-    .filter((m) => matchFamily(m) === matchFamily(match))
-    .sort((a, b) => matchVersion(a) - matchVersion(b));
-
-  const newVersion = () => {
-    const note = prompt(`New version of "${match.name}" (v${matchVersion(match) + 1}).\nWhat changes? (optional)`, '');
-    if (note === null) return;
-    const archiveOld = confirm(`Archive v${matchVersion(match)} now?\n(It stays unchanged and can be restored any time.)`);
-    onOpenMatch(createNextVersion(match, { archiveOld, note }).id);
-  };
-
   return (
     <div className="page match-page">
       <header className="page-bar">
@@ -62,16 +50,14 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
           <button className="linkish" onClick={onHome}>Matches</button>
           <span>/</span>
           <strong>{match.name}</strong>
-          <span className="badge">v{matchVersion(match)}</span>
           {match.archived && <span className="badge archived">Archived</span>}
         </div>
         <div className="inline">
-          <button onClick={newVersion} title="Copy as next version (with its own stage copies)">New version</button>
           <button onClick={() => save({ ...match, archived: !match.archived })}>{match.archived ? 'Restore' : 'Archive'}</button>
           <button onClick={() => exportMatchFile(match)}>Export</button>
           <button
             onClick={() => {
-              const copy = matchRepository.save({ ...structuredClone(match), id: newId('match'), name: `${match.name} (copy)`, family: undefined, version: 1, archived: false });
+              const copy = matchRepository.save({ ...structuredClone(match), id: newId('match'), name: `${match.name} (copy)`, archived: false });
               onOpenMatch(copy.id);
             }}
           >
@@ -99,7 +85,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
         </div>
       </header>
 
-      <main className="page-body match-layout">
+      <main className="page-body">
         <section>
           <input className="match-name" value={match.name} onChange={(e) => save({ ...match, name: e.target.value })} />
           <textarea rows={2} placeholder="Description" value={match.description ?? ''} onChange={(e) => save({ ...match, description: e.target.value })} />
@@ -158,25 +144,6 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
           </div>
         </section>
 
-        <aside className="versions">
-          <h4>Versions</h4>
-          <ul>
-            {versions.map((v) => (
-              <li key={v.id}>
-                <button className={`version${v.id === match.id ? ' on' : ''}`} onClick={() => onOpenMatch(v.id)}>
-                  <span className="badge">v{matchVersion(v)}</span>
-                  <span>
-                    {v.versionNote || (matchVersion(v) === 1 ? 'Original' : '—')}
-                    {v.archived ? ' · archived' : ''}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="hint">
-            “New version” copies this match and all its stages. Edit the copy freely — older versions stay exactly as they were.
-          </p>
-        </aside>
       </main>
     </div>
   );

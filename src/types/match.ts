@@ -13,12 +13,6 @@ export interface Match {
   description?: string;
   /** Stage ids in play order. */
   stageIds: string[];
-  /** 1, 2, 3 … — "New version" copies the match and its stages as the next version. */
-  version?: number;
-  /** Shared by all versions of the same match (defaults to the first version's id). */
-  family?: string;
-  /** Short change note for this version, e.g. "tighter par times". */
-  versionNote?: string;
   /** Archived matches are kept unchanged but hidden from the active list. */
   archived?: boolean;
   meta?: {

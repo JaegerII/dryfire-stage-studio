@@ -17,7 +17,7 @@ npm run assets     # regenerate target / barrier SVGs and beeps after a design c
 | Route | Page |
 |---|---|
 | `#/` | **Start page**: matches as cards (active / archive), all stages, import, new match / stage |
-| `#/match/<id>` | **Match**: its stages in play order, versions, archive, export |
+| `#/match/<id>` | **Match**: its stages in play order, archive, export |
 | `#/match/<id>/play` | **Match player**: logo → safety → every stage (one take for OBS) |
 | `#/match/<id>/edit/<stageId>` | **Editor** for a stage of that match (breadcrumb back) |
 | `#/edit/<stageId>` / `#/play/<stageId>` | edit / play a single stage |
@@ -43,15 +43,12 @@ The browser's back button works between pages. Leaving the editor with unsaved c
 * **Storage:** stages are saved in the browser (localStorage). Built-in stages live in `src/data/stages/*.json`.
   To ship a stage with the app, export it and drop the file there.
 
-## Matches, archive and versions
+## Matches and archive
 
 * **A match** is an ordered list of stages, typically 2–4, played as one session or video.
 * **Start page:** click a match card to open it, or use **+ New match**.
 * **Match page:** create stages (*+ New stage* opens the editor), add existing ones, reorder (↑ ↓), edit, play or remove them.
 * **Archive:** archived matches stay unchanged and move to the *Archive* tab. *Restore* brings them back.
-* **New version:** copies the match **and all its stages** as v2, v3 … with an optional change note. You can archive the
-  old version in the same step. Because the stages are copies, editing v2 never changes v1. All versions of a match
-  are listed on the match page.
 * **Export / Import:** a match bundle (match plus its stages) can be restored on any computer.
   Built-in matches live in `src/data/matches/*.json`.
 
@@ -178,7 +175,7 @@ src/
                  registry.ts (asset catalogue)  environments.ts (horizon + camera height per plate)
   components/
     home/        HomePage (matches, archive, all stages)
-    match/       MatchPage (stages of a match, versions)
+    match/       MatchPage (stages of a match)
     editor/      StageEditor, AssetLibrary, PropertiesPanel, EditorToolbar, fields
     stage/       StageCanvas (shared renderer), StageObject → TargetObject / BarrierObject
     player/      TrainingPlayer, PlayerOverlay, IntroScreens, FullscreenButton
