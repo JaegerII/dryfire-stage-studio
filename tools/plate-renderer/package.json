@@ -7,13 +7,18 @@
   "scripts": {
     "studio": "remotion studio",
     "plates": "node scripts/render-plates.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "textures": "node scripts/fetch-textures.mjs",
+    "assets": "node scripts/render-assets.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",
+    "@react-three/postprocessing": "^3.1.3",
     "@remotion/cli": "^4.0.532",
     "@remotion/google-fonts": "^4.0.532",
     "@remotion/three": "^4.0.532",
+    "n8ao": "^2.0.1",
+    "postprocessing": "^6.39.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "remotion": "^4.0.532",

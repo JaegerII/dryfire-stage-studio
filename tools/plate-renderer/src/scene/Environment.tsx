@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { random } from 'remotion';
 import { useTextures } from './assets';
+import { IndoorRealistic } from './IndoorRealistic';
 
 export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04';
 
@@ -543,9 +544,10 @@ const OutdoorSunset: React.FC = () => {
 };
 
 export const RangeEnvironment: React.FC<{ id: EnvironmentId }> = ({ id }) => {
+  if (id === 'indoor_01') return <IndoorRealistic />;
   if (id === 'indoor_04') return <IndoorBeams />;
   if (id === 'outdoor_04') return <OutdoorSunset />;
   if (id === 'indoor_03') return <IndoorTunnel />;
   if (id === 'outdoor_03') return <OutdoorMeadow />;
-  return id === 'indoor_01' || id === 'indoor_02' ? <Indoor style={INDOOR[id]} /> : <Outdoor style={OUTDOOR[id]} seed={id} />;
+  return id === 'indoor_02' ? <Indoor style={INDOOR[id]} /> : <Outdoor style={OUTDOOR[id]} seed={id} />;
 };

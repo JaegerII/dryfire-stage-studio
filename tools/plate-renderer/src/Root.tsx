@@ -3,8 +3,10 @@ import { ThreeCanvas } from '@remotion/three';
 import React, { useLayoutEffect } from 'react';
 import { Composition, useVideoConfig } from 'remotion';
 import type * as THREE from 'three';
+import { AssetSprite, SPRITES, SPRITE_PX_PER_CM, type SpriteId } from './AssetSprite';
 import { applyPlateCamera } from './plateCamera';
 import { RangeAssets } from './scene/assets';
+import { PBRProvider } from './scene/pbr';
 import { type EnvironmentId, RangeEnvironment } from './scene/Environment';
 
 /**
@@ -30,9 +32,11 @@ const Plate: React.FC<{ env: EnvironmentId }> = ({ env }) => {
   return (
     <ThreeCanvas width={width} height={height} shadows="soft" gl={{ antialias: true, preserveDrawingBuffer: true }} dpr={1}>
       <CameraRig />
-      <RangeAssets>
-        <RangeEnvironment id={env} />
-      </RangeAssets>
+      <PBRProvider>
+        <RangeAssets>
+          <RangeEnvironment id={env} />
+        </RangeAssets>
+      </PBRProvider>
     </ThreeCanvas>
   );
 };
@@ -49,6 +53,19 @@ export const RemotionRoot: React.FC = () => (
         fps={30}
         width={3840}
         height={2160}
+      />
+    ))}
+    {(Object.keys(SPRITES) as SpriteId[]).map((id) => (
+      <Composition
+        key={id}
+        id={`asset-${id.replace(/_/g, '-')}`}
+        component={AssetSprite}
+        defaultProps={{ id }}
+        durationInFrames={1}
+        fps={30}
+        // rendered at 2× and downsampled by scripts/render-assets.mjs (supersampling)
+        width={SPRITES[id].viewW * SPRITE_PX_PER_CM * 2}
+        height={SPRITES[id].viewH * SPRITE_PX_PER_CM * 2}
       />
     ))}
   </>

@@ -2,3 +2,5 @@ node_modules
 dist
 tools/plate-renderer/node_modules
 tools/plate-renderer/out
+tools/plate-renderer/public/tex
+tools/plate-renderer/.tex-download
