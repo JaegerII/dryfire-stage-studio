@@ -36,6 +36,17 @@ export class AudioEngine {
     );
   }
 
+  private recordTap: MediaStreamAudioDestinationNode | null = null;
+
+  /** Audio stream of everything the player sounds (beeps, voice) — for in-app recording. */
+  recordingStream() {
+    if (!this.recordTap) {
+      this.recordTap = this.ctx.createMediaStreamDestination();
+      this.gain.connect(this.recordTap);
+    }
+    return this.recordTap.stream;
+  }
+
   set volume(v: number) {
     this.gain.gain.value = v;
   }

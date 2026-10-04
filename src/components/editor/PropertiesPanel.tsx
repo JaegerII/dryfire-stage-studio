@@ -71,6 +71,9 @@ const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLa
       <Row label="Scale" hint="Multiplier on top of the perspective size"><SliderField value={o.scale} min={0.1} max={3} step={0.01} disabled={locked} onChange={(scale) => set({ scale })} /></Row>
       <Row label="Rotation"><SliderField value={o.rotation} min={-180} max={180} step={0.5} digits={1} disabled={locked} onChange={(rotation) => set({ rotation })} /></Row>
       <Row label="Turn (yaw)" hint="Turn the object away from the shooter"><SliderField value={o.yaw ?? 0} min={-80} max={80} step={1} digits={0} disabled={locked} onChange={(yaw) => set({ yaw })} /></Row>
+      <Row label="Mirror" hint="Flip left/right">
+        <input type="checkbox" checked={!!o.flip} disabled={locked} onChange={(e) => set({ flip: e.target.checked || undefined })} />
+      </Row>
       <Row label="Opacity"><SliderField value={o.opacity ?? 1} min={0} max={1} step={0.01} disabled={locked} onChange={(opacity) => set({ opacity })} /></Row>
       <Row label="Elevation (m)" hint="Height above the floor, e.g. 0.6 for the top of a box">
         <SliderField value={o.elevation ?? 0} min={0} max={2.5} step={0.01} digits={2} disabled={locked} onChange={(elevation) => set({ elevation: elevation || undefined })} />

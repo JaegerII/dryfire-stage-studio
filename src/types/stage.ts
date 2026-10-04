@@ -19,7 +19,7 @@ export type TargetType =
   | 'no_shoot_overlay'
   | 'steel_popper'
   | 'steel_plate';
-export type BarrierType = 'mesh_wall' | 'mesh_wall_short' | 'mesh_wall_window' | 'mesh_corner';
+export type BarrierType = 'mesh_wall' | 'mesh_wall_short' | 'mesh_wall_window' | 'mesh_wall_diagonal' | 'mesh_wall_port' | 'mesh_corner';
 export type OtherType = 'start_box' | 'crate' | 'crate_wide';
 export type ObjectType = TargetType | BarrierType | OtherType;
 
@@ -65,6 +65,8 @@ export interface StageObject {
   rotation: number;
   /** Height above the floor in meters (e.g. a card standing on a box). */
   elevation?: number;
+  /** Mirror left/right (e.g. a diagonal wall sloping the other way). */
+  flip?: boolean;
   /** Turn away from the shooter, degrees (−80..80). Faked in 2.5D. */
   yaw?: number;
   opacity?: number;

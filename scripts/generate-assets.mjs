@@ -267,6 +267,48 @@ ${post(-half, H)}${post(half, H)}${foot(-half, H)}${foot(half, H)}`,
   );
 };
 
+/** Diagonal wall: 1.8 m wide, top edge rising from 1.2 m (left) to 1.85 m (right). Mirror it in the editor for the other slope. */
+const diagonalWall = () => {
+  const H = WALL_H;
+  const w = 180;
+  const half = w / 2;
+  const lowTop = 120; // mesh top at the left post, cm above ground
+  const mesh = `M${-half} ${H - MESH_B}L${-half} ${H - lowTop + 5}L${half} ${H - MESH_T}L${half} ${H - MESH_B}Z`;
+  return svg(
+    w + 40,
+    H,
+    `${shadow(H, half + 14)}
+<clipPath id="slope"><path d="${mesh}"/></clipPath>
+<rect x="${-half}" y="${H - MESH_T}" width="${w}" height="${MESH_T - MESH_B}" fill="url(#mesh)" clip-path="url(#slope)"/>
+<path d="M${-half} ${H - lowTop + 5}L${half} ${H - MESH_T}" stroke="url(#wood)" stroke-width="5" stroke-linecap="round"/>
+${post(-half, H, lowTop + 5)}${post(half, H)}${foot(-half, H)}${foot(half, H)}`,
+    meshDefs,
+  );
+};
+
+/** Wall with a tall, narrow rectangular port (left of centre), 2.0 m wide. */
+const portWall = () => {
+  const H = WALL_H;
+  const w = 200;
+  const half = w / 2;
+  const port = { x: -42, w: 30, y: H - 165, h: 135 };
+  return svg(
+    w + 40,
+    H,
+    `${shadow(H, half + 14)}
+<mask id="port"><rect x="${-half}" y="0" width="${w}" height="${H}" fill="#fff"/><rect x="${port.x}" y="${port.y}" width="${port.w}" height="${port.h}" fill="#000"/></mask>
+<rect x="${-half}" y="${H - MESH_T}" width="${w}" height="${MESH_T - MESH_B}" fill="url(#mesh)" mask="url(#port)"/>
+<g fill="url(#wood)">
+<rect x="${port.x - 5}" y="${port.y - 5}" width="${port.w + 10}" height="5"/>
+<rect x="${port.x - 5}" y="${port.y + port.h}" width="${port.w + 10}" height="5"/>
+<rect x="${port.x - 5}" y="${port.y}" width="5" height="${port.h}"/>
+<rect x="${port.x + port.w}" y="${port.y}" width="5" height="${port.h}"/>
+</g>
+${post(-half, H)}${post(half, H)}${foot(-half, H)}${foot(half, H)}`,
+    meshDefs,
+  );
+};
+
 /** Corner wall: a front panel plus a panel receding to the right (pre-drawn in perspective). */
 const cornerWall = () => {
   const H = WALL_H;
@@ -387,6 +429,8 @@ out('targets/steel_plate.svg', steelPlate());
 out('barriers/mesh_wall.svg', straightWall(180));
 out('barriers/mesh_wall_short.svg', straightWall(90));
 out('barriers/mesh_wall_window.svg', windowWall());
+out('barriers/mesh_wall_diagonal.svg', diagonalWall());
+out('barriers/mesh_wall_port.svg', portWall());
 out('barriers/mesh_corner.svg', cornerWall());
 out('other/start_box.svg', startBox());
 out('other/crate.svg', crate(60));

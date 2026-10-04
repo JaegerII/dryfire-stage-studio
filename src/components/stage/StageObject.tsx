@@ -37,7 +37,7 @@ const AssetImage = ({ obj, env, height }: Pick<Props, 'obj' | 'env' | 'height'>)
       height={h}
       offsetX={w / 2}
       offsetY={groundOffset}
-      scaleX={Math.max(0.12, Math.cos(yaw))}
+      scaleX={Math.max(0.12, Math.cos(yaw)) * (obj.flip ? -1 : 1)}
       skewY={-Math.sin(yaw) * 0.16}
       perfectDrawEnabled={false}
     />

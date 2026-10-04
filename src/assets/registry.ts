@@ -21,6 +21,8 @@ import steelPopper from './targets/steel_popper.svg';
 import meshCorner from './barriers/mesh_corner.svg';
 import meshWall from './barriers/mesh_wall.svg';
 import meshWallShort from './barriers/mesh_wall_short.svg';
+import meshWallDiagonal from './barriers/mesh_wall_diagonal.svg';
+import meshWallPort from './barriers/mesh_wall_port.svg';
 import meshWallWindow from './barriers/mesh_wall_window.svg';
 import crate from './other/crate.svg';
 import crateWide from './other/crate_wide.svg';
@@ -62,6 +64,8 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   mesh_wall: { type: 'mesh_wall', category: 'barrier', label: 'Straight Mesh Wall', src: meshWall, viewW: 220, viewH: 189, groundY: 185, scoring: false },
   mesh_wall_short: { type: 'mesh_wall_short', category: 'barrier', label: 'Short Mesh Wall', src: meshWallShort, viewW: 130, viewH: 189, groundY: 185, scoring: false },
   mesh_wall_window: { type: 'mesh_wall_window', category: 'barrier', label: 'Mesh Wall with Window', src: meshWallWindow, viewW: 280, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_diagonal: { type: 'mesh_wall_diagonal', category: 'barrier', label: 'Mesh Wall Diagonal', src: meshWallDiagonal, viewW: 220, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_port: { type: 'mesh_wall_port', category: 'barrier', label: 'Mesh Wall with Port', src: meshWallPort, viewW: 240, viewH: 189, groundY: 185, scoring: false },
   mesh_corner: { type: 'mesh_corner', category: 'barrier', label: 'Corner / Angled Wall', src: meshCorner, viewW: 290, viewH: 189, groundY: 185, scoring: false },
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },

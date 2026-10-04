@@ -83,6 +83,18 @@ Each rep runs: reset/prep → **STAND BY** (spoken cue) → random delay → sta
 * **Zoom (closer)** in the stage properties brings the whole stage closer (1 = full view, up to 2.5).
   The scene scales around the horizon centre, which is the same as a longer lens, so perspective stays correct.
 
+### Record a video file (no OBS needed)
+
+1. Open the match (or stage) player and tick **● Record video file**.
+2. Press **Start**. The browser asks to share a tab: choose **this tab**.
+3. Keep the mouse still. At the end the video downloads automatically: MP4 in current Chrome, otherwise WebM.
+
+* **Real time:** the recording runs in real time, so an 8-minute match takes 8 minutes.
+* **Picture and sound:** with Region Capture (Chrome) only the 16:9 player is recorded, without black bars. The beeps and
+  the voice are recorded digitally from the player, not through a microphone.
+* **Resolution:** follows the player's size on screen. Fullscreen on a 1080p, 1440p or 4K monitor gives that resolution.
+* **Stopping early:** *Stop* asks whether to keep the part recorded so far.
+
 ### YouTube workflow
 
 1. Build the stage in the editor, then **Save** (and **Export JSON** for your archive).
@@ -97,7 +109,7 @@ Each rep runs: reset/prep → **STAND BY** (spoken cue) → random delay → sta
 * **Saved stages live in the browser** (localStorage): they stay on that computer and in that browser.
 * **Make a stage available for everyone (and on every device):** copy the exported JSON into `src/data/stages/`,
   commit and push. After the automatic deploy it appears as a built-in stage in the online version.
-* **Video:** record the Player with OBS (see *YouTube workflow*). The app does not render MP4 files itself.
+* **Video:** *Record video file* in the player (see above), or record the player with OBS.
 
 ## Online version (GitHub Pages)
 
@@ -139,6 +151,7 @@ The deploy takes about one minute (watch it under the repo's **Actions** tab).
 * `x`, `y`: ground point of the object, normalised 0..1 (resolution-independent).
 * Optional per object:
   * `elevation` (meters above the floor, e.g. `0.6` = on top of a box)
+  * `flip` (mirror left/right, e.g. the diagonal wall sloping the other way)
   * `yaw` (turned wall/target)
   * `opacity`
   * `perspective: "manual"` + `depth`
@@ -159,7 +172,7 @@ The deploy takes about one minute (watch it under the repo's **Actions** tab).
 * Object types:
   * Targets: `paper_full`, `paper_mini`, `paper_stack` (target / no-shoot / target overlapping on one stand), `paper_stack_double`, `paper_swinger` (card on a pivoting pole), `paper_card` (card only, for boxes), `no_shoot`, `no_shoot_overlay` (card only),
     `steel_popper`, `steel_plate`
-  * Barriers: `mesh_wall`, `mesh_wall_short`, `mesh_wall_window`, `mesh_corner`
+  * Barriers: `mesh_wall`, `mesh_wall_short`, `mesh_wall_window`, `mesh_wall_diagonal`, `mesh_wall_port`, `mesh_corner`
   * Other: `start_box`, `crate` (black box, 60 cm), `crate_wide` (black box, 120 cm — e.g. target + angled no-shoot side by side)
 * Objects hidden behind something (e.g. a swinger behind a box) can be selected from the **Objects** list in the right panel.
 * Rotation and scale of an elevated object pivot at its own foot (on the box), not at the floor.

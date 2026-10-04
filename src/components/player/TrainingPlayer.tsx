@@ -8,6 +8,7 @@ import { AudioEngine, STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
 import { type MatchSchedule, buildMatchSchedule, estimateMatchDuration, matchSnapshotAt } from '../../utils/matchSchedule';
 import { fallScale, fallTimes, isMoving, motionAt } from '../../utils/motion';
 import { elevationPx, pxPerMeter } from '../../utils/perspective';
+import { TabRecorder, downloadBlob, recordingSupported, videoFileName } from '../../utils/recorder';
 import { StageCanvas } from '../stage/StageCanvas';
 import { FullscreenButton } from './FullscreenButton';
 import { BrandScreen, CompleteScreen, SafetyScreen, StageTitleScreen } from './IntroScreens';
@@ -28,6 +29,8 @@ interface Options {
   signalBorder: boolean;
   seed: string;
   volume: number;
+  /** Record this tab + player audio and download a video file at the end. */
+  record: boolean;
 }
 
 type Status = 'setup' | 'running' | 'paused' | 'complete';
@@ -55,7 +58,24 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     signalBorder: false,
     seed: stages.map((s) => s.id).join('+'),
     volume: 1,
+    record: false,
   });
+  const [recording, setRecording] = useState(false);
+  const recorder = useRef<TabRecorder | null>(null);
+  const boxEl = useRef<HTMLDivElement>(null);
+  const title = matchName ?? stages[0]?.name ?? 'dryfire';
+
+  /** Ends the recording; keep = download the file. */
+  const finishRecording = useCallback(
+    async (keep: boolean) => {
+      const rec = recorder.current;
+      recorder.current = null;
+      setRecording(false);
+      const file = await rec?.stop(keep);
+      if (file) downloadBlob(file.blob, videoFileName(title, file.ext));
+    },
+    [title],
+  );
   const [status, setStatus] = useState<Status>('setup');
   const [scene, setScene] = useState<Scene>('stage');
   const [stageIndex, setStageIndex] = useState(0);
@@ -91,6 +111,8 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     if (!seg) {
       setScene('complete');
       setStatus('complete');
+      // keep the "complete" screen in the video for a moment, then save it
+      if (recorder.current) setTimeout(() => void finishRecording(true), 2500);
       return;
     }
     const nextScene: Scene = seg.kind;
@@ -122,13 +144,26 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
       }
     }
     raf.current = requestAnimationFrame(tick);
-  }, [stages, motionData]);
+  }, [stages, motionData, finishRecording]);
 
   // ---------------------------------------------------------------- transport
   const start = useCallback(async () => {
     cancelAnimationFrame(raf.current);
     const e = engine.current ?? (engine.current = new AudioEngine());
     e.stopAll();
+    if (recorder.current) await finishRecording(false); // restart → drop the unfinished take
+    if (opts.record) {
+      // must run first, while the click still counts as a user gesture
+      const rec = new TabRecorder();
+      try {
+        await rec.start(boxEl.current, e.recordingStream());
+      } catch {
+        alert('Recording was not started (tab sharing was cancelled or is not supported).');
+        return;
+      }
+      recorder.current = rec;
+      setRecording(true);
+    }
     await e.load();
     await e.resume();
     e.volume = opts.volume;
@@ -150,7 +185,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     setControlsVisible(false);
     raf.current = requestAnimationFrame(tick);
     if (import.meta.env.DEV) Object.assign(window, { __player: { engine: e, schedule: ms, t0: t0.current } });
-  }, [opts, stages, tick]);
+  }, [opts, stages, tick, finishRecording]);
 
   const togglePause = useCallback(async () => {
     const e = engine.current;
@@ -167,6 +202,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
   }, [status]);
 
   const stop = useCallback(() => {
+    if (recorder.current) void finishRecording(confirm('Save the recording made so far?'));
     cancelAnimationFrame(raf.current);
     engine.current?.stopAll();
     schedule.current = null;
@@ -174,7 +210,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     setScene('stage');
     setStageIndex(0);
     setControlsVisible(true);
-  }, []);
+  }, [finishRecording]);
 
   const exit = useCallback(() => {
     stop();
@@ -238,7 +274,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
   return (
     <div className={`player${status === 'running' && !controlsVisible ? ' hide-cursor' : ''}`} ref={rootRef}>
       <div className="player-area" ref={areaRef}>
-        <div className="player-box" style={{ width: box.width, height: box.height }}>
+        <div className="player-box" ref={boxEl} style={{ width: box.width, height: box.height }}>
           <div className={canvasClass} key={`layer-${stageIndex}`}>
             <StageCanvas stage={stage} width={box.width} height={box.height} registerNode={registerNode} layerRef={layer} />
           </div>
@@ -304,6 +340,11 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
                     Seed <input value={opts.seed} onChange={(e) => set('seed', e.target.value)} />
                     <button onClick={() => set('seed', Math.random().toString(36).slice(2, 8))}>New</button>
                   </label>
+                  {recordingSupported() && (
+                    <label className="record-opt">
+                      <input type="checkbox" checked={opts.record} onChange={(e) => set('record', e.target.checked)} /> ● Record video file
+                    </label>
+                  )}
                   <label className="seed">
                     Volume <input type="range" min={0} max={1} step={0.05} value={opts.volume} onChange={(e) => set('volume', parseFloat(e.target.value))} />
                   </label>
@@ -313,6 +354,12 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
                   <FullscreenButton active={fullscreen} onToggle={toggleFullscreen} />
                   <button onClick={exit}>Back</button>
                 </div>
+                {opts.record && (
+                  <p className="hint warn">
+                    On Start the browser asks to share this tab — choose this tab. Go fullscreen first for the best resolution and
+                    keep the mouse still. The video downloads automatically at the end.
+                  </p>
+                )}
                 <p className="hint">Same seed = same standby delays (repeatable recordings). Keys: Space start/pause · R restart · F fullscreen · Esc stop.</p>
               </div>
             </div>
@@ -321,6 +368,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
       </div>
       {playing && (
         <div className={`player-controls${controlsVisible ? ' visible' : ''}`}>
+          {recording && <span className="rec">● REC</span>}
           <button onClick={() => void togglePause()}>{status === 'paused' ? 'Resume' : 'Pause'}</button>
           <button onClick={() => void start()}>Restart</button>
           <FullscreenButton active={fullscreen} onToggle={toggleFullscreen} />
