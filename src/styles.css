@@ -155,17 +155,48 @@ textarea { resize: vertical; }
 .modal { width: min(760px, 92vw); max-height: 80vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
 .modal header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .modal h2 { margin: 0; font-size: 16px; }
-.library-modal { width: min(1180px, 95vw); height: min(760px, 90vh); display: flex; flex-direction: column; }
-.library-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; }
-.folders { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; padding-right: 8px; border-right: 1px solid var(--line-soft); }
-.folders-title { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 14px 0 4px 4px; }
-.folder { display: flex; gap: 8px; align-items: center; text-align: left; border-color: transparent; background: none; font-weight: 600; }
-.folder span:nth-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.folder em { font-style: normal; color: var(--muted); font-size: 11px; }
-.folder.active { background: var(--accent-soft); border-color: var(--accent); }
-.folder.new { color: var(--accent); margin-top: 6px; }
-.folder-icon { color: var(--muted); width: 14px; }
-.folder-content { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+/* ------------------------------------------------------------------ pages (start page, match page) */
+.page { height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
+.page-bar { display: flex; align-items: center; gap: 22px; padding: 0 18px; height: 62px; border-bottom: 1px solid var(--line); background: var(--sunken); flex: 0 0 auto; }
+.page-bar > .inline { margin-left: auto; gap: 6px; }
+.page-body { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; }
+.linkish { background: none; border: none; padding: 2px 4px; color: inherit; font-weight: 600; cursor: pointer; }
+.linkish:hover { color: var(--accent); }
+button.brand { display: flex; align-items: center; gap: 10px; }
+.crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.crumbs > span { color: var(--faint); }
+.crumbs strong { overflow: hidden; text-overflow: ellipsis; }
+.tabs { display: flex; gap: 4px; }
+.tabs button { background: none; border-color: transparent; }
+.tabs button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.tabs em { font-style: normal; color: var(--muted); margin-left: 4px; font-size: 11px; }
+.badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; background: var(--surface-3); color: var(--text); }
+.badge.archived { background: rgba(245, 183, 0, 0.15); color: var(--standby); }
+.hint.empty { padding: 40px; text-align: center; font-size: 14px; }
+
+.match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.match-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.match-card.archived { opacity: 0.75; }
+.card-main { padding: 0; border: none; border-radius: 0; background: none; text-align: left; display: block; white-space: normal; }
+.card-main:hover .card-thumb { filter: brightness(1.12); }
+.card-thumb { position: relative; aspect-ratio: 16 / 9; background: #1a1c1e center / cover no-repeat; display: flex; gap: 6px; align-items: flex-start; padding: 10px; }
+.card-text { padding: 12px 14px 4px; display: grid; gap: 4px; }
+.card-text strong { font-size: 15px; }
+.card-text span { color: var(--muted); font-size: 12px; }
+.card-text .note { color: var(--sage); font-style: italic; }
+.card-actions { display: flex; gap: 6px; padding: 10px 14px 14px; flex-wrap: wrap; margin-top: auto; }
+.card-actions button { padding: 5px 9px; font-size: 12px; }
+
+.match-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 26px; align-items: start; }
+.match-layout section { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.match-page .match-name { font-size: 22px; }
+.match-stages .meta.linkish { text-align: left; display: grid; padding: 0; }
+.versions { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.versions h4 { margin: 0 0 10px; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.versions ul { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+.version { width: 100%; display: flex; gap: 8px; align-items: center; text-align: left; white-space: normal; }
+.version.on { border-color: var(--accent); background: var(--accent-soft); }
+
 .match-head { display: flex; gap: 10px; align-items: center; }
 .match-head h3 { margin: 0; font-size: 16px; }
 .match-name { font-size: 16px; font-weight: 800; padding: 7px 10px; }
@@ -236,6 +267,14 @@ textarea { resize: vertical; }
 .complete { background: rgba(5, 6, 5, 0.86); }
 .complete p { color: var(--muted); font-size: 3cqh; margin: 2.6cqh 0 0; }
 .complete-actions { display: flex; gap: 12px; margin-top: 5cqh; }
+.hud-center {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%) scale(0.92);
+  text-align: center; font-size: 12cqh; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text); opacity: 0; transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+  text-shadow: 0 0.4cqh 2.5cqh rgba(0, 0, 0, 0.75), 0 0 0.6cqh rgba(0, 0, 0, 0.6);
+}
+.hud-center.show { opacity: 1; transform: translateY(-50%) scale(1); }
+.hud-center.standby { color: var(--standby); font-size: 15cqh; letter-spacing: 0.1em; }
 .hud-caption { font-size: 1.9cqh; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6cqh; }
 
 /* stage layer: hidden behind intro / title cards, pushes in when the stage starts */

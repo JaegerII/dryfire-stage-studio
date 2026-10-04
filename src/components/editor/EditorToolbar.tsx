@@ -8,8 +8,9 @@ interface Props {
   canRedo: boolean;
   showGrid: boolean;
   snap: boolean;
-  onNew: () => void;
-  onOpen: () => void;
+  matchName?: string;
+  onHome: () => void;
+  onBackToMatch?: () => void;
   onSave: () => void;
   onDuplicate: () => void;
   onImport: (file: File) => void;
@@ -26,21 +27,23 @@ export const EditorToolbar = (p: Props) => {
   const file = useRef<HTMLInputElement>(null);
   return (
     <header className="toolbar">
-      <div className="brand">
+      <button className="brand linkish" onClick={p.onHome} title="All matches">
         <BrandMark height={26} />
-        <div>
-          <div className="brand-name">DRYFIRE STAGE STUDIO</div>
-          <div className="brand-sub">FORTH TRACE</div>
-        </div>
-      </div>
-      <div className="stage-title">
-        {p.stageName}
+      </button>
+      <div className="crumbs stage-title">
+        <button className="linkish" onClick={p.onHome}>Matches</button>
+        <span>/</span>
+        {p.matchName && p.onBackToMatch && (
+          <>
+            <button className="linkish" onClick={p.onBackToMatch}>{p.matchName}</button>
+            <span>/</span>
+          </>
+        )}
+        <strong>{p.stageName}</strong>
         {p.dirty && <span className="dirty" title="Unsaved changes">●</span>}
       </div>
       <nav>
         <div className="group">
-          <button onClick={p.onNew}>New</button>
-          <button onClick={p.onOpen} title="Matches and stages">Library</button>
           <button onClick={p.onSave} title="Ctrl+S">Save</button>
           <button onClick={p.onDuplicate}>Duplicate</button>
           <button onClick={p.onReset} disabled={!p.dirty} title="Revert to the last saved version">Reset</button>

@@ -239,12 +239,12 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     <div className={`player${status === 'running' && !controlsVisible ? ' hide-cursor' : ''}`} ref={rootRef}>
       <div className="player-area" ref={areaRef}>
         <div className="player-box" style={{ width: box.width, height: box.height }}>
-          <div className={canvasClass} key={stageIndex}>
+          <div className={canvasClass} key={`layer-${stageIndex}`}>
             <StageCanvas stage={stage} width={box.width} height={box.height} registerNode={registerNode} layerRef={layer} />
           </div>
           {playing && scene === 'stage' && (
             <PlayerOverlay
-              key={stageIndex}
+              key={`hud-${stageIndex}`}
               ref={overlay}
               stage={stage}
               caption={isMatch ? `${matchName} · Stage ${stageIndex + 1}/${stages.length}` : undefined}
@@ -255,7 +255,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
           {playing && scene === 'brand' && <BrandScreen />}
           {playing && scene === 'safety' && <SafetyScreen />}
           {playing && scene === 'title' && (
-            <StageTitleScreen key={stageIndex} stage={stage} index={stageIndex} count={stages.length} matchName={matchName} />
+            <StageTitleScreen key={`title-${stageIndex}`} stage={stage} index={stageIndex} count={stages.length} matchName={matchName} />
           )}
           {status === 'complete' && (
             <CompleteScreen

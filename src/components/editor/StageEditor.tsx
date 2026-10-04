@@ -8,8 +8,6 @@ import { screenToStage } from '../../utils/view';
 import { ENVIRONMENTS } from '../../assets/environments';
 import { StageFormatError, createObject, createStage, exportStageFile } from '../../utils/stageIO';
 import { readImportFile, saveImportedMatch } from '../../utils/matchIO';
-import { matchRepository } from '../../data/matchRepository';
-import { Library } from '../library/Library';
 import { StageCanvas } from '../stage/StageCanvas';
 import { useStageHistory } from '../../hooks/useStageHistory';
 import { AssetLibrary, DND_TYPE } from './AssetLibrary';
@@ -23,9 +21,14 @@ interface Props {
   initial: Stage;
   /** Hidden while the player is open (state stays alive). */
   hidden: boolean;
-  /** Play one stage, or a whole match (stages in order + match name). */
-  onPlay: (stages: Stage[], matchName?: string, matchId?: string) => void;
-  onStageIdChange: (id: string) => void;
+  /** Play the stage being edited (with unsaved changes). */
+  onPlay: (stages: Stage[]) => void;
+  /** Breadcrumb: "Matches / <matchName> / <stage>". */
+  matchName?: string;
+  onHome: () => void;
+  onBackToMatch?: () => void;
+  /** Lets the app warn before navigating away from unsaved changes. */
+  onDirtyChange: (dirty: boolean) => void;
 }
 
 const isTyping = (e: KeyboardEvent) => {
@@ -33,13 +36,12 @@ const isTyping = (e: KeyboardEvent) => {
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
 };
 
-export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props) => {
+export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBackToMatch, onDirtyChange }: Props) => {
   const { stage, update, commit, undo, redo, reset, canUndo, canRedo } = useStageHistory(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showGrid, setShowGrid] = useState(false);
   const [snap, setSnap] = useState(false);
-  const [browser, setBrowser] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
@@ -49,7 +51,9 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
   const selected = selectedObjs.length === 1 ? selectedObjs[0] : undefined;
   const selectedId = selected?.id ?? null;
 
-  useEffect(() => onStageIdChange(stage.id), [stage.id, onStageIdChange]);
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 2200);
@@ -249,8 +253,9 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
         canRedo={canRedo}
         showGrid={showGrid}
         snap={snap}
-        onNew={() => confirmDiscard() && load(createStage())}
-        onOpen={() => setBrowser(true)}
+        matchName={matchName}
+        onHome={onHome}
+        onBackToMatch={onBackToMatch}
         onSave={save}
         onDuplicate={() => {
           const copy: Stage = { ...structuredClone(stage), id: newId('stage'), name: `${stage.name} (copy)` };
@@ -262,10 +267,9 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
           readImportFile(f)
             .then((res) => {
               if (res.kind === 'match') {
-                // a match bundle: store its stages + the match, then show it in the library
+                // a match bundle: store its stages + the match; it appears on the start page
                 saveImportedMatch(res.match, res.stages);
-                setToast(`Imported match "${res.match.name}" (${res.stages.length} stages)`);
-                setBrowser(true);
+                setToast(`Imported match "${res.match.name}" (${res.stages.length} stages) — see Matches`);
                 return;
               }
               if (!confirmDiscard()) return;
@@ -303,39 +307,6 @@ export const StageEditor = ({ initial, hidden, onPlay, onStageIdChange }: Props)
         onSelect={onPick}
         onClearSelection={() => setSelectedIds([])}
       />
-      {browser && (
-        <Library
-          currentStageId={stage.id}
-          onClose={() => setBrowser(false)}
-          onOpenStage={(id) => {
-            const s = stageRepository.get(id);
-            if (s && confirmDiscard()) load(s);
-            setBrowser(false);
-          }}
-          onPlayStage={(id) => {
-            // the stage open in the editor plays with its unsaved changes
-            const s = id === stage.id ? stage : stageRepository.get(id);
-            setBrowser(false);
-            if (s) onPlay([s]);
-          }}
-          onPlayMatch={(matchId) => {
-            const m = matchRepository.get(matchId);
-            if (!m) return;
-            const list = m.stageIds.map((id) => (id === stage.id ? stage : stageRepository.get(id))).filter((s): s is Stage => !!s);
-            setBrowser(false);
-            if (list.length) onPlay(list, m.name, m.id);
-          }}
-          onNewStageInMatch={(matchId) => {
-            const m = matchRepository.get(matchId);
-            if (!m || !confirmDiscard()) return;
-            const s = stageRepository.save({ ...createStage(), name: `Stage ${m.stageIds.length + 1}` });
-            matchRepository.save({ ...m, stageIds: [...m.stageIds, s.id] });
-            load(s);
-            setBrowser(false);
-            setToast(`New stage added to "${m.name}"`);
-          }}
-        />
-      )}
     </div>
   );
 };

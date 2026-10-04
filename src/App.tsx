@@ -1,21 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StageEditor } from './components/editor/StageEditor';
+import { HomePage } from './components/home/HomePage';
+import { MatchPage } from './components/match/MatchPage';
 import { TrainingPlayer } from './components/player/TrainingPlayer';
 import { matchRepository } from './data/matchRepository';
 import { stageRepository } from './data/stageRepository';
 import type { Stage } from './types/stage';
 import { createStage } from './utils/stageIO';
+import { matchStages } from './utils/matchVersion';
 
 /**
- * Routes (hash based, so the app works from any static host / file):
- *   #/edit/<stageId>    editor
- *   #/play/<stageId>    play one stage (e.g. a browser window for OBS)
- *   #/match/<matchId>   play a whole match (logo → safety → stages)
+ * Routes (hash based, so the app works from any static host):
+ *   #/                          start page: matches (active / archive) + all stages
+ *   #/match/<id>                one match: its stages, versions
+ *   #/match/<id>/play           play the whole match (logo → safety → stages) — e.g. for OBS
+ *   #/match/<id>/edit/<stage>   edit a stage of that match (breadcrumb back to the match)
+ *   #/edit/<stage>              edit a stage on its own
+ *   #/play/<stage>              play one stage
  */
-const parseHash = () => {
-  const [, mode, id] = location.hash.match(/^#\/(edit|play|match)\/(.+)$/) ?? [];
-  return { mode: (mode as 'edit' | 'play' | 'match') ?? 'edit', id: id ? decodeURIComponent(id) : undefined };
-};
+type View = { page: 'home' } | { page: 'match'; matchId: string } | { page: 'edit'; stageId: string; matchId?: string };
 
 interface Playing {
   stages: Stage[];
@@ -23,51 +26,124 @@ interface Playing {
   matchId?: string;
 }
 
-const initialPlaying = (editorStage: Stage): Playing | null => {
-  const { mode, id } = parseHash();
-  if (mode === 'play') return { stages: [editorStage] };
-  if (mode === 'match' && id) {
-    const m = matchRepository.get(id);
-    const stages = m?.stageIds.map((sid) => stageRepository.get(sid)).filter((s): s is Stage => !!s) ?? [];
-    if (m && stages.length) return { stages, matchName: m.name, matchId: m.id };
+const dec = decodeURIComponent;
+const enc = encodeURIComponent;
+
+const parse = (hash: string): { view: View; playing: Playing | null } => {
+  let m: RegExpMatchArray | null;
+  if ((m = hash.match(/^#\/match\/([^/]+)\/play$/))) {
+    const match = matchRepository.get(dec(m[1]));
+    const stages = match ? matchStages(match) : [];
+    return {
+      view: { page: 'match', matchId: dec(m[1]) },
+      playing: match && stages.length ? { stages, matchName: match.name, matchId: match.id } : null,
+    };
   }
-  return null;
+  if ((m = hash.match(/^#\/match\/([^/]+)\/edit\/(.+)$/))) return { view: { page: 'edit', matchId: dec(m[1]), stageId: dec(m[2]) }, playing: null };
+  if ((m = hash.match(/^#\/match\/([^/]+)$/))) return { view: { page: 'match', matchId: dec(m[1]) }, playing: null };
+  if ((m = hash.match(/^#\/edit\/(.+)$/))) return { view: { page: 'edit', stageId: dec(m[1]) }, playing: null };
+  if ((m = hash.match(/^#\/play\/(.+)$/))) {
+    const s = stageRepository.get(dec(m[1]));
+    return { view: { page: 'edit', stageId: dec(m[1]) }, playing: s ? { stages: [s] } : null };
+  }
+  return { view: { page: 'home' }, playing: null };
 };
 
-const initialStage = (): Stage => {
-  const { mode, id: hashId } = parseHash();
-  // for a match route, open the match's first stage in the editor
-  const id = mode === 'match' && hashId ? matchRepository.get(hashId)?.stageIds[0] : hashId;
-  return (id && stageRepository.get(id)) || stageRepository.get(stageRepository.list()[0]?.id ?? '') || createStage();
+const toHash = (view: View, playing: Playing | null) => {
+  if (playing?.matchId) return `#/match/${enc(playing.matchId)}/play`;
+  if (playing) return `#/play/${enc(playing.stages[0].id)}`;
+  if (view.page === 'match') return `#/match/${enc(view.matchId)}`;
+  if (view.page === 'edit') return view.matchId ? `#/match/${enc(view.matchId)}/edit/${enc(view.stageId)}` : `#/edit/${enc(view.stageId)}`;
+  return '#/';
 };
 
 export const App = () => {
-  const [editorStage] = useState(initialStage);
-  const [playing, setPlaying] = useState<Playing | null>(() => initialPlaying(editorStage));
-  const [currentId, setCurrentId] = useState(editorStage.id);
+  const [state, setState] = useState(() => parse(location.hash));
+  const { view, playing } = state;
+  const editorDirty = useRef(false);
+
+  // keep the address bar in sync (new history entry per page, so browser back works)
+  useEffect(() => {
+    const target = toHash(view, playing);
+    if (location.hash !== target) history.pushState(null, '', target);
+  }, [view, playing]);
 
   useEffect(() => {
-    const target = playing?.matchId
-      ? `#/match/${encodeURIComponent(playing.matchId)}`
-      : `#/${playing ? 'play' : 'edit'}/${encodeURIComponent(playing?.stages[0]?.id ?? currentId)}`;
-    if (location.hash !== target) history.replaceState(null, '', target);
-  }, [playing, currentId]);
+    const onPop = () => setState(parse(location.hash));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
-  const onStageIdChange = useCallback((id: string) => setCurrentId(id), []);
-  const onPlay = useCallback(
-    (stages: Stage[], matchName?: string, matchId?: string) => setPlaying({ stages: structuredClone(stages), matchName, matchId }),
-    [],
+  /** Navigate to another page — asks first when the editor has unsaved changes. */
+  const go = useCallback(
+    (next: View) => {
+      if (view.page === 'edit' && editorDirty.current && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
+      editorDirty.current = false;
+      setState({ view: next, playing: null });
+    },
+    [view],
   );
+
+  const play = useCallback((p: Playing) => setState((s) => ({ ...s, playing: { ...p, stages: structuredClone(p.stages) } })), []);
+  const playMatch = useCallback(
+    (id: string) => {
+      const m = matchRepository.get(id);
+      const stages = m ? matchStages(m) : [];
+      if (m && stages.length) play({ stages, matchName: m.name, matchId: m.id });
+    },
+    [play],
+  );
+  const playStage = useCallback(
+    (id: string) => {
+      const s = stageRepository.get(id);
+      if (s) play({ stages: [s] });
+    },
+    [play],
+  );
+
+  const match = view.page !== 'home' && view.matchId ? matchRepository.get(view.matchId) : undefined;
 
   return (
     <>
-      <StageEditor initial={editorStage} hidden={!!playing} onPlay={onPlay} onStageIdChange={onStageIdChange} />
+      {view.page === 'home' && (
+        <HomePage
+          onOpenMatch={(id) => go({ page: 'match', matchId: id })}
+          onPlayMatch={playMatch}
+          onOpenStage={(id) => go({ page: 'edit', stageId: id })}
+          onPlayStage={playStage}
+        />
+      )}
+      {view.page === 'match' && (
+        <MatchPage
+          key={`match:${view.matchId}`}
+          matchId={view.matchId}
+          onHome={() => go({ page: 'home' })}
+          onOpenMatch={(id) => go({ page: 'match', matchId: id })}
+          onOpenStage={(stageId) => go({ page: 'edit', stageId, matchId: view.matchId })}
+          onPlayStage={playStage}
+          onPlayMatch={playMatch}
+        />
+      )}
+      {view.page === 'edit' && (
+        <StageEditor
+          key={`edit:${view.stageId}`}
+          initial={stageRepository.get(view.stageId) ?? { ...createStage(), id: view.stageId }}
+          hidden={!!playing}
+          matchName={match ? `${match.name} v${match.version ?? 1}` : undefined}
+          onHome={() => go({ page: 'home' })}
+          onBackToMatch={match ? () => go({ page: 'match', matchId: match.id }) : undefined}
+          onDirtyChange={(d) => {
+            editorDirty.current = d;
+          }}
+          onPlay={(stages) => play({ stages })}
+        />
+      )}
       {playing && (
         <TrainingPlayer
-          key={playing.matchId ?? playing.stages[0].id}
+          key={`play:${playing.matchId ?? playing.stages[0].id}`}
           stages={playing.stages}
           matchName={playing.matchName}
-          onExit={() => setPlaying(null)}
+          onExit={() => setState((s) => ({ ...s, playing: null }))}
         />
       )}
     </>

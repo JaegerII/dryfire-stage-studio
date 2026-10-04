@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import type { Stage } from '../../types/stage';
-import type { Phase, PlayerSnapshot } from '../../utils/schedule';
+import type { PlayerSnapshot } from '../../utils/schedule';
 
 export interface OverlayHandle {
   update: (s: PlayerSnapshot) => void;
@@ -14,12 +14,19 @@ interface Props {
   signalBorder: boolean;
 }
 
-const STATUS: Partial<Record<Phase, { text: string; cls: string }>> = {
+/** Range commands: "Are you ready?" shows this long before STANDBY. */
+const ASK_SECONDS = 1.6;
+
+type Cue = 'ready' | 'reset' | 'time' | 'ask' | 'standby' | 'active' | '';
+
+/** Small status line at the bottom. */
+const BOTTOM: Partial<Record<Cue, { text: string; cls: string }>> = {
   ready: { text: 'Make Ready', cls: 'reset' },
   reset: { text: 'Reset', cls: 'reset' },
-  standby: { text: 'Stand By', cls: 'standby' },
-  active: { text: '', cls: 'active' },
+  time: { text: 'Time', cls: 'time' },
 };
+/** Big centre command. */
+const CENTER: Partial<Record<Cue, string>> = { ask: 'Are you ready?', standby: 'Standby' };
 
 /**
  * Minimal training HUD. Updated imperatively every animation frame
@@ -31,28 +38,39 @@ export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOve
   const bar = useRef<HTMLDivElement>(null);
   const timer = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  const last = useRef({ phase: '' as Phase | '', rep: -1, timeShown: false });
+  const center = useRef<HTMLDivElement>(null);
+  const last = useRef({ cue: '' as Cue, rep: -1 });
 
   useImperativeHandle(ref, () => ({
     update(s) {
       const l = last.current;
-      // "TIME" for the first second after the end beep, then "RESET"
+      // "TIME" for the first second after the end beep, then "RESET" … "ARE YOU READY?" … "STANDBY"
       const afterEnd = s.phase === 'reset' && s.sinceStart < stage.parTime + 1;
+      const cue: Cue = afterEnd
+        ? 'time'
+        : (s.phase === 'ready' || s.phase === 'reset') && s.untilStandby <= ASK_SECONDS
+          ? 'ask'
+          : (s.phase as Cue);
       if (s.rep !== l.rep && rep.current) rep.current.textContent = String(Math.max(1, s.rep));
-      if (s.phase !== l.phase || afterEnd !== l.timeShown) {
-        const st = afterEnd ? { text: 'Time', cls: 'time' } : STATUS[s.phase] ?? { text: '', cls: '' };
+      if (cue !== l.cue) {
+        const st = BOTTOM[cue] ?? { text: '', cls: '' };
         if (status.current) {
           status.current.textContent = st.text;
           status.current.className = `hud-status ${st.cls}`;
         }
-        if (root.current) root.current.dataset.signal = signalBorder ? (afterEnd ? 'time' : s.phase) : '';
+        if (center.current) {
+          const text = CENTER[cue];
+          center.current.textContent = text ?? '';
+          center.current.className = `hud-center${text ? ` show ${cue}` : ''}`;
+        }
+        if (root.current) root.current.dataset.signal = signalBorder ? (cue === 'time' ? 'time' : s.phase) : '';
       }
       if (bar.current) {
         bar.current.style.transform = `scaleX(${s.parProgress})`;
         bar.current.dataset.state = s.phase === 'active' ? 'active' : s.parProgress >= 1 ? 'done' : 'idle';
       }
       if (timer.current && showTimer) timer.current.textContent = s.elapsed.toFixed(2);
-      last.current = { phase: s.phase, rep: s.rep, timeShown: afterEnd };
+      last.current = { cue, rep: s.rep };
     },
   }));
 
@@ -72,6 +90,7 @@ export const PlayerOverlay = forwardRef<OverlayHandle, Props>(function PlayerOve
           </div>
         </div>
       </div>
+      <div className="hud-center" ref={center} />
       <div className="hud-bottom">
         {showTimer && <div className="hud-timer" ref={timer}>0.00</div>}
         <div className="hud-status" ref={status} />

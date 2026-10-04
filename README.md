@@ -12,13 +12,17 @@ npm run build      # static build in dist/ (any static host)
 npm run assets     # regenerate target / barrier SVGs and beeps after a design change
 ```
 
-## Modes
+## Pages and routes
 
-| Route | |
+| Route | Page |
 |---|---|
-| `#/edit/<stageId>` | **Editor**: asset library, stage canvas, properties |
-| `#/play/<stageId>` | **Player**: one stage + minimal HUD, fullscreen, beeps |
-| `#/match/<matchId>` | **Match player**: logo → safety → every stage of the match (one video) |
+| `#/` | **Start page**: matches as cards (active / archive), all stages, import, new match / stage |
+| `#/match/<id>` | **Match**: its stages in play order, versions, archive, export |
+| `#/match/<id>/play` | **Match player**: logo → safety → every stage (one take for OBS) |
+| `#/match/<id>/edit/<stageId>` | **Editor** for a stage of that match (breadcrumb back) |
+| `#/edit/<stageId>` / `#/play/<stageId>` | edit / play a single stage |
+
+The browser's back button works between pages. Leaving the editor with unsaved changes asks first.
 
 ## Editor
 
@@ -39,23 +43,24 @@ npm run assets     # regenerate target / barrier SVGs and beeps after a design c
 * **Storage:** stages are saved in the browser (localStorage). Built-in stages live in `src/data/stages/*.json`.
   To ship a stage with the app, export it and drop the file there.
 
-## Library and matches
+## Matches, archive and versions
 
-*Library* (toolbar) is the folder view: **matches on the left, the selected match's stages on the right.**
-
-* **A match** is an ordered list of stages, typically 2–4, played as one session or video. A stage can be part of
-  several matches.
-* **Inside a match:** add existing stages, create a *New stage in this match* (opens it in the editor), reorder (↑ ↓),
-  remove (the stage itself is kept), open or play single stages, and *Play match*.
-* **Export / Import:** *Export* writes a match bundle (match plus copies of its stages) that *Import* (Library or editor)
-  restores on any computer. Built-in matches live in `src/data/matches/*.json`.
-* **"All stages"** lists every stage with *Add to match…*.
+* **A match** is an ordered list of stages, typically 2–4, played as one session or video.
+* **Start page:** click a match card to open it, or use **+ New match**.
+* **Match page:** create stages (*+ New stage* opens the editor), add existing ones, reorder (↑ ↓), edit, play or remove them.
+* **Archive:** archived matches stay unchanged and move to the *Archive* tab. *Restore* brings them back.
+* **New version:** copies the match **and all its stages** as v2, v3 … with an optional change note. You can archive the
+  old version in the same step. Because the stages are copies, editing v2 never changes v1. All versions of a match
+  are listed on the match page.
+* **Export / Import:** a match bundle (match plus its stages) can be restored on any computer.
+  Built-in matches live in `src/data/matches/*.json`.
 
 ### Match playback (one take for OBS)
 
 1. **FORTH TRACE logo** (5 s), then **Attention / safety** (7 s). These are shown once per match and are optional in the setup.
 2. **For every stage:** a title card (*Stage 2 / 3*, name, par, reps, 4 s). Then the camera **pushes into the stage**
-   from black while MAKE READY shows, then all reps.
+   from black while MAKE READY shows, then all reps. Before each rep **ARE YOU READY?** and **STANDBY** appear large in the
+   centre of the screen.
 3. **MATCH COMPLETE** at the end.
 
 A single stage played on its own skips the intro by default.
@@ -172,7 +177,9 @@ src/
   assets/        environments/*.webp  targets/*.svg  barriers/*.svg  other/  audio/  brand/  fonts/
                  registry.ts (asset catalogue)  environments.ts (horizon + camera height per plate)
   components/
-    editor/      StageEditor, AssetLibrary, PropertiesPanel, EditorToolbar, StageBrowser, fields
+    home/        HomePage (matches, archive, all stages)
+    match/       MatchPage (stages of a match, versions)
+    editor/      StageEditor, AssetLibrary, PropertiesPanel, EditorToolbar, fields
     stage/       StageCanvas (shared renderer), StageObject → TargetObject / BarrierObject
     player/      TrainingPlayer, PlayerOverlay, IntroScreens, FullscreenButton
   data/          stages/*.json (built-in), stageRepository.ts (storage interface)

@@ -60,10 +60,12 @@ export interface PlayerSnapshot {
   parProgress: number;
   /** Seconds since the start beep of the current rep (negative before it). */
   sinceStart: number;
+  /** Seconds until the next STAND BY (Infinity when no rep follows). */
+  untilStandby: number;
 }
 
 export const snapshotAt = (s: Schedule, t: number, stage: Stage): PlayerSnapshot => {
-  if (t >= s.completeAt) return { phase: 'complete', rep: stage.repetitions, elapsed: stage.parTime, parProgress: 1, sinceStart: Infinity };
+  if (t >= s.completeAt) return { phase: 'complete', rep: stage.repetitions, elapsed: stage.parTime, parProgress: 1, sinceStart: Infinity, untilStandby: Infinity };
   // current rep = last rep whose prep has started
   let idx = 0;
   s.reps.forEach((rep, i) => {
@@ -73,12 +75,14 @@ export const snapshotAt = (s: Schedule, t: number, stage: Stage): PlayerSnapshot
   if (t >= r.endBeep || t < r.standbyStart) {
     // reset after a rep still belongs to that rep (TIME → RESET); before rep 1 it is MAKE READY
     const done = t >= r.endBeep ? r : s.reps[idx - 1];
-    if (!done) return { phase: 'ready', rep: 1, elapsed: 0, parProgress: 0, sinceStart: t - r.startBeep };
-    return { phase: 'reset', rep: done.index, elapsed: stage.parTime, parProgress: 1, sinceStart: t - done.startBeep };
+    const next = t >= r.endBeep ? s.reps[idx + 1] : r;
+    const untilStandby = next ? next.standbyStart - t : Infinity;
+    if (!done) return { phase: 'ready', rep: 1, elapsed: 0, parProgress: 0, sinceStart: t - r.startBeep, untilStandby };
+    return { phase: 'reset', rep: done.index, elapsed: stage.parTime, parProgress: 1, sinceStart: t - done.startBeep, untilStandby };
   }
   const sinceStart = t - r.startBeep;
-  if (t < r.startBeep) return { phase: 'standby', rep: r.index, elapsed: 0, parProgress: 0, sinceStart };
-  return { phase: 'active', rep: r.index, elapsed: sinceStart, parProgress: sinceStart / stage.parTime, sinceStart };
+  if (t < r.startBeep) return { phase: 'standby', rep: r.index, elapsed: 0, parProgress: 0, sinceStart, untilStandby: 0 };
+  return { phase: 'active', rep: r.index, elapsed: sinceStart, parProgress: sinceStart / stage.parTime, sinceStart, untilStandby: Infinity };
 };
 
 /** Stage length in seconds (average standby delay). */
