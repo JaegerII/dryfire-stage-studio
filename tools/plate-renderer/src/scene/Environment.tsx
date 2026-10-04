@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { random } from 'remotion';
 import { useTextures } from './assets';
 
-export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'outdoor_01' | 'outdoor_02';
+export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03';
 
 const repeat = (t: THREE.Texture, x: number, y: number) => {
   const c = t.clone();
@@ -244,5 +244,189 @@ const Outdoor: React.FC<{ style: OutdoorStyle; seed: string }> = ({ style, seed 
   );
 };
 
-export const RangeEnvironment: React.FC<{ id: EnvironmentId }> = ({ id }) =>
-  id === 'indoor_01' || id === 'indoor_02' ? <Indoor style={INDOOR[id]} /> : <Outdoor style={OUTDOOR[id]} seed={id} />;
+// ------------------------------------------------------------------ indoor 03: bright tunnel range
+
+/** Long, narrow lane: light acoustic tiles on walls + ceiling, LED strips, green floor, bright backstop. */
+const IndoorTunnel: React.FC = () => {
+  const tex = useTextures();
+  const W = 8;
+  const D = 40;
+  const H = 3.6;
+  const z0 = -4;
+  const back = 34;
+  const wallMap = useMemo(() => repeat(tex.tile, D / 1.2, H / 1.2), [tex]);
+  const ceilMap = useMemo(() => repeat(tex.tile, W / 1.2, D / 1.2), [tex]);
+  const floorMap = useMemo(() => repeat(tex.greenFloor, 2, 10), [tex]);
+  const strips = Array.from({ length: 11 }, (_, i) => 1 + i * 3);
+  const baffles = Array.from({ length: 9 }, (_, i) => -2.4 + i * 0.6);
+
+  return (
+    <>
+      <color attach="background" args={['#e8eaea']} />
+      <ambientLight intensity={0.55} />
+      <hemisphereLight args={['#ffffff', '#5f7a6a', 0.6]} />
+      <KeyLight position={[1, 12, -3]} intensity={1.2} color="#f3f6ff" />
+      {strips.map((z) => (
+        <pointLight key={z} position={[0, H - 0.3, z]} intensity={7} distance={9} decay={1.5} color="#f5f8ff" />
+      ))}
+
+      {/* green floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, z0 + D / 2]} receiveShadow>
+        <planeGeometry args={[W, D]} />
+        <meshStandardMaterial map={floorMap} roughness={0.55} />
+      </mesh>
+      {/* tiled walls + ceiling */}
+      {[-1, 1].map((sx) => (
+        <mesh key={sx} position={[sx * (W / 2), H / 2, z0 + D / 2]} rotation={[0, (sx * Math.PI) / 2, 0]} receiveShadow>
+          <planeGeometry args={[D, H]} />
+          <meshStandardMaterial map={wallMap} roughness={0.95} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      <mesh position={[0, H, z0 + D / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[W, D]} />
+        <meshStandardMaterial map={ceilMap} roughness={1} side={THREE.DoubleSide} />
+      </mesh>
+      {/* LED strips across the lane */}
+      {strips.map((z) => (
+        <mesh key={z} position={[0, H - 0.03, z]}>
+          <boxGeometry args={[W * 0.45, 0.04, 0.16]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={3} />
+        </mesh>
+      ))}
+
+      {/* backstop: lit wall with alternating teal / white baffles and a dark steel trap below */}
+      <mesh position={[0, H / 2, back + 0.6]}>
+        <planeGeometry args={[W, H]} />
+        <meshStandardMaterial color="#f2f4f3" emissive="#ffffff" emissiveIntensity={0.25} />
+      </mesh>
+      {baffles.map((x, i) => (
+        <mesh key={x} position={[x, 1.6, back + 0.4]}>
+          <boxGeometry args={[0.5, 2.2, 0.08]} />
+          <meshStandardMaterial color={i % 2 ? '#e3e8e6' : '#2E8A80'} roughness={0.7} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.28, back]} castShadow receiveShadow>
+        <boxGeometry args={[W, 0.56, 0.6]} />
+        <meshStandardMaterial color="#2a2d2e" roughness={0.5} metalness={0.4} />
+      </mesh>
+      <mesh position={[0, H - 0.5, back - 0.6]}>
+        <boxGeometry args={[W, 0.8, 0.1]} />
+        <meshStandardMaterial map={wallMap} roughness={1} />
+      </mesh>
+    </>
+  );
+};
+
+// ------------------------------------------------------------------ outdoor 03: grass berms, overcast
+
+/** A grass berm: a ground plane with a smooth bump profile across its depth and a gentle wave along it. */
+const Ridge: React.FC<{
+  position: [number, number, number];
+  rotationY?: number;
+  width: number;
+  depth: number;
+  height: number;
+  seed: number;
+  map: THREE.Texture;
+}> = ({ position, rotationY = 0, width, depth, height, seed, map }) => {
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(width, depth, 96, 32);
+    g.rotateX(-Math.PI / 2);
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const nz = pos.getZ(i) / (depth / 2); // -1 … 1 across the berm
+      const profile = Math.pow(Math.max(0, Math.cos((nz * Math.PI) / 2)), 1.6);
+      const wave = 1 + 0.18 * Math.sin(x * 0.35 + seed) + 0.08 * Math.sin(x * 1.1 + seed * 2);
+      // let both ends fade into the ground instead of ending in a cut
+      const end = Math.min(1, (width / 2 - Math.abs(x)) / Math.min(6, width / 4));
+      const taper = end * end * (3 - 2 * end);
+      pos.setY(i, height * profile * wave * taper);
+    }
+    g.computeVertexNormals();
+    return g;
+  }, [width, depth, height, seed]);
+  const tex = useMemo(() => repeat(map, width / 8, depth / 6), [map, width, depth]);
+  return (
+    <mesh geometry={geometry} position={position} rotation={[0, rotationY, 0]} receiveShadow castShadow>
+      <meshStandardMaterial map={tex} roughness={1} />
+    </mesh>
+  );
+};
+
+const OutdoorMeadow: React.FC = () => {
+  const { grass, grassBerm, overcast } = useTextures();
+  const ridges: { pos: [number, number, number]; rot?: number; w: number; d: number; h: number }[] = [
+    { pos: [0, 0, 27], w: 70, d: 16, h: 4.6 },
+    { pos: [-17, 0, 10], rot: Math.PI / 2, w: 40, d: 12, h: 3.6 },
+    { pos: [17, 0, 10], rot: Math.PI / 2, w: 40, d: 12, h: 3.8 },
+    { pos: [-11, 0, 21], w: 14, d: 7, h: 2.2 },
+    { pos: [12, 0, 22], w: 16, d: 7, h: 2.4 },
+  ];
+  const trees = useMemo(
+    () =>
+      Array.from({ length: 16 }, (_, i) => {
+        const x = -22 + random(`bt-x${i}`) * 44;
+        const z = 27 + random(`bt-z${i}`) * 6;
+        const h = 6 + random(`bt-h${i}`) * 5;
+        const branches = Array.from({ length: 6 }, (_, b) => ({
+          y: h * (0.45 + random(`bt-by${i}-${b}`) * 0.5),
+          rot: (random(`bt-br${i}-${b}`) - 0.5) * 1.6,
+          yaw: random(`bt-bw${i}-${b}`) * Math.PI * 2,
+          len: 1.2 + random(`bt-bl${i}-${b}`) * 2,
+        }));
+        return { x, z, h, branches };
+      }),
+    [],
+  );
+
+  return (
+    <>
+      <color attach="background" args={['#c9ced2']} />
+      <fog attach="fog" args={['#c9ced2', 28, 85]} />
+      <ambientLight intensity={0.45} />
+      <hemisphereLight args={['#e4e8ec', '#4e5a35', 1.2]} />
+      <KeyLight position={[-4, 18, -2]} intensity={0.9} color="#eef1f4" />
+
+      <mesh position={[0, 14, 62]}>
+        <planeGeometry args={[240, 70]} />
+        <meshBasicMaterial map={overcast} fog={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* mown grass bay */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 14]} receiveShadow>
+        <planeGeometry args={[60, 60]} />
+        <meshStandardMaterial map={grass} roughness={1} />
+      </mesh>
+
+      {/* grass berms */}
+      {ridges.map((r, i) => (
+        <Ridge key={i} position={r.pos} rotationY={r.rot} width={r.w} depth={r.d} height={r.h} seed={i * 1.7} map={grassBerm} />
+      ))}
+
+      {/* bare trees on the back berm */}
+      {trees.map((t, i) => (
+        <group key={i} position={[t.x, 3.6, t.z]}>
+          <mesh position={[0, t.h / 2, 0]} castShadow>
+            <cylinderGeometry args={[0.08, 0.2, t.h, 6]} />
+            <meshStandardMaterial color="#5a524a" roughness={1} />
+          </mesh>
+          {t.branches.map((b, j) => (
+            <group key={j} position={[0, b.y, 0]} rotation={[0, b.yaw, b.rot]}>
+              <mesh position={[0, b.len / 2, 0]} castShadow>
+                <cylinderGeometry args={[0.02, 0.06, b.len, 5]} />
+                <meshStandardMaterial color="#5f574e" roughness={1} />
+              </mesh>
+            </group>
+          ))}
+        </group>
+      ))}
+    </>
+  );
+};
+
+export const RangeEnvironment: React.FC<{ id: EnvironmentId }> = ({ id }) => {
+  if (id === 'indoor_03') return <IndoorTunnel />;
+  if (id === 'outdoor_03') return <OutdoorMeadow />;
+  return id === 'indoor_01' || id === 'indoor_02' ? <Indoor style={INDOOR[id]} /> : <Outdoor style={OUTDOOR[id]} seed={id} />;
+};

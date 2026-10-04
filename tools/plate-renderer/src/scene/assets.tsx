@@ -2,6 +2,11 @@ import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import type * as THREE from 'three';
 import {
   acousticPanelTexture,
+  acousticTileTexture,
+  grassBermTexture,
+  grassTexture,
+  greenFloorTexture,
+  overcastSkyTexture,
   bermTexture,
   blockWallTexture,
   concreteTexture,
@@ -10,7 +15,10 @@ import {
   skyTexture,
 } from './textures';
 
-type Textures = Record<'concrete' | 'gravel' | 'panel' | 'block' | 'rubber' | 'berm' | 'sky', THREE.Texture>;
+type Textures = Record<
+  'concrete' | 'gravel' | 'panel' | 'block' | 'rubber' | 'berm' | 'sky' | 'tile' | 'greenFloor' | 'grass' | 'grassBerm' | 'overcast',
+  THREE.Texture
+>;
 
 const Ctx = createContext<Textures | null>(null);
 
@@ -25,6 +33,11 @@ export const RangeAssets: React.FC<{ children: React.ReactNode }> = ({ children 
       rubber: rubberTexture(),
       berm: bermTexture(),
       sky: skyTexture(),
+      tile: acousticTileTexture(),
+      greenFloor: greenFloorTexture(),
+      grass: grassTexture(),
+      grassBerm: grassBermTexture(),
+      overcast: overcastSkyTexture(),
     }),
     [],
   );

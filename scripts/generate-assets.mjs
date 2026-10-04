@@ -114,7 +114,8 @@ const rods = (H, top, spread) =>
   [-1, 1].map((s) => `<rect x="${s * spread - 1.8}" y="${H - top}" width="3.6" height="${top - 12}" fill="url(#rod)"/>`).join('');
 
 /** Octagon card with embossed zone lines; `white` = no-shoot. */
-const octCard = (H, bottom, scale, white) => {
+let clipCount = 0;
+const octCard = (H, bottom, scale, white, paint = []) => {
   const tf = (pts) => up(H, shift(pts.map(([x, y]) => [x * scale, y * scale]), bottom));
   const r = 1.6 * scale;
   const line = white ? 'rgba(120,120,112,0.45)' : 'rgba(110,70,25,0.5)';
@@ -125,23 +126,39 @@ const octCard = (H, bottom, scale, white) => {
   return `
 <path d="${rounded(tf(OCT), r)}" fill="${white ? '#B9B9B3' : '#8C6233'}" transform="translate(${0.7 * scale} ${0.9 * scale})"/>
 <path d="${rounded(tf(OCT), r)}" fill="url(#${white ? 'ns' : 'card'})" stroke="${white ? 'rgba(0,0,0,0.12)' : 'rgba(90,58,22,0.4)'}" stroke-width="${0.3 * scale}"/>
-${emboss(0.35 * scale, hi)}${emboss(0, line)}`;
+${emboss(0.35 * scale, hi)}${emboss(0, line)}${paint.length ? paintLayer(tf, r, paint) : ''}`;
+};
+
+/** Black hard-cover paint on a card: polygons in card coordinates (cm, y up from the card's bottom), clipped to the octagon. */
+const paintLayer = (tf, r, polys) => {
+  const id = `hc${clipCount++}`;
+  return `<clipPath id="${id}"><path d="${rounded(tf(OCT), r)}"/></clipPath>
+<g clip-path="url(#${id})">${polys.map((p) => `<path d="M${tf(p).map(([x, y]) => `${f(x)} ${f(y)}`).join('L')}Z" fill="url(#paint)"/>`).join('')}</g>`;
 };
 
 const cardDefs =
   `<linearGradient id="card" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#D7A86A"/><stop offset="1" stop-color="#BF8B4D"/></linearGradient>` +
   `<linearGradient id="ns" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#FAFAF7"/><stop offset="1" stop-color="#E2E2DD"/></linearGradient>` +
+  `<linearGradient id="paint" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#2A2622"/><stop offset="1" stop-color="#16130F"/></linearGradient>` +
   STEEL_GREY +
   ROD;
 
-const targetOnStand = (scale, white) => {
+const targetOnStand = (scale, white, paint = []) => {
   const H = CARD_BOTTOM + 58 * scale;
   return svg(
     54,
     H,
-    `${shadow(H, 26)}${rods(H, CARD_BOTTOM + 20 * scale, 12 * Math.max(scale, 0.7))}${metalBase(H, 20, [-12, 12].map((x) => x * Math.max(scale, 0.7)))}${octCard(H, CARD_BOTTOM, scale, white)}`,
+    `${shadow(H, 26)}${rods(H, CARD_BOTTOM + 20 * scale, 12 * Math.max(scale, 0.7))}${metalBase(H, 20, [-12, 12].map((x) => x * Math.max(scale, 0.7)))}${octCard(H, CARD_BOTTOM, scale, white, paint)}`,
     cardDefs,
   );
+};
+
+// Hard-cover (painted black) variants — the black part may not be scored. Mirror them in the editor for the other side.
+const HC = {
+  vertical: [[[-30, -5], [-8, -5], [-8, 65], [-30, 65]], [[8, -5], [30, -5], [30, 65], [8, 65]]], // only a centre strip open
+  half: [[[-30, -5], [0, -5], [0, 65], [-30, 65]]], // left half painted
+  bottom: [[[-30, -5], [30, -5], [30, 29], [-30, 29]]], // lower half painted
+  diagonal: [[[-30, -5], [12, -5], [-4, 65], [-30, 65]]], // slanted line, left side painted
 };
 
 const paperFull = () => targetOnStand(1, false);
@@ -171,6 +188,35 @@ const paperSwinger = () => {
   return svg(54, H, `${shadow(H, 16)}${pole}${pivot}${octCard(H, CARD_BOTTOM, 1, false)}`, cardDefs);
 };
 const paperMini = () => targetOnStand(0.62, false);
+const paperHcVertical = () => targetOnStand(1, false, HC.vertical);
+const paperHcHalf = () => targetOnStand(1, false, HC.half);
+const paperHcBottom = () => targetOnStand(1, false, HC.bottom);
+const paperHcDiagonal = () => targetOnStand(1, false, HC.diagonal);
+
+/** Plate rack: six 20 cm white plates on a black rack (1.6 m wide, beam at ~1 m). */
+const plateRack = () => {
+  const H = 128;
+  const beamY = H - 100;
+  const legs = [-62, 62]
+    .map(
+      (x) => `<rect x="${x - 4}" y="${beamY}" width="8" height="${100 - 4}" fill="url(#rackLeg)"/>
+<path d="M${x - 16} ${H}L${x + 16} ${H}L${x + 12} ${H - 4}L${x - 12} ${H - 4}Z" fill="#141414"/>`,
+    )
+    .join('');
+  const beam = `<path d="M-82 ${beamY}L82 ${beamY}L86 ${beamY - 6}L-86 ${beamY - 6}Z" fill="#2A2A2A"/>
+<rect x="-82" y="${beamY}" width="164" height="7" fill="#1B1B1B"/>`;
+  const plates = Array.from({ length: 6 }, (_, i) => {
+    const x = -65 + i * 26;
+    return `<rect x="${x - 1.6}" y="${beamY - 14}" width="3.2" height="9" fill="#1B1B1B"/>
+<circle cx="${x}" cy="${beamY - 18}" r="10" fill="url(#steel)" stroke="rgba(0,0,0,0.15)" stroke-width="0.35"/>`;
+  }).join('');
+  return svg(
+    180,
+    H,
+    `${shadow(H, 80)}${legs}${beam}${plates}`,
+    steelDefs + `<linearGradient id="rackLeg" x1="0" x2="1"><stop offset="0" stop-color="#2E2E2E"/><stop offset="1" stop-color="#121212"/></linearGradient>`,
+  );
+};
 const noShoot = () => targetOnStand(1, true);
 
 /**
@@ -422,6 +468,11 @@ out('targets/no_shoot.svg', noShoot());
 out('targets/steel_popper.svg', steelPopper());
 out('targets/no_shoot_overlay.svg', noShootOverlay());
 out('targets/paper_card.svg', paperCard());
+out('targets/paper_hc_vertical.svg', paperHcVertical());
+out('targets/paper_hc_half.svg', paperHcHalf());
+out('targets/paper_hc_bottom.svg', paperHcBottom());
+out('targets/paper_hc_diagonal.svg', paperHcDiagonal());
+out('targets/steel_plate_rack.svg', plateRack());
 out('targets/paper_stack.svg', paperStack());
 out('targets/paper_stack_double.svg', paperStackDouble());
 out('targets/paper_swinger.svg', paperSwinger());

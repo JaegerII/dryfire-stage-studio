@@ -170,15 +170,15 @@ The deploy takes about one minute (watch it under the repo's **Actions** tab).
   * `hiddenUntilStart` (swing/bob): the target stays invisible until its motion starts.
   * Between reps everything resets: steel stands up again, activated targets disappear.
 * Object types:
-  * Targets: `paper_full`, `paper_mini`, `paper_stack` (target / no-shoot / target overlapping on one stand), `paper_stack_double`, `paper_swinger` (card on a pivoting pole), `paper_card` (card only, for boxes), `no_shoot`, `no_shoot_overlay` (card only),
-    `steel_popper`, `steel_plate`
+  * Targets: `paper_full`, `paper_mini`, `paper_stack` (target / no-shoot / target overlapping on one stand), `paper_stack_double`, `paper_swinger` (card on a pivoting pole), `paper_card` (card only, for boxes), `paper_hc_vertical` / `paper_hc_half` / `paper_hc_bottom` / `paper_hc_diagonal` (black hard-cover paint, mirror for the other side), `no_shoot`, `no_shoot_overlay` (card only),
+    `steel_popper`, `steel_plate`, `steel_plate_rack`
   * Barriers: `mesh_wall`, `mesh_wall_short`, `mesh_wall_window`, `mesh_wall_diagonal`, `mesh_wall_port`, `mesh_corner`
   * Other: `start_box`, `crate` (black box, 60 cm), `crate_wide` (black box, 120 cm — e.g. target + angled no-shoot side by side)
 * Objects hidden behind something (e.g. a swinger behind a box) can be selected from the **Objects** list in the right panel.
 * Rotation and scale of an elevated object pivot at its own foot (on the box), not at the floor.
 * Boxes: select a box, then click *Paper Target (card only)* or a steel target in the library, and it lands on top of the box.
 * Example of an activator stage: `src/data/stages/stage_004.json` (popper → swinger rocking behind a wall).
-* Environments: `indoor_01`, `indoor_02`, `outdoor_01`, `outdoor_02`.
+* Environments: `indoor_01`, `indoor_02`, `indoor_03` (bright lane), `outdoor_01`, `outdoor_02`, `outdoor_03` (grass berms).
 
 ## Structure
 

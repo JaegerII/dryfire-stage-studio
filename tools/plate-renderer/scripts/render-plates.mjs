@@ -7,7 +7,7 @@ import sharp from 'sharp';
 
 const OUT = '../../src/assets/environments';
 const TMP = 'out';
-const ALL = ['indoor_01', 'indoor_02', 'outdoor_01', 'outdoor_02'];
+const ALL = ['indoor_01', 'indoor_02', 'indoor_03', 'outdoor_01', 'outdoor_02', 'outdoor_03'];
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 
 mkdirSync(TMP, { recursive: true });

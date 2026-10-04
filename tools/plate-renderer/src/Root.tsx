@@ -12,7 +12,7 @@ import { type EnvironmentId, RangeEnvironment } from './scene/Environment';
  * Renders empty ranges (no targets, no walls) as background images:
  *   npm run plates   → ../../src/assets/environments/*.webp
  */
-const ENVIRONMENTS: EnvironmentId[] = ['indoor_01', 'indoor_02', 'outdoor_01', 'outdoor_02'];
+const ENVIRONMENTS: EnvironmentId[] = ['indoor_01', 'indoor_02', 'indoor_03', 'outdoor_01', 'outdoor_02', 'outdoor_03'];
 
 const CameraRig: React.FC = () => {
   const { camera, size, invalidate } = useThree();

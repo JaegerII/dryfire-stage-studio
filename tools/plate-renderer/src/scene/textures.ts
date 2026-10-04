@@ -192,3 +192,94 @@ export const rubberTexture = () => {
   speckle(ctx, 512, 512, 'rubber', 16000, ['#2A2A2A', '#101010', '#333333'], [1.5, 4]);
   return finish(c, [12, 2]);
 };
+
+// ---------------------------------------------------------------- indoor 03 / outdoor 03
+
+/** Light-grey square acoustic tiles (walls + ceiling), texture covers 1.2 × 1.2 m (2 × 2 tiles). */
+export const acousticTileTexture = () => {
+  const [c, ctx] = canvas(512, 512);
+  ctx.fillStyle = '#D9DBDB';
+  ctx.fillRect(0, 0, 512, 512);
+  blotches(ctx, 512, 512, 'tile-shade', 10, 'rgba(200,202,203,1)', 0.08);
+  speckle(ctx, 512, 512, 'tile', 9000, ['#C9CBCB', '#E6E8E8', '#BFC1C2'], [1, 2]);
+  ctx.strokeStyle = 'rgba(120,124,126,0.55)';
+  ctx.lineWidth = 3;
+  for (const p of [0, 256, 512]) {
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, 512);
+    ctx.moveTo(0, p);
+    ctx.lineTo(512, p);
+    ctx.stroke();
+  }
+  return finish(c);
+};
+
+/** Green sports-hall floor with a fine speckle. */
+export const greenFloorTexture = () => {
+  const [c, ctx] = canvas(1024, 1024);
+  ctx.fillStyle = '#3F7B5C';
+  ctx.fillRect(0, 0, 1024, 1024);
+  blotches(ctx, 1024, 1024, 'gf-dark', 20, 'rgba(40,85,60,1)', 0.08);
+  blotches(ctx, 1024, 1024, 'gf-light', 14, 'rgba(95,150,118,1)', 0.06);
+  speckle(ctx, 1024, 1024, 'gf', 12000, ['#356A4F', '#4C8A69', '#2F5E46'], [1, 2]);
+  return finish(c, [8, 8]);
+};
+
+/** Mown grass with darker clumps. */
+export const grassTexture = () => {
+  const [c, ctx] = canvas(1024, 1024);
+  ctx.fillStyle = '#7C9A4C';
+  ctx.fillRect(0, 0, 1024, 1024);
+  blotches(ctx, 1024, 1024, 'gr-dark', 40, 'rgba(92,118,54,1)', 0.18);
+  blotches(ctx, 1024, 1024, 'gr-dry', 22, 'rgba(168,166,104,1)', 0.18);
+  for (let i = 0; i < 26000; i++) {
+    const x = random(`blade-x${i}`) * 1024;
+    const y = random(`blade-y${i}`) * 1024;
+    ctx.strokeStyle = ['#6F9245', '#4E6E2E', '#86A25A', '#3F5C26'][i % 4];
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (random(`blade-d${i}`) - 0.5) * 3, y - 2 - random(`blade-h${i}`) * 5);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  return finish(c, [12, 12]);
+};
+
+/** Long-grass hillside for the berm. */
+export const grassBermTexture = () => {
+  const [c, ctx] = canvas(1024, 512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#93A05E');
+  g.addColorStop(1, '#748C46');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 512);
+  blotches(ctx, 1024, 512, 'gb-dry', 30, 'rgba(170,160,105,1)', 0.25);
+  blotches(ctx, 1024, 512, 'gb-dark', 30, 'rgba(80,100,48,1)', 0.22);
+  for (let i = 0; i < 9000; i++) {
+    const x = random(`gb-x${i}`) * 1024;
+    const y = random(`gb-y${i}`) * 512;
+    ctx.strokeStyle = ['#8A955A', '#5B7334', '#A3A06A', '#495F2A'][i % 4];
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (random(`gb-d${i}`) - 0.5) * 6, y - 4 - random(`gb-h${i}`) * 9);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  return finish(c, [4, 1]);
+};
+
+/** Flat overcast sky. */
+export const overcastSkyTexture = () => {
+  const [c, ctx] = canvas(1024, 512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#9EA6AD');
+  g.addColorStop(1, '#D3D7DA');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 512);
+  blotches(ctx, 1024, 512, 'oc-dark', 24, 'rgba(130,138,146,1)', 0.35);
+  blotches(ctx, 1024, 512, 'oc-light', 18, 'rgba(232,235,237,1)', 0.35);
+  return finish(c);
+};

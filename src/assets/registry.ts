@@ -11,6 +11,11 @@ import type { ObjectType } from '../types/stage';
 import noShoot from './targets/no_shoot.svg';
 import noShootOverlay from './targets/no_shoot_overlay.svg';
 import paperFull from './targets/paper_full.svg';
+import paperHcBottom from './targets/paper_hc_bottom.svg';
+import paperHcDiagonal from './targets/paper_hc_diagonal.svg';
+import paperHcHalf from './targets/paper_hc_half.svg';
+import paperHcVertical from './targets/paper_hc_vertical.svg';
+import steelPlateRack from './targets/steel_plate_rack.svg';
 import paperCard from './targets/paper_card.svg';
 import paperMini from './targets/paper_mini.svg';
 import paperStack from './targets/paper_stack.svg';
@@ -54,6 +59,10 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   paper_full: { type: 'paper_full', category: 'target', label: 'Paper Target', src: paperFull, viewW: 54, viewH: 147, groundY: 143, scoring: true },
   paper_mini: { type: 'paper_mini', category: 'target', label: 'Mini Paper Target', src: paperMini, viewW: 54, viewH: 124.96, groundY: 120.96, scoring: true },
   no_shoot: { type: 'no_shoot', category: 'target', label: 'No-Shoot', src: noShoot, viewW: 54, viewH: 147, groundY: 143, scoring: false },
+  paper_hc_vertical: { type: 'paper_hc_vertical', category: 'target', label: 'Hard Cover: Centre Strip', src: paperHcVertical, viewW: 54, viewH: 147, groundY: 143, scoring: true },
+  paper_hc_half: { type: 'paper_hc_half', category: 'target', label: 'Hard Cover: Half', src: paperHcHalf, viewW: 54, viewH: 147, groundY: 143, scoring: true },
+  paper_hc_bottom: { type: 'paper_hc_bottom', category: 'target', label: 'Hard Cover: Bottom', src: paperHcBottom, viewW: 54, viewH: 147, groundY: 143, scoring: true },
+  paper_hc_diagonal: { type: 'paper_hc_diagonal', category: 'target', label: 'Hard Cover: Diagonal', src: paperHcDiagonal, viewW: 54, viewH: 147, groundY: 143, scoring: true },
   paper_stack: { type: 'paper_stack', category: 'target', label: 'Stack: Target / No-Shoot / Target', src: paperStack, viewW: 54, viewH: 154, groundY: 150, scoring: true },
   paper_stack_double: { type: 'paper_stack_double', category: 'target', label: 'Stack: 2 Targets', src: paperStackDouble, viewW: 54, viewH: 144, groundY: 140, scoring: true },
   paper_swinger: { type: 'paper_swinger', category: 'target', label: 'Swinger (on pole)', src: paperSwinger, viewW: 54, viewH: 147, groundY: 143, scoring: true },
@@ -61,6 +70,7 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   no_shoot_overlay: { type: 'no_shoot_overlay', category: 'target', label: 'No-Shoot (card only)', src: noShootOverlay, viewW: 54, viewH: 62, groundY: 58, scoring: false, defaultElevation: 0.85, stackable: true },
   steel_popper: { type: 'steel_popper', category: 'target', label: 'Steel Popper', src: steelPopper, viewW: 54, viewH: 103, groundY: 99, scoring: true, canFall: true, stackable: true },
   steel_plate: { type: 'steel_plate', category: 'target', label: 'Steel Plate', src: steelPlate, viewW: 54, viewH: 88, groundY: 84, scoring: true, canFall: true, stackable: true },
+  steel_plate_rack: { type: 'steel_plate_rack', category: 'target', label: 'Plate Rack (6)', src: steelPlateRack, viewW: 180, viewH: 132, groundY: 128, scoring: true },
   mesh_wall: { type: 'mesh_wall', category: 'barrier', label: 'Straight Mesh Wall', src: meshWall, viewW: 220, viewH: 189, groundY: 185, scoring: false },
   mesh_wall_short: { type: 'mesh_wall_short', category: 'barrier', label: 'Short Mesh Wall', src: meshWallShort, viewW: 130, viewH: 189, groundY: 185, scoring: false },
   mesh_wall_window: { type: 'mesh_wall_window', category: 'barrier', label: 'Mesh Wall with Window', src: meshWallWindow, viewW: 280, viewH: 189, groundY: 185, scoring: false },
