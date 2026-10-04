@@ -15,6 +15,10 @@ import paperHcBottom from './targets/paper_hc_bottom.svg';
 import paperHcDiagonal from './targets/paper_hc_diagonal.svg';
 import paperHcHalf from './targets/paper_hc_half.svg';
 import paperHcVertical from './targets/paper_hc_vertical.svg';
+import paperHcVerticalCard from './targets/paper_hc_vertical_card.svg';
+import paperHcHalfCard from './targets/paper_hc_half_card.svg';
+import paperHcBottomCard from './targets/paper_hc_bottom_card.svg';
+import paperHcDiagonalCard from './targets/paper_hc_diagonal_card.svg';
 import steelPlateRack from './targets/steel_plate_rack.svg';
 import paperCard from './targets/paper_card.svg';
 import paperMini from './targets/paper_mini.svg';
@@ -63,6 +67,10 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   paper_hc_half: { type: 'paper_hc_half', category: 'target', label: 'Hard Cover: Half', src: paperHcHalf, viewW: 54, viewH: 147, groundY: 143, scoring: true },
   paper_hc_bottom: { type: 'paper_hc_bottom', category: 'target', label: 'Hard Cover: Bottom', src: paperHcBottom, viewW: 54, viewH: 147, groundY: 143, scoring: true },
   paper_hc_diagonal: { type: 'paper_hc_diagonal', category: 'target', label: 'Hard Cover: Diagonal', src: paperHcDiagonal, viewW: 54, viewH: 147, groundY: 143, scoring: true },
+  paper_hc_vertical_card: { type: 'paper_hc_vertical_card', category: 'target', label: 'Hard Cover: Centre Strip (card only)', src: paperHcVerticalCard, viewW: 54, viewH: 62, groundY: 58, scoring: true, defaultElevation: 0.85, stackable: true },
+  paper_hc_half_card: { type: 'paper_hc_half_card', category: 'target', label: 'Hard Cover: Half (card only)', src: paperHcHalfCard, viewW: 54, viewH: 62, groundY: 58, scoring: true, defaultElevation: 0.85, stackable: true },
+  paper_hc_bottom_card: { type: 'paper_hc_bottom_card', category: 'target', label: 'Hard Cover: Bottom (card only)', src: paperHcBottomCard, viewW: 54, viewH: 62, groundY: 58, scoring: true, defaultElevation: 0.85, stackable: true },
+  paper_hc_diagonal_card: { type: 'paper_hc_diagonal_card', category: 'target', label: 'Hard Cover: Diagonal (card only)', src: paperHcDiagonalCard, viewW: 54, viewH: 62, groundY: 58, scoring: true, defaultElevation: 0.85, stackable: true },
   paper_stack: { type: 'paper_stack', category: 'target', label: 'Stack: Target / No-Shoot / Target', src: paperStack, viewW: 54, viewH: 154, groundY: 150, scoring: true },
   paper_stack_double: { type: 'paper_stack_double', category: 'target', label: 'Stack: 2 Targets', src: paperStackDouble, viewW: 54, viewH: 144, groundY: 140, scoring: true },
   paper_swinger: { type: 'paper_swinger', category: 'target', label: 'Swinger (on pole)', src: paperSwinger, viewW: 54, viewH: 147, groundY: 143, scoring: true },

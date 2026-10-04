@@ -192,6 +192,8 @@ const paperHcVertical = () => targetOnStand(1, false, HC.vertical);
 const paperHcHalf = () => targetOnStand(1, false, HC.half);
 const paperHcBottom = () => targetOnStand(1, false, HC.bottom);
 const paperHcDiagonal = () => targetOnStand(1, false, HC.diagonal);
+/** Hard-cover cards without stand (place on a box or with an elevation). */
+const paperHcCard = (paint) => svg(54, 58, `${shadow(58, 18)}${octCard(58, 0, 1, false, paint)}`, cardDefs);
 
 /** Plate rack: six 20 cm white plates on a black rack (1.6 m wide, beam at ~1 m). */
 const plateRack = () => {
@@ -472,6 +474,10 @@ out('targets/paper_hc_vertical.svg', paperHcVertical());
 out('targets/paper_hc_half.svg', paperHcHalf());
 out('targets/paper_hc_bottom.svg', paperHcBottom());
 out('targets/paper_hc_diagonal.svg', paperHcDiagonal());
+out('targets/paper_hc_vertical_card.svg', paperHcCard(HC.vertical));
+out('targets/paper_hc_half_card.svg', paperHcCard(HC.half));
+out('targets/paper_hc_bottom_card.svg', paperHcCard(HC.bottom));
+out('targets/paper_hc_diagonal_card.svg', paperHcCard(HC.diagonal));
 out('targets/steel_plate_rack.svg', plateRack());
 out('targets/paper_stack.svg', paperStack());
 out('targets/paper_stack_double.svg', paperStackDouble());
