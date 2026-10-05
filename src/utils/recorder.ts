@@ -69,7 +69,7 @@ export class TabRecorder {
   /** Asks the user to share this tab, then starts recording. Must be called from a click. */
   async start(cropTo: Element | null, audio: MediaStream) {
     const display = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 60 }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+      video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 3840 }, height: { ideal: 2160 } },
       audio: false,
       // Chrome: offer "this tab" first and don't switch to another tab
       preferCurrentTab: true,
@@ -124,7 +124,8 @@ export class TabRecorder {
     this.chunks = [];
     this.recorder = new MediaRecorder(stream, {
       mimeType: this.mime || undefined,
-      videoBitsPerSecond: outH >= 2160 ? 30_000_000 : outH >= 1440 ? 16_000_000 : 10_000_000,
+      // generous bitrate: scene changes (title cards, push-in) otherwise turn blocky
+      videoBitsPerSecond: outH >= 2160 ? 60_000_000 : outH >= 1440 ? 35_000_000 : 22_000_000,
       // a keyframe every 2 s so players can seek (Chrome; ignored elsewhere)
       videoKeyFrameIntervalDuration: 2000,
     } as MediaRecorderOptions);

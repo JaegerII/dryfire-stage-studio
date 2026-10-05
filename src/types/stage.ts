@@ -91,6 +91,8 @@ export interface StageObject {
   opacity?: number;
   /** Draw order. Equal zIndex → sorted by y (closer objects on top). */
   zIndex: number;
+  /** Group id: clicking one member selects the whole group (editor only). */
+  group?: string;
   /** 'auto' derives size from y; 'manual' uses `depth` instead. */
   perspective?: 'auto' | 'manual';
   /** Manual depth 0 (at the bottom edge) .. 1 (at the horizon). */

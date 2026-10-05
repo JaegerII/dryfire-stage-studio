@@ -5,7 +5,7 @@ import { fit16x9, useElementSize } from '../../hooks/useElementSize';
 import type { EnvironmentId, ObjectType, Stage, StageObject } from '../../types/stage';
 import { newId } from '../../utils/random';
 import { screenToStage } from '../../utils/view';
-import { fromWorld, toWorld } from '../../utils/perspective';
+import { drawOrder, fromWorld, toWorld } from '../../utils/perspective';
 import { ENVIRONMENTS } from '../../assets/environments';
 import { StageFormatError, createObject, createStage, exportStageFile } from '../../utils/stageIO';
 import { readImportFile, saveImportedMatch } from '../../utils/matchIO';
@@ -133,11 +133,14 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
 
   const duplicate = useCallback(() => {
     if (!selectedObjs.length) return;
+    // copied groups become new groups of their own
+    const groups = new Map<string, string>();
     const copies: StageObject[] = selectedObjs.map((o) => ({
       ...structuredClone(o),
       id: newId(ASSETS[o.type].category),
       x: Math.min(1, o.x + 0.03),
       locked: false,
+      group: o.group && (groups.get(o.group) ?? groups.set(o.group, newId('group')).get(o.group)),
     }));
     update((s) => ({ ...s, objects: [...s.objects, ...copies] }));
     setSelectedIds(copies.map((c) => c.id));
@@ -151,6 +154,35 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
   }, [selectedObjs, update]);
 
   const layer = useCallback((dir: 1 | -1) => patchSelected((o) => ({ zIndex: o.zIndex + dir })), [patchSelected]);
+
+  /** Layers list: one object one layer to the front / back, without touching the selection. */
+  const layerOf = useCallback(
+    (id: string, dir: 1 | -1) =>
+      update((s) => {
+        // exactly one step past the neighbour in the real draw order: everything beyond the neighbour
+        // moves one zIndex further out (keeps its own order), the object slots in between
+        const order = drawOrder(s.objects);
+        const i = order.findIndex((o) => o.id === id);
+        const n = order[i + dir];
+        if (i < 0 || !n) return s;
+        const beyond = new Set(order.filter((_, k) => (dir > 0 ? k > i + 1 : k < i - 1)).map((o) => o.id));
+        return {
+          ...s,
+          objects: s.objects.map((o) =>
+            o.id === id ? { ...o, zIndex: n.zIndex + dir * 0.5 } : beyond.has(o.id) ? { ...o, zIndex: o.zIndex + dir } : o,
+          ),
+        };
+      }),
+    [update],
+  );
+
+  /** Group the selection (Ctrl+G) / dissolve the groups of the selection (Ctrl+Shift+G). */
+  const group = useCallback(() => {
+    if (selectedObjs.length < 2) return;
+    const id = newId('group');
+    patchSelected(() => ({ group: id }));
+  }, [selectedObjs, patchSelected]);
+  const ungroup = useCallback(() => patchSelected((o) => (o.group ? { group: undefined } : null)), [patchSelected]);
 
   /**
    * Move every selected object together in real meters: across, closer / further, up / down.
@@ -182,13 +214,19 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
 
   /** Click: select only this (keeps a multi-selection when clicking one of its members, so the group can be dragged).
    *  Ctrl/Shift/Cmd-click: add or remove. Empty-area click without modifier: clear. */
-  const onSelect = useCallback((id: string | null, additive = false) => {
-    setSelectedIds((cur) => {
-      if (id === null) return additive ? cur : [];
-      if (additive) return cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-      return cur.includes(id) ? cur : [id];
-    });
-  }, []);
+  const onSelect = useCallback(
+    (id: string | null, additive = false) => {
+      // a grouped object brings its whole group along
+      const g = id && stage.objects.find((o) => o.id === id)?.group;
+      const ids = id === null ? [] : g ? stage.objects.filter((o) => o.group === g).map((o) => o.id) : [id];
+      setSelectedIds((cur) => {
+        if (id === null) return additive ? cur : [];
+        if (additive) return cur.includes(id) ? cur.filter((x) => !ids.includes(x)) : [...cur, ...ids.filter((x) => !cur.includes(x))];
+        return cur.includes(id) ? cur : ids;
+      });
+    },
+    [stage.objects],
+  );
   /** Object list: plain click always selects just that object. */
   const onPick = useCallback((id: string, additive: boolean) => {
     if (additive) onSelect(id, true);
@@ -218,6 +256,10 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
       } else if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         duplicate();
+      } else if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) ungroup();
+        else group();
       } else if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setSelectedIds(stage.objects.map((o) => o.id));
@@ -250,7 +292,7 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hidden, save, undo, redo, duplicate, remove, layer, toggleLock, patchSelected, moveGroup, selectedObjs, stage.objects]);
+  }, [hidden, save, undo, redo, duplicate, remove, layer, group, ungroup, toggleLock, patchSelected, moveGroup, selectedObjs, stage.objects]);
 
   // ---------------------------------------------------------------- drop from library
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -341,6 +383,10 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
         onDuplicate={duplicate}
         onDelete={remove}
         onLayer={layer}
+        onLayerOf={layerOf}
+        onGroup={group}
+        onUngroup={ungroup}
+        onSelectGroup={(g) => setSelectedIds(stage.objects.filter((o) => o.group === g).map((o) => o.id))}
         onMove={moveGroup}
         onToggleLock={toggleLock}
         onSelect={onPick}

@@ -34,6 +34,10 @@ The browser's back button works between pages. Leaving the editor with unsaved c
 * **Multi-select:** Ctrl- or Shift-click (stage or object list) adds or removes objects, and Ctrl+A selects everything.
   Drag any selected object to move the whole group, and use the handles to scale or rotate it. Delete, duplicate,
   lock, layer and arrow keys act on all selected objects. A group move is one undo step.
+* **Layers:** the right panel always lists every object in its real draw order (front at the top). Click a row to
+  select an object even when it is hidden behind a wall (Ctrl/Shift adds); ▲ / ▼ moves it exactly one layer.
+* **Groups:** select several objects → Group (Ctrl+G). Clicking any member on the stage then selects the whole group;
+  the layers list marks members with the group's colour (G1, G2 …) and a single member can still be picked there.
 * **Move in meters:** "Move together" (several objects) / "Move (meters)" (one object) shifts the selection in real
   meters: left/right, closer/further and up/down (elevation). Closer/further goes through the 3D floor, so a group keeps
   its layout and sizes follow the perspective.
@@ -43,6 +47,7 @@ The browser's back button works between pages. Leaving the editor with unsaved c
   * `]` / `[` (or PgUp/PgDn) layer forward/back
   * arrows nudge, Shift+arrows nudge more, Esc deselect
   * Alt+←/→ move 0.25 m across, Alt+↑/↓ 0.5 m further/closer, Alt+Shift+↑/↓ 5 cm up/down
+  * Ctrl+G group the selection, Ctrl+Shift+G ungroup
 * **Toolbar:** New, Load, Save, Duplicate, Reset (to last save), Import/Export JSON, Grid, Snap, Play.
 * **Storage:** stages are saved in the browser (localStorage). Built-in stages live in `src/data/stages/*.json`.
   To ship a stage with the app, export it and drop the file there.

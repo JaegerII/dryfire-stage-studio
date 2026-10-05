@@ -3,7 +3,7 @@ import { ENVIRONMENTS, ENVIRONMENT_LIST } from '../../assets/environments';
 import { ASSETS } from '../../assets/registry';
 import type { Difficulty, Discipline, Motion, MotionKind, Stage, StageObject } from '../../types/stage';
 import { STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
-import { autoDepth } from '../../utils/perspective';
+import { autoDepth, drawOrder } from '../../utils/perspective';
 import { DEFAULT_AMPLITUDE, DEFAULT_SWING_ANGLE } from '../../utils/motion';
 import { MAX_ZOOM } from '../../utils/view';
 import { estimateDuration } from '../../utils/schedule';
@@ -17,6 +17,10 @@ interface Props {
   onDuplicate: () => void;
   onDelete: () => void;
   onLayer: (dir: 1 | -1) => void;
+  onLayerOf: (id: string, dir: 1 | -1) => void;
+  onGroup: () => void;
+  onUngroup: () => void;
+  onSelectGroup: (group: string) => void;
   onMove: (m: GroupMove) => void;
   onToggleLock: () => void;
   selectedIds: string[];
@@ -30,6 +34,39 @@ export interface GroupMove {
   depth?: number;
   up?: number;
 }
+
+/**
+ * Layers: every object in its real draw order (front at the top). Click selects it even when it
+ * is hidden behind a wall (Ctrl/Shift adds); ▲ / ▼ moves it one layer to the front / back.
+ * Grouped objects are marked with their group's colour.
+ */
+const GROUP_COLORS = ['#ff3131', '#f5b301', '#3fa7ff', '#36c46f', '#c36bff', '#ff8a3d'];
+
+const Layers = ({ stage, selectedIds, onSelect, onLayerOf }: Pick<Props, 'stage' | 'selectedIds' | 'onSelect' | 'onLayerOf'>) => {
+  const front = [...drawOrder(stage.objects)].reverse();
+  const groups = [...new Set(stage.objects.map((o) => o.group).filter(Boolean))] as string[];
+  return (
+    <>
+      <h4>Layers <span className="h4-note">front ↑ · back ↓</span></h4>
+      <ul className="object-list layers">
+        {front.map((o) => {
+          const gi = o.group ? groups.indexOf(o.group) : -1;
+          return (
+            <li key={o.id} style={gi >= 0 ? { boxShadow: `inset 3px 0 0 ${GROUP_COLORS[gi % GROUP_COLORS.length]}` } : undefined}>
+              <button className={selectedIds.includes(o.id) ? 'on' : ''} onClick={(e) => onSelect(o.id, e.ctrlKey || e.metaKey || e.shiftKey)}>
+                <img src={ASSETS[o.type].src} alt="" />
+                <span>{ASSETS[o.type].label}</span>
+                <em>{o.locked ? '🔒' : ''}{gi >= 0 ? ` G${gi + 1}` : ''}</em>
+              </button>
+              <button className="layer-step" title="One layer to the front" onClick={() => onLayerOf(o.id, 1)}>▲</button>
+              <button className="layer-step" title="One layer to the back" onClick={() => onLayerOf(o.id, -1)}>▼</button>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+};
 
 const MOVE_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2];
 
@@ -82,7 +119,8 @@ const activators = (stage: Stage) =>
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
-const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLayer, onMove, onToggleLock }: Props & { selected: StageObject }) => {
+const ObjectProps = (props: Props & { selected: StageObject }) => {
+  const { stage, selected: o, onObject, onDuplicate, onDelete, onLayer, onMove, onToggleLock, onSelectGroup, onUngroup } = props;
   const asset = ASSETS[o.type];
   const env = ENVIRONMENTS[stage.environment];
   const set = (patch: Partial<StageObject>) => onObject(o.id, patch);
@@ -105,6 +143,12 @@ const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLa
         <button onClick={onToggleLock} title="L">{locked ? 'Unlock' : 'Lock'}</button>
         <button className="danger" onClick={onDelete} disabled={locked} title="Del">Delete</button>
       </div>
+      {o.group && (
+        <div className="actions" style={{ marginTop: 6 }}>
+          <button onClick={() => onSelectGroup(o.group!)} title="Select every member of this group">Select group</button>
+          <button onClick={onUngroup} title="Ctrl+Shift+G">Ungroup</button>
+        </div>
+      )}
 
       <h4>Transform</h4>
       <Row label="X"><SliderField value={o.x} min={0} max={1} step={0.001} digits={3} disabled={locked} onChange={(x) => set({ x })} /></Row>
@@ -236,11 +280,12 @@ const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLa
           )}
         </>
       )}
+      <Layers {...props} />
     </>
   );
 };
 
-const StageProps = ({ stage, onStage, onSelect, selectedIds }: Props) => {
+const StageProps = ({ stage, onStage, onSelect, onLayerOf, selectedIds }: Props) => {
   const targets = stage.objects.filter((o) => ASSETS[o.type].category === 'target');
   const paper = targets.filter((o) => ASSETS[o.type].scoring && o.type.startsWith('paper')).length;
   const steel = targets.filter((o) => o.type.startsWith('steel')).length;
@@ -297,21 +342,7 @@ const StageProps = ({ stage, onStage, onSelect, selectedIds }: Props) => {
         <span><b>{stage.objects.length}</b> objects</span>
         <span>≈ <b>{fmt(estimateDuration(stage, 0, STANDBY_VOICE_LEAD))}</b> min</span>
       </div>
-      <h4>Objects</h4>
-      <ul className="object-list">
-        {stage.objects.map((o) => (
-          <li key={o.id}>
-            <button className={selectedIds.includes(o.id) ? 'on' : ''} onClick={(e) => onSelect(o.id, e.ctrlKey || e.metaKey || e.shiftKey)}>
-              <img src={ASSETS[o.type].src} alt="" />
-              <span>{ASSETS[o.type].label}</span>
-              <em>
-                {o.motion && o.motion.kind !== 'static' ? o.motion.kind : ''}
-                {o.locked ? ' 🔒' : ''}
-              </em>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <Layers stage={stage} selectedIds={selectedIds} onSelect={onSelect} onLayerOf={onLayerOf} />
       <p className="hint">Select on the stage or in this list (useful for objects hidden behind a box). Ctrl/Shift-click selects several, Ctrl+A all.</p>
     </>
   );
@@ -319,9 +350,11 @@ const StageProps = ({ stage, onStage, onSelect, selectedIds }: Props) => {
 
 /** Several objects selected: group actions + the object list to refine the selection. */
 const MultiProps = (props: Props) => {
-  const { stage, selectedIds, onDuplicate, onDelete, onLayer, onToggleLock, onSelect, onClearSelection } = props;
+  const { stage, selectedIds, onDuplicate, onDelete, onLayer, onToggleLock, onClearSelection, onGroup, onUngroup } = props;
   const sel = stage.objects.filter((o) => selectedIds.includes(o.id));
   const allLocked = sel.every((o) => o.locked);
+  const oneGroup = sel[0]?.group && sel.every((o) => o.group === sel[0].group);
+  const anyGroup = sel.some((o) => o.group);
   return (
     <>
       <div className="panel-head">
@@ -340,21 +373,14 @@ const MultiProps = (props: Props) => {
         <button onClick={() => onLayer(1)} title="]">Layer ↑</button>
         <button onClick={onClearSelection} title="Esc">Deselect</button>
       </div>
+      <div className="actions" style={{ marginTop: 6 }}>
+        <button onClick={onGroup} disabled={!!oneGroup} title="Ctrl+G — clicking one member then selects all">Group</button>
+        <button onClick={onUngroup} disabled={!anyGroup} title="Ctrl+Shift+G">Ungroup</button>
+      </div>
       <h4>Move together</h4>
       <MoveInMeters onMove={props.onMove} disabled={allLocked} />
       <p className="hint">Drag any selected object to move the whole group; the handles scale / rotate it. Arrow keys nudge all on screen.</p>
-      <h4>Objects</h4>
-      <ul className="object-list">
-        {stage.objects.map((o) => (
-          <li key={o.id}>
-            <button className={selectedIds.includes(o.id) ? 'on' : ''} onClick={(e) => onSelect(o.id, e.ctrlKey || e.metaKey || e.shiftKey)}>
-              <img src={ASSETS[o.type].src} alt="" />
-              <span>{ASSETS[o.type].label}</span>
-              <em>{o.locked ? '🔒' : ''}</em>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <Layers {...props} />
     </>
   );
 };

@@ -150,6 +150,11 @@ textarea { resize: vertical; }
 .object-list img { width: 22px; height: 22px; object-fit: contain; }
 .object-list span { flex: 1; }
 .object-list em { font-style: normal; color: var(--accent); font-size: 11px; }
+.object-list.layers li { display: flex; gap: 3px; border-radius: 4px; }
+.object-list.layers li > button:first-child { flex: 1; min-width: 0; }
+.object-list.layers span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-step { width: auto !important; padding: 2px 6px !important; font-size: 10px; flex: none; }
+.h4-note { font-weight: 500; font-size: 10px; letter-spacing: 0.05em; color: var(--faint); text-transform: none; margin-left: 6px; }
 .stats { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 18px 0 6px; padding-top: 12px; border-top: 1px solid var(--line-soft); color: var(--muted); }
 .stats b { color: var(--text); }
 
@@ -234,9 +239,10 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .hud-progress > div { height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--faint); }
 .hud-progress > div[data-state='active'] { background: var(--go); }
 .hud-progress > div[data-state='done'] { background: var(--time); }
-.hud[data-signal='standby'] { box-shadow: inset 0 0 0 0.75cqh var(--standby); }
-.hud[data-signal='active'] { box-shadow: inset 0 0 0 0.75cqh var(--go); }
-.hud[data-signal='time'] { box-shadow: inset 0 0 0 0.75cqh var(--time); }
+.hud { transition: box-shadow 0.25s ease-out; }
+.hud[data-signal='standby'] { box-shadow: inset 0 0 0 0.6cqh var(--standby), inset 0 0 9cqh 1.2cqh color-mix(in srgb, var(--standby) 55%, transparent); }
+.hud[data-signal='active'] { box-shadow: inset 0 0 0 0.6cqh var(--go), inset 0 0 9cqh 1.2cqh color-mix(in srgb, var(--go) 55%, transparent); }
+.hud[data-signal='time'] { box-shadow: inset 0 0 0 0.6cqh var(--time), inset 0 0 9cqh 1.2cqh color-mix(in srgb, var(--time) 55%, transparent); }
 
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #050605; font-family: var(--font); }
 .screen h1 { font-size: 8.4cqh; font-weight: 900; line-height: 1.08; margin: 3.5cqh 0 0; letter-spacing: -0.01em; }
