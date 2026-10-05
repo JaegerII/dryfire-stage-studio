@@ -360,8 +360,9 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
                 </div>
                 {opts.record && (
                   <p className="hint warn">
-                    On Start the browser asks to share this tab — choose this tab. Go fullscreen first for the best resolution and
-                    keep the mouse still. The video downloads automatically at the end.
+                    On Start the browser asks to share this tab — choose this tab. Record in fullscreen (F) for the sharpest
+                    picture: every screen pixel is recorded 1:1 (WQHD → 2560 × 1440). Keep the mouse still. The video downloads
+                    automatically at the end.
                   </p>
                 )}
                 <p className="hint">Same seed = same standby delays (repeatable recordings). Keys: Space start/pause · R restart · F fullscreen · Esc stop.</p>

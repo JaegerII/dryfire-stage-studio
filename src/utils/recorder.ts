@@ -69,7 +69,11 @@ export class TabRecorder {
   /** Asks the user to share this tab, then starts recording. Must be called from a click. */
   async start(cropTo: Element | null, audio: MediaStream) {
     const display = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+      video: {
+        frameRate: { ideal: 30, max: 30 },
+        width: { ideal: Math.round(window.screen.width * window.devicePixelRatio) },
+        height: { ideal: Math.round(window.screen.height * window.devicePixelRatio) },
+      },
       audio: false,
       // Chrome: offer "this tab" first and don't switch to another tab
       preferCurrentTab: true,
@@ -93,9 +97,10 @@ export class TabRecorder {
     video.srcObject = new MediaStream([track]);
     await video.play();
     this.video = video;
-    const box = cropTo?.getBoundingClientRect();
-    const px = (box?.height ?? window.innerHeight) * window.devicePixelRatio;
-    const outH = px >= 2000 ? 2160 : px >= 1350 ? 1440 : 1080;
+    // output size follows the MONITOR (fullscreen player = native pixels), never the smaller window:
+    // a WQHD screen records 2560 × 1440, a 4K screen 3840 × 2160 — no downscaling
+    const px = window.screen.height * window.devicePixelRatio;
+    const outH = px >= 2000 ? 2160 : px >= 1400 ? 1440 : 1080;
     const canvas = document.createElement('canvas');
     canvas.width = Math.round((outH * 16) / 9);
     canvas.height = outH;
@@ -125,7 +130,7 @@ export class TabRecorder {
     this.recorder = new MediaRecorder(stream, {
       mimeType: this.mime || undefined,
       // generous bitrate: scene changes (title cards, push-in) otherwise turn blocky
-      videoBitsPerSecond: outH >= 2160 ? 60_000_000 : outH >= 1440 ? 35_000_000 : 22_000_000,
+      videoBitsPerSecond: outH >= 2160 ? 80_000_000 : outH >= 1440 ? 50_000_000 : 30_000_000,
       // a keyframe every 2 s so players can seek (Chrome; ignored elsewhere)
       videoKeyFrameIntervalDuration: 2000,
     } as MediaRecorderOptions);
