@@ -9,7 +9,8 @@
     "plates": "node scripts/render-plates.mjs",
     "typecheck": "tsc --noEmit",
     "textures": "node scripts/fetch-textures.mjs",
-    "assets": "node scripts/render-assets.mjs"
+    "assets": "node scripts/render-assets.mjs",
+    "blender": "node scripts/render-blender.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",
