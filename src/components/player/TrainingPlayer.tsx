@@ -61,6 +61,9 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     record: false,
   });
   const [recording, setRecording] = useState(false);
+  /** Recording armed: tab shared, waiting for fullscreen so every screen pixel is recorded 1:1. */
+  const [armed, setArmed] = useState(false);
+  const pending = useRef<(() => Promise<void>) | null>(null);
   const recorder = useRef<TabRecorder | null>(null);
   const boxEl = useRef<HTMLDivElement>(null);
   const title = matchName ?? stages[0]?.name ?? 'dryfire';
@@ -168,6 +171,20 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
       recorder.current = rec;
       setRecording(true);
     }
+    const run = async () => {
+      recorder.current?.begin();
+      await play(e);
+    };
+    if (opts.record && !document.fullscreenElement) {
+      // sharp video: start only in fullscreen (the capture is cropped to the player — a window would be upscaled)
+      pending.current = run;
+      setArmed(true);
+      return;
+    }
+    await run();
+  }, [opts, stages, tick, finishRecording]); // eslint-disable-line react-hooks/exhaustive-deps -- play() reads the same stages / tick
+
+  const play = async (e: AudioEngine) => {
     await e.load();
     await e.resume();
     e.volume = opts.volume;
@@ -189,7 +206,22 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     setControlsVisible(false);
     raf.current = requestAnimationFrame(tick);
     if (import.meta.env.DEV) Object.assign(window, { __player: { engine: e, schedule: ms, t0: t0.current } });
-  }, [opts, stages, tick, finishRecording]);
+  };
+
+  // armed recording: fullscreen reached → give the layout a moment to settle, then record + play
+  useEffect(() => {
+    if (!armed || !fullscreen) return;
+    const go = pending.current;
+    pending.current = null;
+    setArmed(false); // (no cleanup that clears the timer: this very change re-runs the effect)
+    setTimeout(() => void go?.(), 700);
+  }, [armed, fullscreen]);
+
+  const cancelArmed = useCallback(() => {
+    pending.current = null;
+    setArmed(false);
+    void finishRecording(false);
+  }, [finishRecording]);
 
   const togglePause = useCallback(async () => {
     const e = engine.current;
@@ -234,6 +266,11 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      if (armed) {
+        if (e.key.toLowerCase() === 'f') toggleFullscreen();
+        else if (e.key === 'Escape') cancelArmed();
+        return;
+      }
       if (e.key === ' ') {
         // a focused button would also "click" on Space — handle it only once, here
         e.preventDefault();
@@ -249,7 +286,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [status, start, togglePause, toggleFullscreen, exit, stop]);
+  }, [status, armed, start, togglePause, toggleFullscreen, cancelArmed, exit, stop]);
 
   useEffect(() => {
     if (status !== 'running') return;
@@ -307,7 +344,15 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
           )}
           {status === 'paused' && <div className="paused-badge">Paused — Space to resume</div>}
 
-          {status === 'setup' && (
+          {armed && (
+            <button className="record-armed" onClick={toggleFullscreen}>
+              <span className="armed-dot">●</span>
+              <strong>Recording ready</strong>
+              <span>Press F or click here for fullscreen — recording and the match start automatically.</span>
+              <em>Esc cancels</em>
+            </button>
+          )}
+          {status === 'setup' && !armed && (
             <div className="setup">
               <div className="setup-card">
                 <div className="eyebrow">{isMatch ? `Match · ${stages.length} stages` : ENVIRONMENTS[stage.environment].label}</div>

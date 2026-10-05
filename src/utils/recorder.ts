@@ -137,7 +137,11 @@ export class TabRecorder {
     this.recorder.ondataavailable = (e) => e.data.size && this.chunks.push(e.data);
     // sharing stopped from the browser bar → finish like a normal stop
     track.addEventListener('ended', () => this.recorder?.state === 'recording' && this.recorder.stop());
-    this.recorder.start(1000);
+  }
+
+  /** Starts writing the file — call once the player is in its final (fullscreen) layout. */
+  begin() {
+    if (this.recorder?.state === 'inactive') this.recorder.start(1000);
   }
 
   get active() {

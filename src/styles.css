@@ -319,3 +319,12 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .paused-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(8, 9, 9, 0.8); padding: 1.6cqh 3cqh; border-radius: 1cqh; font-weight: 800; font-size: 3cqh; letter-spacing: 0.08em; }
 .player-controls { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; background: rgba(15, 16, 16, 0.85); border: 1px solid var(--line); border-radius: 10px; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
 .player-controls.visible { opacity: 1; pointer-events: auto; }
+
+/* recording armed: waits for fullscreen so the capture is 1:1 */
+.record-armed { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6cqh;
+  background: rgba(15, 16, 16, 0.86); border: 0; color: var(--text); font-family: var(--font); cursor: pointer; text-align: center; padding: 0 12cqh; }
+.record-armed .armed-dot { color: var(--accent); font-size: 5cqh; animation: armed-blink 1.2s ease-in-out infinite; }
+.record-armed strong { font-size: 6cqh; font-weight: 900; letter-spacing: 0.09em; text-transform: uppercase; }
+.record-armed span { font-size: 2.4cqh; color: var(--sage); max-width: 90cqh; }
+.record-armed em { font-style: normal; font-size: 1.8cqh; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+@keyframes armed-blink { 50% { opacity: 0.25; } }
