@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ENVIRONMENTS, ENVIRONMENT_LIST } from '../../assets/environments';
 import { ASSETS } from '../../assets/registry';
 import type { Difficulty, Discipline, Motion, MotionKind, Stage, StageObject } from '../../types/stage';
@@ -16,11 +17,51 @@ interface Props {
   onDuplicate: () => void;
   onDelete: () => void;
   onLayer: (dir: 1 | -1) => void;
+  onMove: (m: GroupMove) => void;
   onToggleLock: () => void;
   selectedIds: string[];
   onSelect: (id: string, additive: boolean) => void;
   onClearSelection: () => void;
 }
+
+/** Relative move in meters: across (+ right), depth (+ further away), up (+ higher). */
+export interface GroupMove {
+  across?: number;
+  depth?: number;
+  up?: number;
+}
+
+const MOVE_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2];
+
+/** Move the selection in real meters — works for one object or a whole group at once. */
+const MoveInMeters = ({ onMove, disabled }: { onMove: (m: GroupMove) => void; disabled?: boolean }) => {
+  const [step, setStep] = useState(0.25);
+  return (
+    <>
+      <Row label="Step (m)">
+        <Select value={String(step)} options={MOVE_STEPS.map((s) => ({ value: String(s), label: `${s} m` }))} onChange={(v) => setStep(Number(v))} />
+      </Row>
+      <Row label="Left / right" hint="Alt + ← / →">
+        <span className="inline move">
+          <button disabled={disabled} onClick={() => onMove({ across: -step })}>◀ Left</button>
+          <button disabled={disabled} onClick={() => onMove({ across: step })}>Right ▶</button>
+        </span>
+      </Row>
+      <Row label="Distance" hint="Alt + ↑ / ↓ — keeps the layout, sizes follow the perspective">
+        <span className="inline move">
+          <button disabled={disabled} onClick={() => onMove({ depth: -step })}>Closer</button>
+          <button disabled={disabled} onClick={() => onMove({ depth: step })}>Further</button>
+        </span>
+      </Row>
+      <Row label="Height" hint="Alt + Shift + ↑ / ↓ — elevation above the floor">
+        <span className="inline move">
+          <button disabled={disabled} onClick={() => onMove({ up: -step })}>▼ Down</button>
+          <button disabled={disabled} onClick={() => onMove({ up: step })}>Up ▲</button>
+        </span>
+      </Row>
+    </>
+  );
+};
 
 const MOTIONS: { value: MotionKind; label: string }[] = [
   { value: 'static', label: 'Static' },
@@ -41,7 +82,7 @@ const activators = (stage: Stage) =>
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
-const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLayer, onToggleLock }: Props & { selected: StageObject }) => {
+const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLayer, onMove, onToggleLock }: Props & { selected: StageObject }) => {
   const asset = ASSETS[o.type];
   const env = ENVIRONMENTS[stage.environment];
   const set = (patch: Partial<StageObject>) => onObject(o.id, patch);
@@ -78,6 +119,9 @@ const ObjectProps = ({ stage, selected: o, onObject, onDuplicate, onDelete, onLa
       <Row label="Elevation (m)" hint="Height above the floor, e.g. 0.6 for the top of a box">
         <SliderField value={o.elevation ?? 0} min={0} max={2.5} step={0.01} digits={2} disabled={locked} onChange={(elevation) => set({ elevation: elevation || undefined })} />
       </Row>
+
+      <h4>Move (meters)</h4>
+      <MoveInMeters onMove={onMove} disabled={locked} />
 
       <h4>Depth & Layer</h4>
       <Row label="Perspective">
@@ -296,7 +340,9 @@ const MultiProps = (props: Props) => {
         <button onClick={() => onLayer(1)} title="]">Layer ↑</button>
         <button onClick={onClearSelection} title="Esc">Deselect</button>
       </div>
-      <p className="hint">Drag any selected object to move the whole group; the handles scale / rotate it. Arrow keys nudge all.</p>
+      <h4>Move together</h4>
+      <MoveInMeters onMove={props.onMove} disabled={allLocked} />
+      <p className="hint">Drag any selected object to move the whole group; the handles scale / rotate it. Arrow keys nudge all on screen.</p>
       <h4>Objects</h4>
       <ul className="object-list">
         {stage.objects.map((o) => (

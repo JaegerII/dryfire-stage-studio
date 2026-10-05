@@ -5,6 +5,7 @@ import { fit16x9, useElementSize } from '../../hooks/useElementSize';
 import type { EnvironmentId, ObjectType, Stage, StageObject } from '../../types/stage';
 import { newId } from '../../utils/random';
 import { screenToStage } from '../../utils/view';
+import { fromWorld, toWorld } from '../../utils/perspective';
 import { ENVIRONMENTS } from '../../assets/environments';
 import { StageFormatError, createObject, createStage, exportStageFile } from '../../utils/stageIO';
 import { readImportFile, saveImportedMatch } from '../../utils/matchIO';
@@ -12,7 +13,7 @@ import { StageCanvas } from '../stage/StageCanvas';
 import { useStageHistory } from '../../hooks/useStageHistory';
 import { AssetLibrary, DND_TYPE } from './AssetLibrary';
 import { EditorToolbar } from './EditorToolbar';
-import { PropertiesPanel } from './PropertiesPanel';
+import { PropertiesPanel, type GroupMove } from './PropertiesPanel';
 
 const SNAP_STEP = 0.0125;
 const DEFAULT_Y: Record<string, number> = { target: 0.62, barrier: 0.68, banner: 0.68, other: 0.97 };
@@ -151,6 +152,29 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
 
   const layer = useCallback((dir: 1 | -1) => patchSelected((o) => ({ zIndex: o.zIndex + dir })), [patchSelected]);
 
+  /**
+   * Move every selected object together in real meters: across, closer / further, up / down.
+   * Positions go through the 3D floor, so a group keeps its layout and shrinks / grows with distance.
+   */
+  const moveGroup = useCallback(
+    (m: GroupMove) => {
+      const env = ENVIRONMENTS[stage.environment];
+      patchSelected((o) => {
+        if (o.locked) return null;
+        const p: Partial<StageObject> = {};
+        if (m.across || m.depth) {
+          const w = toWorld(o.x, o.y, env);
+          const n = fromWorld(w.X + (m.across ?? 0), Math.max(1, w.D + (m.depth ?? 0)), env);
+          p.x = +n.x.toFixed(4);
+          p.y = +Math.min(1.5, n.y).toFixed(4);
+        }
+        if (m.up) p.elevation = +Math.max(0, (o.elevation ?? 0) + m.up).toFixed(3) || undefined;
+        return p;
+      });
+    },
+    [patchSelected, stage.environment],
+  );
+
   const toggleLock = useCallback(() => {
     const lock = selectedObjs.some((o) => !o.locked);
     patchSelected(() => ({ locked: lock || undefined }));
@@ -207,6 +231,16 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
         layer(-1);
       } else if (e.key.toLowerCase() === 'l' && !mod && selectedObjs.length) {
         toggleLock();
+      } else if (e.key.startsWith('Arrow') && e.altKey && selectedObjs.length) {
+        // Alt+arrows: move in meters (←/→ across, ↑/↓ further / closer); Alt+Shift+↑/↓: up / down
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (e.key === 'ArrowUp') moveGroup({ up: 0.05 });
+          if (e.key === 'ArrowDown') moveGroup({ up: -0.05 });
+        } else {
+          const d = { ArrowLeft: { across: -0.25 }, ArrowRight: { across: 0.25 }, ArrowUp: { depth: 0.5 }, ArrowDown: { depth: -0.5 } }[e.key];
+          if (d) moveGroup(d);
+        }
       } else if (e.key.startsWith('Arrow') && selectedObjs.length) {
         e.preventDefault();
         const step = e.shiftKey ? 0.01 : 0.002;
@@ -216,7 +250,7 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hidden, save, undo, redo, duplicate, remove, layer, toggleLock, patchSelected, selectedObjs, stage.objects]);
+  }, [hidden, save, undo, redo, duplicate, remove, layer, toggleLock, patchSelected, moveGroup, selectedObjs, stage.objects]);
 
   // ---------------------------------------------------------------- drop from library
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -307,6 +341,7 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
         onDuplicate={duplicate}
         onDelete={remove}
         onLayer={layer}
+        onMove={moveGroup}
         onToggleLock={toggleLock}
         onSelect={onPick}
         onClearSelection={() => setSelectedIds([])}

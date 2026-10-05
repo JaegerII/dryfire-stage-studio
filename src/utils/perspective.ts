@@ -37,6 +37,21 @@ export const pxPerMeter = (obj: StageObject, env: EnvironmentDef, stageHeightPx:
 export const elevationPx = (obj: StageObject, env: EnvironmentDef, stageHeightPx: number) =>
   (((obj.elevation ?? 0) * perspectiveFactor(obj, env) * (1 - env.horizon)) / env.cameraHeight) * stageHeightPx;
 
+const FOCAL = 1.4; // plate camera focal length in image heights (tools/plate-renderer)
+const ASPECT = 16 / 9;
+
+/** Floor point (normalised x, y) → world position: X across (m, + = right), D = distance from the camera (m). */
+export const toWorld = (x: number, y: number, env: EnvironmentDef) => {
+  const D = (FOCAL * env.cameraHeight) / Math.max(0.002, y - env.horizon);
+  return { X: ((x - 0.5) * ASPECT * D) / FOCAL, D };
+};
+
+/** World position → normalised floor point on screen. */
+export const fromWorld = (X: number, D: number, env: EnvironmentDef) => ({
+  x: 0.5 + (FOCAL * X) / (ASPECT * D),
+  y: env.horizon + (FOCAL * env.cameraHeight) / D,
+});
+
 /** Back-to-front draw order: zIndex, then closer (larger y), then higher (things on boxes) on top. */
 export const drawOrder = (objects: StageObject[]) =>
   [...objects].sort((a, b) => a.zIndex - b.zIndex || a.y - b.y || (a.elevation ?? 0) - (b.elevation ?? 0));
