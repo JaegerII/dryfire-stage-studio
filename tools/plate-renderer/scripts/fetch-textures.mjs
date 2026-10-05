@@ -9,9 +9,14 @@ const OUT = 'public/tex';
 const TMP = '.tex-download';
 
 /** ambientCG material id → maps to keep (2K JPG). */
-const MATERIALS = ['Cardboard004', 'Concrete034', 'Concrete036', 'Wood058', 'Rubber001', 'Rubber004', 'Fabric030', 'PaintedMetal004'];
+const MATERIALS = [
+  'Cardboard004', 'Concrete034', 'Concrete036', 'Wood058', 'Rubber001', 'Rubber004', 'Fabric030', 'PaintedMetal004',
+  // outdoor ranges
+  'Gravel041', 'Ground048', 'Ground037', 'Grass004',
+];
 const MAPS = { Color: 'color', NormalGL: 'normal', Roughness: 'rough', AmbientOcclusion: 'ao', Metalness: 'metal' };
-const HDRIS = ['empty_warehouse_01'];
+/** Poly Haven HDRI id → resolution. Outdoor skies are seen in the background, so they need 8K. */
+const HDRIS = { empty_warehouse_01: '2k', countrytrax_midday: '8k', evening_meadow: '8k', farmland_overcast: '8k', grasslands_sunset: '8k' };
 
 mkdirSync(OUT, { recursive: true });
 mkdirSync(TMP, { recursive: true });
@@ -29,17 +34,19 @@ for (const id of MATERIALS) {
   const dir = join(TMP, id);
   await get(`https://ambientcg.com/get?file=${id}_2K-JPG.zip`, zip);
   mkdirSync(dir, { recursive: true });
-  execSync(`tar -xf "${zip}" -C "${dir}"`);
+  // Windows tar (bsdtar) understands zip; on other systems plain tar/bsdtar does
+  const tar = process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+  execSync(`"${tar}" -xf "${zip}" -C "${dir}"`);
   for (const f of readdirSync(dir)) {
     const m = f.match(/_2K-JPG_(\w+)\.jpg$/);
     if (m && MAPS[m[1]]) copyFileSync(join(dir, f), join(OUT, `${id}_${MAPS[m[1]]}.jpg`));
   }
 }
 
-for (const id of HDRIS) {
+for (const [id, res] of Object.entries(HDRIS)) {
   if (existsSync(join(OUT, `${id}.hdr`))) continue;
-  console.log(`hdri ${id} ...`);
-  await get(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/${id}_2k.hdr`, join(OUT, `${id}.hdr`));
+  console.log(`hdri ${id} (${res}) ...`);
+  await get(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${id}_${res}.hdr`, join(OUT, `${id}.hdr`));
 }
 
 rmSync(TMP, { recursive: true, force: true });

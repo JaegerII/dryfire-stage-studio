@@ -816,7 +816,7 @@ def plate_camera(sc):
     camd.lens = 1.4 * 24
     camd.shift_y = -0.1 * 9 / 16
     camd.clip_start = 0.1
-    camd.clip_end = 400
+    camd.clip_end = 5000
 
 
 def grid_material(name, c1, c2, mortar, brick_w, row_h, mortar_size=0.012, offset=0.0, normal_img='Fabric030', normal_tile=0.33,
@@ -1025,6 +1025,392 @@ PLATES = {
     'indoor_03': indoor_tunnel,
     'indoor_04': indoor_beams,
 }
+
+
+# ---- outdoor ranges: real sky + horizon from an 8K HDRI, photo ground and earth berms
+
+
+def hdri_sun_azimuth(path):
+    """Azimuth (radians, Blender world XY) of the brightest spot (the sun) in an equirect HDRI."""
+    import numpy as np
+    im = bpy.data.images.load(path, check_existing=False)
+    im.scale(512, 256)
+    px = np.empty(512 * 256 * 4, dtype=np.float32)
+    im.pixels.foreach_get(px)
+    lum = px.reshape(256, 512, 4)[:, :, :3].sum(axis=2)
+    v, u = np.unravel_index(int(np.argmax(lum)), lum.shape)
+    bpy.data.images.remove(im)
+    a = ((u + 0.5) / 512 - 0.5) * 2 * math.pi
+    return math.atan2(math.sin(a), -math.cos(a)), (v + 0.5) / 256
+
+
+def outdoor_world(hdri, strength=1.0, sun_azimuth=None, rotation=0.0):
+    """HDRI as visible background + light. With sun_azimuth the sky is turned so the sun
+    sits at that azimuth (world XY, 0 = +X, pi/2 = +Y downrange)."""
+    path = os.path.join(TEX, f'{hdri}.hdr')
+    if sun_azimuth is not None:
+        az, _ = hdri_sun_azimuth(path)
+        rotation = az - sun_azimuth
+    world_hdri(strength, rotation=rotation, hdri=f'{hdri}.hdr')
+
+
+def ground(mat, size=4000):
+    """Huge ground plane so it meets the HDRI horizon without a visible edge."""
+    floor_plane('ground', size, size, (0, size / 2 - 50, 0), mat)
+
+
+def ridge(name, loc, width, depth, height, mat, rot_z=0.0, seed=1.0, steep=1.6):
+    """Earth berm: smooth bump across its depth, gentle wave along it, ends fading into the ground."""
+    nx, ny = 120, 40
+    bm = bmesh.new()
+    grid = []
+    for i in range(nx + 1):
+        x = -width / 2 + width * i / nx
+        col = []
+        for j in range(ny + 1):
+            yy = -depth / 2 + depth * j / ny
+            nz = yy / (depth / 2)
+            profile = max(0.0, math.cos(nz * math.pi / 2)) ** steep
+            wave = 1 + 0.07 * math.sin(x * 0.23 + seed) + 0.035 * math.sin(x * 0.9 + seed * 2) + 0.015 * math.sin(x * 2.7 + seed * 5)
+            end = min(1.0, (width / 2 - abs(x)) / min(6.0, width / 4))
+            taper = end * end * (3 - 2 * end)
+            col.append(bm.verts.new((x, yy, height * profile * wave * taper)))
+        grid.append(col)
+    for i in range(nx):
+        for j in range(ny):
+            f = bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+            f.smooth = True
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    ob = mesh_obj(name, bm, [mat])
+    ob.location = loc
+    ob.rotation_euler = (0, 0, rot_z)
+    return ob
+
+
+def stones(count, area, seed, mat, size=(0.04, 0.16)):
+    """A few loose stones / clods so the ground is not perfectly clean."""
+    rnd = random.Random(seed)
+    x0, x1, y0, y1 = area
+    for i in range(count):
+        r = size[0] + rnd.random() * (size[1] - size[0])
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=r, location=(x0 + rnd.random() * (x1 - x0), y0 + rnd.random() * (y1 - y0), r * 0.25))
+        ob = bpy.context.active_object
+        ob.scale = (1, 0.8 + rnd.random() * 0.4, 0.45 + rnd.random() * 0.3)
+        ob.rotation_euler = (0, 0, rnd.random() * math.tau)
+        ob.data.materials.append(mat)
+        bpy.ops.object.shade_smooth()
+
+
+def terrain_material(name, layers, patch=None, foot=None, rough=0.96, normal=0.9):
+    """Natural ground: a base photo texture, broken up by large noise patches of a second texture,
+    and (for berms) blended into the ground texture at the foot so there is no hard seam.
+
+    layers: {key: (ambientCG id, tint, tile m, saturation, value)}; 'base' is required.
+    patch:  (key, amount 0..1, noise scale) — where the patch texture shows through.
+    foot:   (key, height m) — below this height (object space) the key's texture takes over.
+    """
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N['Principled BSDF']
+    b.inputs['Roughness'].default_value = rough
+    tc = N.new('ShaderNodeTexCoord')
+    obj = tc.outputs['Object']
+
+    def layer(key):
+        mid, tint, tile, sat, val = layers[key]
+        mp = N.new('ShaderNodeMapping')
+        mp.inputs['Scale'].default_value = (1 / tile,) * 3
+        L.new(obj, mp.inputs['Vector'])
+        out = {}
+        for kind, nc in (('color', False), ('normal', True)):
+            t = N.new('ShaderNodeTexImage')
+            t.image = _img(os.path.join(TEX, f'{mid}_{kind}.jpg'), nc)
+            t.projection = 'BOX'
+            t.projection_blend = 0.3
+            L.new(mp.outputs['Vector'], t.inputs['Vector'])
+            out[kind] = t.outputs['Color']
+        hs = N.new('ShaderNodeHueSaturation')
+        hs.inputs['Saturation'].default_value = sat
+        hs.inputs['Value'].default_value = val
+        L.new(out['color'], hs.inputs['Color'])
+        mix = N.new('ShaderNodeMix')
+        mix.data_type = 'RGBA'
+        mix.blend_type = 'MULTIPLY'
+        mix.inputs['Factor'].default_value = 1.0
+        L.new(hs.outputs['Color'], mix.inputs['A'])
+        mix.inputs['B'].default_value = hex_rgba(tint)
+        nm = N.new('ShaderNodeNormalMap')
+        nm.inputs['Strength'].default_value = normal
+        L.new(out['normal'], nm.inputs['Color'])
+        return mix.outputs['Result'], nm.outputs['Normal']
+
+    def blend(a, b_, fac):
+        c = N.new('ShaderNodeMix')
+        c.data_type = 'RGBA'
+        L.new(fac, c.inputs['Factor'])
+        L.new(a[0], c.inputs['A'])
+        L.new(b_[0], c.inputs['B'])
+        n = N.new('ShaderNodeMix')
+        n.data_type = 'VECTOR'
+        L.new(fac, n.inputs['Factor'])
+        L.new(a[1], n.inputs['A'])
+        L.new(b_[1], n.inputs['B'])
+        return c.outputs['Result'], n.outputs['Result']
+
+    cur = layer('base')
+    if patch:
+        key, amount, scale = patch
+        nz = N.new('ShaderNodeTexNoise')
+        nz.inputs['Scale'].default_value = scale
+        nz.inputs['Detail'].default_value = 8
+        nz.inputs['Roughness'].default_value = 0.6
+        L.new(obj, nz.inputs['Vector'])
+        mr = N.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = 0.62 - amount * 0.25
+        mr.inputs['From Max'].default_value = 0.70 - amount * 0.25
+        L.new(nz.outputs['Fac'], mr.inputs['Value'])
+        cur = blend(cur, layer(key), mr.outputs['Result'])
+    if foot:
+        key, h = foot
+        sep = N.new('ShaderNodeSeparateXYZ')
+        L.new(obj, sep.inputs['Vector'])
+        # ragged edge: add some noise to the height before the threshold
+        nz2 = N.new('ShaderNodeTexNoise')
+        nz2.inputs['Scale'].default_value = 1.5
+        L.new(obj, nz2.inputs['Vector'])
+        add = N.new('ShaderNodeMath')
+        add.operation = 'MULTIPLY_ADD'
+        add.inputs[1].default_value = h * 0.8
+        L.new(nz2.outputs['Fac'], add.inputs[0])
+        L.new(sep.outputs['Z'], add.inputs[2])
+        mr = N.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = h * 0.4
+        mr.inputs['From Max'].default_value = h * 1.4
+        mr.inputs['To Min'].default_value = 1.0
+        mr.inputs['To Max'].default_value = 0.0
+        L.new(add.outputs['Value'], mr.inputs['Value'])
+        cur = blend(cur, layer(key), mr.outputs['Result'])
+    L.new(cur[0], b.inputs['Base Color'])
+    L.new(cur[1], b.inputs['Normal'])
+    return m
+
+
+# ground / berm recipes (ambientCG id, tint, tile m, saturation, value)
+GRAVEL = ('Gravel041', '#efe9de', 2.2, 0.8, 1.0)
+GRAVEL_WARM = ('Gravel041', '#eadcc4', 2.2, 0.8, 1.0)
+DIRT = ('Ground048', '#eadbc4', 2.6, 0.38, 1.5)
+GRASS_DIRT = ('Ground037', '#ffffff', 2.6, 0.9, 1.0)
+GRASS = ('Grass004', '#d8dcc2', 1.6, 0.85, 1.0)
+GRASS_WARM = ('Grass004', '#ece2c0', 1.6, 0.85, 1.0)
+
+
+def hair_material(name, colors, rough=0.6):
+    """Grass blade material: colour varies per strand (random) between the given hex colours."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N['Principled BSDF']
+    b.inputs['Roughness'].default_value = rough
+    try:
+        b.inputs['Subsurface Weight'].default_value = 0.15
+    except KeyError:
+        pass
+    hi = N.new('ShaderNodeHairInfo')
+    ramp = N.new('ShaderNodeValToRGB')
+    els = ramp.color_ramp.elements
+    els[0].color = hex_rgba(colors[0])
+    els[1].color = hex_rgba(colors[-1])
+    for i, c in enumerate(colors[1:-1], 1):
+        e = els.new(i / (len(colors) - 1))
+        e.color = hex_rgba(c)
+    L.new(hi.outputs['Random'], ramp.inputs['Fac'])
+    # darker towards the root (self-shadowing in the turf)
+    grad = N.new('ShaderNodeMapRange')
+    grad.inputs['To Min'].default_value = 0.45
+    grad.inputs['To Max'].default_value = 1.0
+    L.new(hi.outputs['Intercept'], grad.inputs['Value'])
+    mul = N.new('ShaderNodeMix')
+    mul.data_type = 'RGBA'
+    mul.blend_type = 'MULTIPLY'
+    mul.inputs['Factor'].default_value = 1.0
+    L.new(ramp.outputs['Color'], mul.inputs['A'])
+    comb = N.new('ShaderNodeCombineColor')
+    for ch in ('Red', 'Green', 'Blue'):
+        L.new(grad.outputs['Result'], comb.inputs[ch])
+    L.new(comb.outputs['Color'], mul.inputs['B'])
+    # large patches: some areas lighter / drier, some darker / lusher (by world position)
+    geo = N.new('ShaderNodeNewGeometry')
+    nz = N.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 0.12
+    nz.inputs['Detail'].default_value = 4
+    L.new(geo.outputs['Position'], nz.inputs['Vector'])
+    pr = N.new('ShaderNodeMapRange')
+    pr.inputs['To Min'].default_value = 0.7
+    pr.inputs['To Max'].default_value = 1.35
+    L.new(nz.outputs['Fac'], pr.inputs['Value'])
+    patch = N.new('ShaderNodeMix')
+    patch.data_type = 'RGBA'
+    patch.blend_type = 'MULTIPLY'
+    patch.inputs['Factor'].default_value = 1.0
+    L.new(mul.outputs['Result'], patch.inputs['A'])
+    pc = N.new('ShaderNodeCombineColor')
+    for ch in ('Red', 'Green', 'Blue'):
+        L.new(pr.outputs['Result'], pc.inputs[ch])
+    L.new(pc.outputs['Color'], patch.inputs['B'])
+    L.new(patch.outputs['Result'], b.inputs['Base Color'])
+    return m
+
+
+def grass_patch(name, area, density, length, colors, patchy=0.0, seed=1, z=0.0, emitter=None, length_random=0.5):
+    """Real grass blades (hair particles). area = (x0, x1, y0, y1) for a flat patch,
+    or emitter = an existing mesh (berm) to grow from. density = blades per m².
+    patchy > 0 thins the grass out in noise-shaped patches (0..1)."""
+    if emitter is None:
+        x0, x1, y0, y1 = area
+        bm = bmesh.new()
+        # fine grid so the density map below has enough resolution
+        bmesh.ops.create_grid(bm, x_segments=max(2, int((x1 - x0) * 2)), y_segments=max(2, int((y1 - y0) * 2)), size=0.5)
+        for v in bm.verts:
+            v.co = Vector((v.co.x * (x1 - x0), v.co.y * (y1 - y0), 0))
+        ob = mesh_obj(name, bm, [])
+        ob.location = ((x0 + x1) / 2, (y0 + y1) / 2, z)
+        area_m2 = (x1 - x0) * (y1 - y0)
+        hide_emitter = True
+    else:
+        hide_emitter = False
+        ob = emitter
+        area_m2 = sum(p.area for p in ob.data.polygons) * ob.scale.x * ob.scale.y
+    mat = hair_material(f'{name}_hair', colors)
+    ob.data.materials.append(mat)
+    mod = ob.modifiers.new(name, 'PARTICLE_SYSTEM')
+    ps = mod.particle_system
+    ps.seed = seed
+    st = ps.settings
+    st.type = 'HAIR'
+    # a flat patch only carries the blades; the ground below stays visible
+    ob.show_instancer_for_render = not hide_emitter
+    st.count = int(area_m2 * density)
+    st.hair_length = length
+    st.hair_step = 4
+    st.render_step = 3
+    st.material_slot = mat.name
+    st.use_advanced_hair = True
+    st.emit_from = 'FACE'
+    st.distribution = 'RAND'
+    st.use_rotations = True
+    st.rotation_mode = 'NOR'
+    # with advanced hair the blade length comes from the emission velocity
+    st.normal_factor = length
+    st.tangent_factor = 0.0
+    st.factor_random = length * 0.35
+    st.brownian_factor = length * 0.05
+    st.length_random = length_random
+    st.root_radius = 1.0
+    st.tip_radius = 0.0
+    st.radius_scale = 0.0035
+    st.shape = -0.2
+    # bend blades a little with some kink so they do not stand like needles
+    st.kink = 'CURL'
+    st.kink_amplitude = length * 0.25
+    st.kink_frequency = 0.6
+    if patchy > 0:
+        # density map: noise in world space, thresholded so grass grows in clumps and patches
+        from mathutils import noise
+        vg = ob.vertex_groups.new(name='density')
+        mw = ob.matrix_world
+        thr = -0.5 + patchy * 0.9
+        for v in ob.data.vertices:
+            w = mw @ v.co
+            n = noise.noise(Vector((w.x * 0.35, w.y * 0.35, seed * 3.1))) + 0.5 * noise.noise(Vector((w.x * 1.3, w.y * 1.3, seed * 7.7)))
+            t = max(0.0, min(1.0, (n - thr) / 0.35))
+            vg.add([v.index], t * t * (3 - 2 * t), 'REPLACE')
+        ps.vertex_group_density = 'density'
+    return ob
+
+
+LAWN = ['#557a2e', '#6a8c36', '#86a142', '#9cab55', '#b5b06a']
+LAWN_WARM = ['#4f7230', '#668838', '#82984a', '#9ca45a', '#b2aa66']
+DRY = ['#8a7a52', '#a4915f', '#b9a56e', '#7d7347', '#c2b07c']
+BERM_GRASS = ['#425c25', '#5b7430', '#77883d', '#8c8a4a', '#6b6a3a']
+
+OUTDOOR = {
+    # midday: light gravel bay with dirt patches, brown earth berms, tree line behind
+    'outdoor_01': dict(hdri='countrytrax_midday', sun=math.radians(-120),
+                       ground=lambda: terrain_material('ground', {'base': GRAVEL, 'dirt': DIRT}, patch=('dirt', 0.35, 0.06)),
+                       berm=lambda: terrain_material('berm', {'base': DIRT, 'gravel': GRAVEL}, foot=('gravel', 0.35)),
+                       back=(0, 18.5, 52, 7, 2.6), sides=2.6,
+                       ground_grass=dict(density=25, length=0.1, colors=DRY, patchy=0.95),
+                       berm_grass=dict(density=120, length=0.12, colors=DRY, patchy=0.75)),
+    # late afternoon: warmer gravel with grass creeping in, grass-and-dirt berms
+    'outdoor_02': dict(hdri='evening_meadow', sun=math.radians(-125),
+                       ground=lambda: terrain_material('ground', {'base': GRAVEL_WARM, 'grass': GRASS}, patch=('grass', 0.3, 0.06)),
+                       berm=lambda: terrain_material('berm', {'base': GRASS_DIRT, 'gravel': GRAVEL_WARM}, foot=('gravel', 0.35)),
+                       back=(0, 19, 52, 7, 2.4), sides=2.4,
+                       ground_grass=dict(density=220, length=0.08, colors=LAWN, patchy=0.85),
+                       berm_grass=dict(density=700, length=0.12, colors=BERM_GRASS, patchy=0.45)),
+}
+
+
+def outdoor_bay(pid):
+    st = OUTDOOR[pid]
+    outdoor_world(st['hdri'], 1.0, sun_azimuth=st['sun'])
+    ground(st['ground']())
+    berm = st['berm']()
+    x, y, w, d, h = st['back']
+    berms = [ridge('back_berm', (x, y, 0), w, d, h, berm, seed=1.3)]
+    for s in (-1, 1):
+        berms.append(ridge('side_berm', (s * 11.5, 7, 0), 30, 6, st['sides'], berm, rot_z=math.pi / 2, seed=2.1 + s))
+    gg, bg = st['ground_grass'], st['berm_grass']
+    grass_patch('ground_grass', (-12, 12, -1.5, y - 2), gg['density'], gg['length'], gg['colors'], patchy=gg['patchy'], seed=3)
+    for i, ob in enumerate(berms):
+        grass_patch(f'berm_grass{i}', None, bg['density'], bg['length'], bg['colors'], patchy=bg['patchy'], seed=10 + i, emitter=ob)
+
+
+def outdoor_meadow():
+    """Outdoor 03: overcast, mown grass bay between rolling grass berms."""
+    outdoor_world('farmland_overcast', 1.0, rotation=0.6)
+    ground(terrain_material('ground', {'base': GRASS, 'dirt': GRASS_DIRT}, patch=('dirt', 0.3, 0.06)))
+    berm = terrain_material('berm', {'base': GRASS_DIRT, 'grass': GRASS}, foot=('grass', 0.4))
+    for name, loc, rz, w, d, h in (
+        ('back', (0, 27, 0), 0, 70, 16, 4.0),
+        ('left', (-17, 10, 0), math.pi / 2, 40, 12, 3.4),
+        ('right', (17, 10, 0), math.pi / 2, 40, 12, 3.6),
+        ('mid_l', (-11, 21, 0), 0, 14, 7, 2.0),
+        ('mid_r', (12, 22, 0), 0, 16, 7, 2.2),
+    ):
+        ob = ridge(name, loc, w, d, h, berm, rot_z=rz, seed=len(name) * 1.7)
+        grass_patch(f'{name}_grass', None, 500, 0.11, BERM_GRASS, patchy=0.35, seed=len(name), emitter=ob)
+    grass_patch('lawn', (-24, 24, -1.5, 27), 2200, 0.07, LAWN, patchy=0.12, seed=2)
+
+
+def outdoor_sunset():
+    """Outdoor 04: sunset, grass in front, covered firing line with a dirt backstop in the distance."""
+    outdoor_world('grasslands_sunset', 1.0, sun_azimuth=math.radians(160))
+    ground(terrain_material('ground', {'base': GRASS_WARM, 'dirt': GRASS_DIRT}, patch=('dirt', 0.3, 0.06)))
+    roof = pbr('roof', 'PaintedMetal004', tile=1.0, color=False, tint='#4a5160', rough=0.5, normal=0.3, metal=0.4)
+    steel = pbr('post', 'PaintedMetal004', tile=0.6, color=False, tint='#55595f', rough=0.5, normal=0.3, metal=0.4)
+    bench = pbr('bench', 'Concrete036', tile=1.0, tint='#a19a90', normal=0.5)
+    yb = 30
+    r = box('roof', (56, 5, 0.18), (0, yb, 3.3), roof)
+    r.rotation_euler = (-0.12, 0, 0)
+    box('fascia', (56, 0.12, 0.25), (0, yb - 2.9, 3.05), roof)
+    for i in range(15):
+        x = -28 + i * 4
+        box('post', (0.16, 0.16, 3.2), (x, yb - 2.7, 1.6), steel)
+        box('bench', (1.6, 0.6, 0.9), (x + 2, yb + 1, 0.45), bench)
+    berm = terrain_material('berm', {'base': DIRT, 'grass': GRASS_WARM}, foot=('grass', 0.4))
+    ob = ridge('backstop', (0, yb + 5, 0), 60, 6, 3.0, berm, seed=0.7)
+    grass_patch('backstop_grass', None, 150, 0.12, LAWN_WARM, patchy=0.7, seed=5, emitter=ob)
+    grass_patch('lawn', (-26, 26, -1.5, 30), 1800, 0.08, LAWN_WARM, patchy=0.15, seed=2)
+
+
+PLATES.update({
+    'outdoor_01': lambda: outdoor_bay('outdoor_01'),
+    'outdoor_02': lambda: outdoor_bay('outdoor_02'),
+    'outdoor_03': outdoor_meadow,
+    'outdoor_04': outdoor_sunset,
+})
 
 
 def render_plate(pid):

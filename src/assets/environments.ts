@@ -6,6 +6,7 @@
  * as it is level (no tilt) and these two values are measured for it.
  */
 import type { EnvironmentId } from '../types/stage';
+import type { EnvShadow } from '../utils/shadow';
 import indoor01 from './environments/indoor_01.webp';
 import indoor02 from './environments/indoor_02.webp';
 import indoor03 from './environments/indoor_03.webp';
@@ -24,6 +25,8 @@ export interface EnvironmentDef {
   horizon: number;
   /** Camera height above the floor, meters. */
   cameraHeight: number;
+  /** Directional cast shadow (sun). Indoor ranges have none: many soft lights from above. */
+  shadow?: EnvShadow;
 }
 
 const PLATE = { horizon: 0.4, cameraHeight: 1.5 };
@@ -33,10 +36,11 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentDef> = {
   indoor_02: { id: 'indoor_02', label: 'Indoor Range 02', kind: 'indoor', src: indoor02, ...PLATE },
   indoor_03: { id: 'indoor_03', label: 'Indoor Range 03 (bright lane)', kind: 'indoor', src: indoor03, ...PLATE },
   indoor_04: { id: 'indoor_04', label: 'Indoor Range 04 (beam ceiling)', kind: 'indoor', src: indoor04, ...PLATE },
-  outdoor_01: { id: 'outdoor_01', label: 'Outdoor Berm 01', kind: 'outdoor', src: outdoor01, ...PLATE },
-  outdoor_02: { id: 'outdoor_02', label: 'Outdoor Berm 02', kind: 'outdoor', src: outdoor02, ...PLATE },
-  outdoor_03: { id: 'outdoor_03', label: 'Outdoor Berm 03 (grass)', kind: 'outdoor', src: outdoor03, ...PLATE },
-  outdoor_04: { id: 'outdoor_04', label: 'Outdoor 04 (sunset, covered bays)', kind: 'outdoor', src: outdoor04, ...PLATE },
+  // sun positions = the HDRI skies the plates were rendered with (tools/plate-renderer/blender/scene.py)
+  outdoor_01: { id: 'outdoor_01', label: 'Outdoor Berm 01 (midday)', kind: 'outdoor', src: outdoor01, ...PLATE, shadow: { azimuth: -120, elevation: 73, opacity: 0.45, softness: 0.004 } },
+  outdoor_02: { id: 'outdoor_02', label: 'Outdoor Berm 02 (evening)', kind: 'outdoor', src: outdoor02, ...PLATE, shadow: { azimuth: -125, elevation: 21, opacity: 0.4, softness: 0.008 } },
+  outdoor_03: { id: 'outdoor_03', label: 'Outdoor Berm 03 (overcast)', kind: 'outdoor', src: outdoor03, ...PLATE, shadow: { azimuth: -95, elevation: 55, opacity: 0.16, softness: 0.035 } },
+  outdoor_04: { id: 'outdoor_04', label: 'Outdoor 04 (sunset, covered bays)', kind: 'outdoor', src: outdoor04, ...PLATE, shadow: { azimuth: 160, elevation: 6, opacity: 0.26, softness: 0.012 } },
 };
 
 export const ENVIRONMENT_LIST = Object.values(ENVIRONMENTS);

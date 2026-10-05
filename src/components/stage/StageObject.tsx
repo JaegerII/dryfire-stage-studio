@@ -1,11 +1,12 @@
 import type Konva from 'konva';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Circle, Group, Image as KImage, Text } from 'react-konva';
 import type { EnvironmentDef } from '../../assets/environments';
 import { ASSETS } from '../../assets/registry';
 import { useAssetImage } from '../../hooks/useAssetImage';
 import type { StageObject as StageObjectData } from '../../types/stage';
 import { elevationPx, objectSize } from '../../utils/perspective';
+import { shadowTransform, silhouette } from '../../utils/shadow';
 
 export type ObjectChange = (id: string, patch: Partial<StageObjectData>, opts?: { transient?: boolean }) => void;
 
@@ -30,17 +31,39 @@ const AssetImage = ({ obj, env, height }: Pick<Props, 'obj' | 'env' | 'height'>)
   const img = useAssetImage(asset.src);
   const { w, h, groundOffset } = objectSize(obj, env, height);
   const yaw = ((obj.yaw ?? 0) * Math.PI) / 180;
+  const scaleX = Math.max(0.12, Math.cos(yaw)) * (obj.flip ? -1 : 1);
+  const sun = asset.banner ? undefined : env.shadow;
+  const sil = useMemo(() => (img && sun ? silhouette(img, sun.softness) : null), [img, sun]);
+  const cast = sil && sun && img ? shadowTransform(sun, env, obj.y) : null;
+  const k = img ? w / img.naturalWidth : 1;
   return (
-    <KImage
-      image={img}
-      width={w}
-      height={h}
-      offsetX={w / 2}
-      offsetY={groundOffset}
-      scaleX={Math.max(0.12, Math.cos(yaw)) * (obj.flip ? -1 : 1)}
-      skewY={-Math.sin(yaw) * 0.16}
-      perfectDrawEnabled={false}
-    />
+    <>
+      {sil && cast && (
+        <KImage
+          image={sil.canvas}
+          width={sil.canvas.width * k}
+          height={sil.canvas.height * k}
+          offsetX={sil.pad * k + w / 2}
+          offsetY={sil.pad * k + groundOffset}
+          scaleX={scaleX}
+          scaleY={cast.scaleY}
+          skewX={cast.skewX}
+          opacity={sun!.opacity}
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      )}
+      <KImage
+        image={img}
+        width={w}
+        height={h}
+        offsetX={w / 2}
+        offsetY={groundOffset}
+        scaleX={scaleX}
+        skewY={-Math.sin(yaw) * 0.16}
+        perfectDrawEnabled={false}
+      />
+    </>
   );
 };
 
