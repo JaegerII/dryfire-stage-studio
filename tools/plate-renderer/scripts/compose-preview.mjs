@@ -1,10 +1,10 @@
 // Composes a stage at full HD the way Stage Studio draws it (plate + sprites, 2.5D perspective).
 // Used for before/after previews of the realistic assets.
-//   node scripts/compose-preview.mjs <stage.json> <plate> <out.jpg> [realistic]
+//   node scripts/compose-preview.mjs <stage.json> <plate> <out.jpg>
 import { readFileSync } from 'node:fs';
 import sharp from 'sharp';
 
-const [stageFile, plateFile, outFile, mode] = process.argv.slice(2);
+const [stageFile, plateFile, outFile] = process.argv.slice(2);
 const stage = JSON.parse(readFileSync(stageFile, 'utf8'));
 const W = 1920;
 const H = 1080;
@@ -19,11 +19,7 @@ const assets = {};
 for (const m of reg.matchAll(/^\s+(\w+): \{ type: '\w+',.*?src: (\w+), viewW: ([\d.]+), viewH: ([\d.]+), groundY: ([\d.]+)/gm)) {
   assets[m[1]] = { src: imports[m[2]], viewW: +m[3], viewH: +m[4], groundY: +m[5] };
 }
-const REALISTIC = ['paper_full', 'steel_popper', 'mesh_wall'];
-const srcFor = (type) => {
-  const svg = assets[type].src.replace(/^realistic\/(\w+)\.webp$/, (_, t) => (t === 'mesh_wall' ? 'barriers/mesh_wall.svg' : `targets/${t}.svg`));
-  return mode === 'realistic' && REALISTIC.includes(type) ? `realistic/${type}.webp` : svg;
-};
+const srcFor = (type) => assets[type].src;
 
 const zoom = stage.zoom ?? 1;
 const layers = [];

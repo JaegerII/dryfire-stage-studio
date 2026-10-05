@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { ThreeCanvas } from '@remotion/three';
 import React, { useLayoutEffect } from 'react';
-import { Composition, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Composition, Img, staticFile, useVideoConfig } from 'remotion';
 import type * as THREE from 'three';
 import { AssetSprite, SPRITES, SPRITE_PX_PER_CM, type SpriteId } from './AssetSprite';
 import { applyPlateCamera } from './plateCamera';
@@ -41,8 +41,16 @@ const Plate: React.FC<{ env: EnvironmentId }> = ({ env }) => {
   );
 };
 
+/** Banner artwork (the app's SVG, with its embedded font) as a bitmap texture for Blender. */
+const BannerImage: React.FC<{ file: string }> = ({ file }) => (
+  <AbsoluteFill>
+    <Img src={staticFile(`tex/gen/${file}`)} style={{ width: '100%', height: '100%' }} />
+  </AbsoluteFill>
+);
+
 export const RemotionRoot: React.FC = () => (
   <>
+    <Composition id="banner-image" component={BannerImage} defaultProps={{ file: 'banner.svg' }} durationInFrames={1} fps={30} width={3200} height={1080} />
     {ENVIRONMENTS.map((env) => (
       <Composition
         key={env}

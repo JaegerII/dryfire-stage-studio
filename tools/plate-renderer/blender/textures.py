@@ -40,7 +40,15 @@ def rounded(pts, r, seg=8):
     return out
 
 
-def card_face():
+HC = {
+    'vertical': [[(-30, -5), (-8, -5), (-8, 65), (-30, 65)], [(8, -5), (30, -5), (30, 65), (8, 65)]],
+    'half': [[(-30, -5), (0, -5), (0, 65), (-30, 65)]],
+    'bottom': [[(-30, -5), (30, -5), (30, 29), (-30, 29)]],
+    'diagonal': [[(-30, -5), (12, -5), (-4, 65), (-30, 65)]],
+}
+
+
+def card_face(name='card_face', white=False, paint=()):
     W = 2048
     H = round(W * CARD_H / CARD_W)
     k = W / CARD_W
@@ -48,11 +56,14 @@ def card_face():
     board = Image.open(os.path.join(TEX, 'Cardboard004_color.jpg')).convert('RGB')
     board = board.crop((0, 0, int(board.width * 0.77), int(board.height * 0.77))).resize((W, H), Image.LANCZOS)
     # kraft tan: half desaturate, then multiply with a warm light tan
-    grey = board.convert('L').convert('RGB')
-    board = Image.blend(board, grey, 0.5)
-    tan = Image.new('RGB', (W, H), (247, 220, 180))
     from PIL import ImageChops
-    board = ImageChops.multiply(board, tan)
+    grey = board.convert('L').convert('RGB')
+    if white:
+        # white-painted no-shoot: only the board's relief shows through
+        board = Image.blend(Image.new('RGB', (W, H), (238, 237, 232)), grey, 0.14)
+    else:
+        board = Image.blend(board, grey, 0.5)
+        board = ImageChops.multiply(board, Image.new('RGB', (W, H), (247, 220, 180)))
     # soft uneven tone
     rnd = random.Random(7)
     tone = Image.new('L', (W, H), 128)
@@ -63,7 +74,7 @@ def card_face():
     tone = tone.filter(ImageFilter.GaussianBlur(120))
     board = ImageChops.multiply(board, Image.merge('RGB', [tone.point(lambda v: min(255, v * 2))] * 3))
     d = ImageDraw.Draw(board, 'RGBA')
-    ink = (70, 45, 18, 140)
+    ink = (120, 120, 112, 120) if white else (70, 45, 18, 140)
     for zone in (OCT_C, OCT_A):
         pts = [P(*p) for p in rounded(zone, 1.2)]
         pts.append(pts[0])
@@ -88,31 +99,46 @@ def card_face():
         font = ImageFont.load_default()
     for t, y in (('A', 47.4), ('C', 51), ('D', 55.8)):
         x, yy = P(0, y)
-        d.text((x, yy), t, fill=(70, 45, 18, 110), font=font, anchor='mm')
-    board.save(os.path.join(OUT, 'card_face.png'))
+        d.text((x, yy), t, fill=(120, 120, 112, 100) if white else (70, 45, 18, 110), font=font, anchor='mm')
+    if paint:
+        # matte black spray paint (hard cover), slightly uneven so the board still reads through
+        mask = Image.new('L', (W, H), 0)
+        md = ImageDraw.Draw(mask)
+        for poly in paint:
+            md.polygon([P(x, y) for x, y in poly], fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(1.2))
+        rnd = random.Random(5)
+        black = Image.new('RGB', (W, H), (30, 28, 25))
+        bd = ImageDraw.Draw(black)
+        for _ in range(3000):
+            x, y = rnd.random() * W, rnd.random() * H
+            r = 1 + rnd.random() * 3
+            v = 22 + int(rnd.random() * 20)
+            bd.ellipse((x - r, y - r, x + r, y + r), fill=(v, v - 2, v - 4))
+        black = Image.blend(black, ImageChops.multiply(black, board).point(lambda c: min(255, c * 4)), 0.18)
+        board = Image.composite(black, board, mask)
+    board.save(os.path.join(OUT, f'{name}.png'))
 
 
-def barrier_mesh(w_cm=180, h_cm=170):
-    k = 12
+def barrier_mesh(w_cm=60, h_cm=50):
+    """Tileable orange barrier mesh: 60 x 50 cm (10 x 10 cells)."""
+    k = 24
     W, H = round(w_cm * k), round(h_cm * k)
     cell_w, cell_h = 6, 5
     img = Image.new('RGB', (W, H), (255, 118, 18))
     rnd = random.Random(3)
     d = ImageDraw.Draw(img, 'RGBA')
-    for _ in range(420):
+    for _ in range(140):
         x = rnd.random() * W
-        d.rectangle((x, 0, x + 1 + rnd.random() * 5, H), fill=(255, 150, 80, 22) if rnd.random() > 0.5 else (150, 35, 0, 22))
+        d.rectangle((x, 0, x + 1 + rnd.random() * 8, H), fill=(255, 150, 80, 22) if rnd.random() > 0.5 else (150, 35, 0, 22))
     mask = Image.new('L', (W, H), 255)
     md = ImageDraw.Draw(mask)
-    cols, rows = math.ceil(w_cm / cell_w) + 1, math.ceil(h_cm / cell_h) + 1
-    for r in range(rows):
-        for c in range(cols):
-            u = c * cell_w / w_cm
-            sag = math.sin(u * math.pi) * 0.9 + math.sin(u * 9 + r * 0.15) * 0.18
+    for r in range(h_cm // cell_h):
+        for c in range(w_cm // cell_w):
             ow = 4.7 + (rnd.random() - 0.5) * 0.4
             oh = 3.4 + (rnd.random() - 0.5) * 0.3
             cx = (c * cell_w + cell_w / 2 + (rnd.random() - 0.5) * 0.3) * k
-            cy = (r * cell_h + cell_h / 2 + (rnd.random() - 0.5) * 0.25 + sag) * k
+            cy = (r * cell_h + cell_h / 2 + (rnd.random() - 0.5) * 0.25) * k
             md.ellipse((cx - ow / 2 * k, cy - oh / 2 * k, cx + ow / 2 * k, cy + oh / 2 * k), fill=0)
     img = img.convert('RGBA')
     img.putalpha(mask)
@@ -138,6 +164,9 @@ def popper_paint():
 
 if __name__ == '__main__':
     card_face()
+    card_face('card_white', white=True)
+    for kind, polys in HC.items():
+        card_face(f'card_hc_{kind}', paint=polys)
     barrier_mesh()
     popper_paint()
     print('generated textures in', OUT)

@@ -29,6 +29,8 @@ JOB = argv[0] if argv else 'sprite:paper_full'
 OUT = argv[1] if len(argv) > 1 else os.path.join(HERE, '..', 'out', 'test.png')
 SAMPLES = int(argv[2]) if len(argv) > 2 else 128
 SCALE = float(argv[3]) if len(argv) > 3 else 1.0
+# sprite frame from the app's registry: "viewW,viewH,groundY" (cm)
+GEOM = [float(v) for v in argv[4].split(',')] if len(argv) > 4 else None
 
 cm = lambda v: v / 100.0
 
@@ -117,7 +119,7 @@ def material(name, color='#808080', rough=0.5, metal=0.0, emission=None, emissio
     return m
 
 
-def pbr(name, mat_id, tile=1.0, tint=None, rough_mul=1.0, normal=1.0, metal=0.0, rotate=False, color=True, uv=False, stains=0.0, rough=None):
+def pbr(name, mat_id, tile=1.0, tint=None, rough_mul=1.0, normal=1.0, metal=0.0, rotate=False, color=True, uv=False, stains=0.0, rough=None, sat=1.0, value=1.0):
     """Photo material. Box-projected in object space (tile = meters per texture repeat) or UV-mapped."""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
@@ -148,6 +150,12 @@ def pbr(name, mat_id, tile=1.0, tint=None, rough_mul=1.0, normal=1.0, metal=0.0,
     if color:
         c = tex('color', False)
         col_out = c.outputs['Color'] if c else None
+    if col_out and (sat != 1.0 or value != 1.0):
+        hs = N.new('ShaderNodeHueSaturation')
+        hs.inputs['Saturation'].default_value = sat
+        hs.inputs['Value'].default_value = value
+        L.new(col_out, hs.inputs['Color'])
+        col_out = hs.outputs['Color']
     if tint:
         mix = N.new('ShaderNodeMix')
         mix.data_type = 'RGBA'
@@ -378,20 +386,50 @@ class M:
 def make_materials():
     M.galv = pbr('galvanized', 'PaintedMetal004', tile=0.6, color=False, tint='#8d9399', rough=0.48, normal=0.25, metal=0.65)
     M.coat = pbr('powdercoat', 'PaintedMetal004', tile=0.5, color=False, tint='#262626', rough=0.55, normal=0.35, metal=0.3)
-    M.pine = pbr('pine', 'Wood058', tile=1.0, rotate=True, rough_mul=1.0, normal=0.6)
-    M.card = image_material('card_face', os.path.join(GEN, 'card_face.png'), normal_from='Cardboard004', normal=0.5)
+    M.pine = pbr('pine', 'Wood058', tile=1.0, rotate=True, rough_mul=1.0, normal=0.6, sat=0.72, value=1.08)
+    M.pine_h = pbr('pine_h', 'Wood058', tile=1.0, rough_mul=1.0, normal=0.6, sat=0.72, value=1.08)
+    M.ply = pbr('plywood', 'Wood058', tile=1.4, tint='#f4e3c3', rough_mul=1.05, normal=0.4, sat=0.35, value=1.3)
+    M.black_ply = pbr('black_ply', 'Wood058', tile=1.2, tint='#262626', rough=0.6, normal=0.35, sat=0.0, value=0.6)
+    M.batten = pbr('batten', 'Wood058', tile=1.2, rotate=True, tint='#1e1e1e', rough=0.64, normal=0.35, sat=0.0, value=0.6)
     M.card_edge = material('card_edge', '#8a6740', rough=0.95)
+    M.white_edge = material('white_edge', '#cfcfca', rough=0.9)
     M.paint = image_material('popper_paint', os.path.join(GEN, 'popper_paint.png'), rough=0.7, normal_from='PaintedMetal004', normal=0.25)
     M.bolt = material('bolt', '#55595e', rough=0.4, metal=0.85)
     M.staple = material('staple', '#c9ccd0', rough=0.35, metal=1.0)
     M.ziptie = material('ziptie', '#101010', rough=0.5)
-    M.mesh = image_material('barrier_mesh', os.path.join(GEN, 'barrier_mesh.png'), rough=0.5, alpha=True, emission=0.0)
+    M.mesh = mesh_material()
+    M.drum = pbr('drum', 'Concrete034', tile=0.8, color=False, tint='#1d5ca8', rough=0.4, normal=0.08)
+    M.drum_cap = material('drum_cap', '#16467f', rough=0.45)
+    M.faces = {}
+
+
+def face(kind):
+    """Card face material by generated texture name (card_face, card_white, card_hc_half, ...)."""
+    if kind not in M.faces:
+        M.faces[kind] = image_material(kind, os.path.join(GEN, f'{kind}.png'), normal_from='Cardboard004', normal=0.5)
+    return M.faces[kind]
+
+
+def mesh_material():
+    """Orange barrier mesh, tileable 60 × 50 cm, UVs in meters / tile."""
+    m = bpy.data.materials.new('barrier_mesh')
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N['Principled BSDF']
+    t = N.new('ShaderNodeTexImage')
+    t.image = _img(os.path.join(GEN, 'barrier_mesh.png'))
+    t.interpolation = 'Cubic'
+    L.new(t.outputs['Color'], b.inputs['Base Color'])
+    L.new(t.outputs['Alpha'], b.inputs['Alpha'])
+    b.inputs['Roughness'].default_value = 0.5
+    return m
 
 
 # ------------------------------------------------------------------ models (dimensions = scripts/generate-assets.mjs)
 
 OCT = [(-11.5, 0), (11.5, 0), (23, 13), (23, 45), (11.5, 58), (-11.5, 58), (-23, 45), (-23, 13)]
 CARD_BOTTOM = 85
+MESH_TILE = (0.6, 0.5)
 
 
 def metal_base(half, sockets=()):
@@ -403,57 +441,316 @@ def metal_base(half, sockets=()):
         cylinder('screw', cm(0.9), cm(0.6), (cm(x + 1.8), cm(-3.3), cm(10)), (math.pi / 2, 0, 0), M.bolt)
 
 
-def paper_target():
+def card(bottom, scale=1.0, kind='card_face', y=0.0, staples=True):
+    """Octagon card, bottom edge at `bottom` cm, front face at y (m)."""
+    edge = M.white_edge if kind == 'card_white' else M.card_edge
+    outline = [(cm(x * scale), cm(bottom + z * scale)) for x, z in rounded(OCT, 1.6)]
+    ob = slab('card', outline, cm(0.45), face(kind), edge)
+    ob.location.y = y
+    if staples:
+        for x in (-12 * scale, 12 * scale):
+            for z in (bottom + 4 * scale, bottom + 16 * scale):
+                box('staple', (cm(1.3), cm(0.1), cm(0.14)), (cm(x), y - cm(0.06), cm(z)), M.staple)
+    return ob
+
+
+def rods(top, spread, bottom=12):
+    length = top - bottom
+    for x in (-spread, spread):
+        box('rod', (cm(3.6), cm(1.8), cm(length)), (cm(x), cm(2.2), cm(bottom + length / 2)), M.pine, bevel=cm(0.2))
+
+
+def target_on_stand(scale=1.0, kind='card_face'):
+    spread = 12 * max(scale, 0.7)
+    metal_base(20, (-spread, spread))
+    rods(CARD_BOTTOM + 20 * scale, spread)
+    card(CARD_BOTTOM, scale, kind)
+
+
+def stack_on_stand(layers, step=13):
+    front = 66
     metal_base(20, (-12, 12))
-    rod_len = CARD_BOTTOM + 20 - 12
-    for x in (-12, 12):
-        box('rod', (cm(3.6), cm(1.8), cm(rod_len)), (cm(x), cm(2.2), cm(12 + rod_len / 2)), M.pine, bevel=cm(0.2))
-    outline = [(cm(x), cm(CARD_BOTTOM + z)) for x, z in rounded(OCT, 1.6)]
-    card = slab('card', outline, cm(0.45), M.card, M.card_edge)
-    card.location.y = 0.0
-    for x in (-12, 12):
-        for z in (CARD_BOTTOM + 4, CARD_BOTTOM + 16):
-            box('staple', (cm(1.3), cm(0.1), cm(0.14)), (cm(x), cm(-0.06), cm(z)), M.staple)
+    rods(front + 30, 12)
+    n = len(layers)
+    for i, kind in enumerate(layers):
+        # back card highest; every card a little in front of the one behind it
+        card(front + step * (n - 1 - i), 1.0, kind, y=-cm(0.6) * i)
+
+
+def card_only(kind):
+    card(0, 1.0, kind, staples=False)
+
+
+def swinger():
+    box('pivot_plate', (cm(28), cm(20), cm(4)), (0, cm(-2), cm(2)), M.galv, bevel=cm(0.3))
+    box('pivot_block', (cm(10), cm(5), cm(8)), (0, 0, cm(8)), M.galv, bevel=cm(0.4))
+    cylinder('pivot_bolt', cm(1.6), cm(0.8), (0, cm(-2.8), cm(8.5)), (math.pi / 2, 0, 0), M.bolt, verts=6)
+    box('pole', (cm(4), cm(2), cm(107)), (0, cm(2.2), cm(8 + 107 / 2)), M.pine, bevel=cm(0.2))
+    card(CARD_BOTTOM, 1.0, 'card_face')
+
+
+def steel_bracket():
+    box('bracket', (cm(16), cm(6), cm(10)), (0, cm(-0.5), cm(11)), M.galv, bevel=cm(0.4))
+    for x in (-4.5, 4.5):
+        cylinder('bolt', cm(1.1), cm(0.6), (cm(x), cm(-3.6), cm(11)), (math.pi / 2, 0, 0), M.bolt, verts=6)
 
 
 def steel_popper():
     metal_base(20)
-    box('bracket', (cm(16), cm(6), cm(10)), (0, cm(-0.5), cm(11)), M.galv, bevel=cm(0.4))
-    for x in (-4.5, 4.5):
-        cylinder('bolt', cm(1.1), cm(0.6), (cm(x), cm(-3.6), cm(11)), (math.pi / 2, 0, 0), M.bolt, verts=6)
+    steel_bracket()
     pts = [(-7, 14)]
     a0, a1 = -0.64 * math.pi, -0.36 * math.pi
-    # arc over the top: from a0 clockwise (decreasing angle) to a1
-    steps = 64
     total = (a0 - a1) % (2 * math.pi)
-    for i in range(steps + 1):
-        a = a0 - total * i / steps
+    for i in range(65):
+        a = a0 - total * i / 64
         pts.append((math.cos(a) * 15, 84 + math.sin(a) * 15))
     pts.append((7, 14))
-    outline = [(cm(x), cm(z)) for x, z in pts]
-    plate = slab('popper', outline, cm(0.8), M.paint, M.paint, bevel=cm(0.15))
+    plate = slab('popper', [(cm(x), cm(z)) for x, z in pts], cm(0.8), M.paint, M.paint, bevel=cm(0.15))
     plate.location.y = cm(-0.4)
 
+
+def disc(name, r, cx, cz, y, thickness=0.8):
+    pts = [(cm(cx + math.cos(a) * r), cm(cz + math.sin(a) * r)) for a in (i / 64 * math.tau for i in range(64))]
+    ob = slab(name, pts, cm(thickness), M.paint, M.paint, bevel=cm(0.15))
+    ob.location.y = y
+    return ob
+
+
+def steel_plate():
+    metal_base(20)
+    steel_bracket()
+    box('post', (cm(5.2), cm(3), cm(42)), (0, cm(1.2), cm(14 + 21)), M.galv, bevel=cm(0.3))
+    disc('plate', 15, 0, 69, cm(-0.5))
+
+
+def plate_rack():
+    for x in (-62, 62):
+        box('leg', (cm(8), cm(8), cm(100)), (cm(x), 0, cm(50)), M.coat, bevel=cm(0.4))
+        box('rack_foot', (cm(32), cm(30), cm(4)), (cm(x), 0, cm(2)), M.coat, bevel=cm(0.4))
+    box('beam', (cm(164), cm(8), cm(7)), (0, 0, cm(96.5)), M.coat, bevel=cm(0.4))
+    for i in range(6):
+        x = -65 + i * 26
+        box('stem', (cm(3.2), cm(2), cm(9)), (cm(x), cm(-1), cm(109.5)), M.coat)
+        disc('rack_plate', 10, x, 118, cm(-2.5))
+
+
+# ---- barrier mesh panels
 
 WALL_H, MESH_B, MESH_T = 185, 10, 180
 
 
-def mesh_wall(width=180):
+def mesh_panel(name, polys, y=-5):
+    """Flat mesh panel from polygons (cm, x/z) — UVs in tile units so the mesh never stretches."""
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new('UVMap')
+    for poly in polys:
+        vs = [bm.verts.new((cm(x), cm(y), cm(z))) for x, z in poly]
+        f = bm.faces.new(vs)
+        for lp in f.loops:
+            lp[uv].uv = (lp.vert.co.x / MESH_TILE[0], lp.vert.co.z / MESH_TILE[1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return mesh_obj(name, bm, [M.mesh])
+
+
+def rect(x0, z0, x1, z1):
+    return [(x0, z0), (x1, z0), (x1, z1), (x0, z1)]
+
+
+def rect_with_hole(x0, z0, x1, z1, hx0, hz0, hx1, hz1):
+    return [rect(x0, z0, hx0, z1), rect(hx1, z0, x1, z1), rect(hx0, z0, hx1, hz0), rect(hx0, hz1, hx1, z1)]
+
+
+def post(x, h=WALL_H, y=0.0):
+    box('post', (cm(9), cm(9), cm(h)), (cm(x), y, cm(h / 2)), M.pine, bevel=cm(0.3))
+
+
+def wall_foot(x, y=0.0):
+    box('foot_plate', (cm(30), cm(30), cm(4)), (cm(x), y, cm(2)), M.coat, bevel=cm(0.3))
+    box('foot_block', (cm(14), cm(14), cm(16)), (cm(x), y, cm(12)), M.coat, bevel=cm(0.3))
+
+
+def zipties(x, z_top=MESH_T, count=6):
+    for i in range(count):
+        z = MESH_B + 8 + i * ((z_top - MESH_B - 16) / max(1, count - 1))
+        box('ziptie', (cm(10), cm(0.4), cm(0.5)), (cm(x), cm(-5.2), cm(z)), M.ziptie)
+
+
+def frame(x, z, w, h, y=-5.5):
+    """Wooden 5 cm frame around an opening (x, z = bottom-left, cm)."""
+    for bx, bz, bw, bh in ((x - 5, z + h, w + 10, 5), (x - 5, z - 5, w + 10, 5), (x - 5, z, 5, h), (x + w, z, 5, h)):
+        box('frame', (cm(bw), cm(2.5), cm(bh)), (cm(bx + bw / 2), cm(y), cm(bz + bh / 2)), M.pine_h, bevel=cm(0.2))
+
+
+def straight_wall(width):
     half = width / 2
-    mesh_h = MESH_T - MESH_B
-    plane('mesh', cm(width), cm(mesh_h), (0, cm(-5), cm(MESH_B + mesh_h / 2)), M.mesh)
+    mesh_panel('mesh', [rect(-half, MESH_B, half, MESH_T)])
     for s in (-1, 1):
-        box('post', (cm(9), cm(9), cm(WALL_H)), (cm(s * half), 0, cm(WALL_H / 2)), M.pine, bevel=cm(0.3))
-        box('foot_plate', (cm(30), cm(30), cm(4)), (cm(s * half), 0, cm(2)), M.coat, bevel=cm(0.3))
-        box('foot_block', (cm(14), cm(14), cm(16)), (cm(s * half), 0, cm(12)), M.coat, bevel=cm(0.3))
-        for i in range(6):
-            box('ziptie', (cm(10), cm(0.4), cm(0.5)), (cm(s * (half - 4.5)), cm(-5.2), cm(MESH_B + 8 + i * 30.5)), M.ziptie)
+        post(s * half)
+        wall_foot(s * half)
+        zipties(s * (half - 4.5))
 
 
-SPRITES = {
-    'paper_full': dict(viewW=54, viewH=147, groundY=143, build=paper_target),
-    'steel_popper': dict(viewW=54, viewH=103, groundY=99, build=steel_popper),
-    'mesh_wall': dict(viewW=220, viewH=189, groundY=185, build=lambda: mesh_wall(180)),
+def window_wall():
+    half = 120
+    wx, ww, wz, wh = -37.5, 75, 100, 60
+    mesh_panel('mesh', rect_with_hole(-half, MESH_B, half, MESH_T, wx - 5, wz - 5, wx + ww + 5, wz + wh + 5))
+    frame(wx, wz, ww, wh)
+    for s in (-1, 1):
+        post(s * half)
+        wall_foot(s * half)
+        zipties(s * (half - 4.5))
+
+
+def port_wall():
+    half = 100
+    px, pw, pz, ph = -42, 30, 30, 135
+    mesh_panel('mesh', rect_with_hole(-half, MESH_B, half, MESH_T, px - 5, pz - 5, px + pw + 5, pz + ph + 5))
+    frame(px, pz, pw, ph)
+    for s in (-1, 1):
+        post(s * half)
+        wall_foot(s * half)
+        zipties(s * (half - 4.5))
+
+
+def diagonal_wall():
+    half = 90
+    low = 120
+    mesh_panel('mesh', [[(-half, MESH_B), (half, MESH_B), (half, MESH_T), (-half, low)]])
+    # slanted top rail
+    length = math.hypot(2 * half, MESH_T - low)
+    rail = box('rail', (cm(length), cm(4), cm(5)), (0, cm(-5.5), cm((MESH_T + low) / 2)), M.pine_h, bevel=cm(0.2))
+    rail.rotation_euler = (0, -math.atan2(MESH_T - low, 2 * half), 0)
+    post(-half, low + 5)
+    post(half)
+    for s in (-1, 1):
+        wall_foot(s * half)
+    zipties(-(half - 4.5), low, 4)
+    zipties(half - 4.5)
+
+
+def corner_wall():
+    left, corner = -125, 55
+    mesh_panel('mesh', [rect(left, MESH_B, corner, MESH_T)])
+    post(left)
+    post(corner)
+    wall_foot(left)
+    wall_foot(corner)
+    zipties(left + 4.5)
+    # second panel receding to the right (180 cm, turned 58.5° away from the shooter)
+    g = bpy.data.objects.new('recede', None)
+    link(g)
+    g.location = (cm(corner), 0, 0)
+    g.rotation_euler = (0, 0, math.radians(58.5))
+    before = set(bpy.context.scene.objects)
+    mesh_panel('mesh2', [rect(0, MESH_B, 180, MESH_T)])
+    post(180)
+    wall_foot(180)
+    zipties(180 - 4.5)
+    for ob in set(bpy.context.scene.objects) - before:
+        ob.parent = g
+
+
+def wood_wall():
+    w, h = 300, 200
+    box('plywood', (cm(w), cm(1.8), cm(h)), (0, 0, cm(h / 2)), M.ply)
+    for bx, bz, bw, bh in ((-w / 2, h - 5, w, 5), (-w / 2, 0, w, 5), (-w / 2, 0, 5, h), (w / 2 - 5, 0, 5, h)):
+        box('frame', (cm(bw), cm(3.8), cm(bh)), (cm(bx + bw / 2), cm(-2.6), cm(bz + bh / 2)), M.pine_h if bw > bh else M.pine, bevel=cm(0.3))
+    for x in (-110, 110):
+        brace = box('brace', (cm(4), cm(4), cm(180)), (cm(x), cm(45), cm(85)), M.pine)
+        brace.rotation_euler = (math.radians(-28), 0, 0)
+
+
+def drum(x, y=0.0):
+    """Blue 220 l HDPE drum, Ø 58 cm, 90 cm, with two rolling hoops."""
+    prof = [(0.0, 0.0), (0.27, 0.0), (0.285, 0.012), (0.29, 0.04), (0.29, 0.28), (0.297, 0.30), (0.297, 0.33), (0.29, 0.35),
+            (0.29, 0.58), (0.297, 0.60), (0.297, 0.63), (0.29, 0.65), (0.29, 0.86), (0.285, 0.888), (0.27, 0.9), (0.0, 0.9)]
+    bm = bmesh.new()
+    vs = [bm.verts.new((r, 0, z)) for r, z in prof]
+    es = [bm.edges.new((vs[i], vs[i + 1])) for i in range(len(vs) - 1)]
+    bmesh.ops.spin(bm, geom=vs + es, cent=(0, 0, 0), axis=(0, 0, 1), steps=64, angle=math.tau, use_duplicate=False)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        f.smooth = True
+    ob = mesh_obj('drum', bm, [M.drum])
+    ob.location = (cm(x), y, 0)
+    for bx in (-0.13, 0.15):
+        cylinder('bung', 0.035, 0.012, (cm(x) + bx, y + 0.05, 0.906), (0, 0, 0), M.drum_cap, verts=24)
+
+
+def barrel():
+    drum(0)
+
+
+def barrel_barricade():
+    box('plywood', (cm(184), cm(1.8), cm(112)), (0, cm(36), cm(38 + 56)), M.ply)
+    box('ledge', (cm(184), cm(4), cm(6)), (0, cm(33), cm(37)), M.pine_h, bevel=cm(0.2))
+    for x in (-62, 0, 62):
+        drum(x)
+
+
+def crate(width):
+    """Black box, width × 60 × 60 cm, with dark battens on the front."""
+    box('box', (cm(width), cm(60), cm(60)), (0, cm(30), cm(30)), M.black_ply, bevel=cm(0.5))
+    battens = [(-width / 2, 0, 5, 60), (width / 2 - 5, 0, 5, 60), (-width / 2 + 5, 56, width - 10, 4), (-width / 2 + 5, 0, width - 10, 4)]
+    if width > 90:
+        battens.append((-2.5, 0, 5, 60))
+    for bx, bz, bw, bh in battens:
+        box('batten', (cm(bw), cm(1.5), cm(bh)), (cm(bx + bw / 2), cm(-0.7), cm(bz + bh / 2)), M.batten, bevel=cm(0.2))
+
+
+def banner(kind):
+    """Printed mesh banner (texture from the app's banner SVG) with a gentle sag."""
+    m = image_material(kind, os.path.join(GEN, f'{kind}.png'), rough=0.75)
+    bm = bmesh.new()
+    nx, nz = 48, 16
+    uv = bm.loops.layers.uv.new('UVMap')
+    grid = [[bm.verts.new((cm(-80 + 160 * i / nx), cm(0.6 * math.sin(math.pi * i / nx) * math.sin(math.pi * j / nz)), cm(50 * j / nz))) for j in range(nz + 1)] for i in range(nx + 1)]
+    for i in range(nx):
+        for j in range(nz):
+            f = bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+            f.smooth = True
+            for lp, (u, v) in zip(f.loops, ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))):
+                lp[uv].uv = (u / nx, v / nz)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    mesh_obj('banner', bm, [m])
+
+
+# sprite id → (builder, floor shadow)
+BUILDERS = {
+    'paper_full': (lambda: target_on_stand(1.0), True),
+    'paper_mini': (lambda: target_on_stand(0.62), True),
+    'no_shoot': (lambda: target_on_stand(1.0, 'card_white'), True),
+    'paper_hc_vertical': (lambda: target_on_stand(1.0, 'card_hc_vertical'), True),
+    'paper_hc_half': (lambda: target_on_stand(1.0, 'card_hc_half'), True),
+    'paper_hc_bottom': (lambda: target_on_stand(1.0, 'card_hc_bottom'), True),
+    'paper_hc_diagonal': (lambda: target_on_stand(1.0, 'card_hc_diagonal'), True),
+    'paper_hc_vertical_card': (lambda: card_only('card_hc_vertical'), False),
+    'paper_hc_half_card': (lambda: card_only('card_hc_half'), False),
+    'paper_hc_bottom_card': (lambda: card_only('card_hc_bottom'), False),
+    'paper_hc_diagonal_card': (lambda: card_only('card_hc_diagonal'), False),
+    'paper_card': (lambda: card_only('card_face'), False),
+    'no_shoot_overlay': (lambda: card_only('card_white'), False),
+    'paper_stack': (lambda: stack_on_stand(['card_face', 'card_white', 'card_face']), True),
+    'paper_stack_double': (lambda: stack_on_stand(['card_face', 'card_face'], 16), True),
+    'paper_swinger': (swinger, True),
+    'steel_popper': (steel_popper, True),
+    'steel_plate': (steel_plate, True),
+    'steel_plate_rack': (plate_rack, True),
+    'mesh_wall': (lambda: straight_wall(180), True),
+    'mesh_wall_short': (lambda: straight_wall(90), True),
+    'mesh_wall_window': (window_wall, True),
+    'mesh_wall_diagonal': (diagonal_wall, True),
+    'mesh_wall_port': (port_wall, True),
+    'mesh_corner': (corner_wall, True),
+    'wood_wall': (wood_wall, True),
+    'barrel': (barrel, True),
+    'barrel_barricade': (barrel_barricade, True),
+    'crate': (lambda: crate(60), True),
+    'crate_wide': (lambda: crate(120), True),
+    'banner_forth_trace_black': (lambda: banner('banner_forth_trace_black'), False),
+    'banner_forth_trace_white': (lambda: banner('banner_forth_trace_white'), False),
+    'banner_west_arms': (lambda: banner('banner_west_arms'), False),
 }
 
 # ------------------------------------------------------------------ jobs
@@ -465,17 +762,19 @@ EYE = 1.5
 
 def render_sprite(sid):
     sc = reset()
-    s = SPRITES[sid]
+    s = dict(zip(('viewW', 'viewH', 'groundY'), GEOM))
+    build, floor_shadow = BUILDERS[sid]
     sc.render.film_transparent = True
     sc.render.resolution_x = round(s['viewW'] * PX_PER_CM * SCALE)
     sc.render.resolution_y = round(s['viewH'] * PX_PER_CM * SCALE)
     sc.render.resolution_percentage = 100
     world_hdri(0.4, rotation=1.2)
     make_materials()
-    s['build']()
-    # floor that only keeps shadows (and contact occlusion)
-    catcher = floor_plane('shadow_catcher', 30, 30, (0, 0, 0), material('catcher', '#808080', rough=0.9))
-    catcher.is_shadow_catcher = True
+    build()
+    if floor_shadow:
+        # floor that only keeps shadows (and contact occlusion)
+        catcher = floor_plane('shadow_catcher', 30, 30, (0, 0, 0), material('catcher', '#808080', rough=0.9))
+        catcher.is_shadow_catcher = True
     # key: soft high-bay light above and slightly in front; fill from the right
     key = area_light('key', 2.5, (-0.6, -4.5, 7.0), 1100, '#fff4e6')
     look_at(key, (0, 0, 0.8))
