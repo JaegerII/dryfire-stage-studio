@@ -135,10 +135,14 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
           if (!node) continue;
           const m = motionAt(o.motion, rs.sinceStart, activeWindow, falls);
           const ppm = pxPerMeter(o, env, height);
-          node.position({ x: o.x * width + m.dx * ppm, y: o.y * height - elevationPx(o, env, height) - m.dy * ppm });
-          node.visible(m.visible);
-          node.scaleY(fallScale(m.fall));
-          node.findOne('.motion')?.rotation(m.rot); // swing pivots at the object's own foot
+          // the object and its floor shadow (drawn in the shadow pass) move together
+          for (const n of [node, nodes.current.get(`${o.id}#shadow`)]) {
+            if (!n) continue;
+            n.position({ x: o.x * width + m.dx * ppm, y: o.y * height - elevationPx(o, env, height) - m.dy * ppm });
+            n.visible(m.visible);
+            n.scaleY(fallScale(m.fall));
+            n.findOne('.motion')?.rotation(m.rot); // swing pivots at the object's own foot
+          }
         }
         layer.current?.batchDraw();
       }

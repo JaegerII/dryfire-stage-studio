@@ -5,7 +5,7 @@
 // Needs Blender (BLENDER env var or D:/Tools/blender-5.2.2-windows-x64/blender.exe),
 // the CC0 textures (npm run textures) and Python with Pillow for the generated textures.
 import { execFileSync, execSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 
@@ -19,12 +19,20 @@ const GEOM = {};
 for (const m of reg.matchAll(/^\s+(\w+): \{ type: '\w+',.*?viewW: ([\d.]+), viewH: ([\d.]+), groundY: ([\d.]+)/gm)) GEOM[m[1]] = [m[2], m[3], m[4]];
 const SKIP = ['start_box']; // floor marking, stays a drawing
 const SPRITES = Object.keys(GEOM).filter((t) => !SKIP.includes(t));
+// objects without a floor shadow: cards placed on boxes / overlays, banners on walls
+const NO_SHADOW = /^(paper_card|no_shoot_overlay|paper_hc_\w+_card|banner_\w+)$/;
+const ENVS = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04'];
+const SHADOWS = ENVS.flatMap((e) => SPRITES.filter((t) => !NO_SHADOW.test(t)).map((t) => `shadow:${e}:${t}`));
 const PLATES = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04'];
 
 const argJobs = process.argv.slice(2);
 const jobs = !argJobs.length
-  ? [...PLATES.map((p) => `plate:${p}`), ...SPRITES.map((s) => `sprite:${s}`)]
-  : argJobs.flatMap((j) => (j === 'sprites' ? SPRITES.map((s) => `sprite:${s}`) : j === 'plates' ? PLATES.map((p) => `plate:${p}`) : [j]));
+  ? [...PLATES.map((p) => `plate:${p}`), ...SPRITES.map((s) => `sprite:${s}`), ...SHADOWS]
+  : argJobs.flatMap((j) =>
+      j === 'sprites' ? SPRITES.map((s) => `sprite:${s}`) : j === 'plates' ? PLATES.map((p) => `plate:${p}`) : j === 'shadows' ? SHADOWS : [j],
+    );
+const MANIFEST = `${A}/shadows/manifest.json`;
+const manifest = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : {};
 
 mkdirSync(TMP, { recursive: true });
 execFileSync('python', ['blender/textures.py'], { stdio: 'inherit' });
@@ -39,14 +47,23 @@ for (const b of SPRITES.filter((s) => s.startsWith('banner_'))) {
 
 const t0 = Date.now();
 for (const [i, job] of jobs.entries()) {
-  const [kind, id] = job.split(':');
-  const png = `${TMP}/${id}.png`;
+  const [kind, id, shadowOf] = job.split(':');
+  const png = `${TMP}/${id}${shadowOf ? `_${shadowOf}` : ''}.png`;
   console.log(`[${i + 1}/${jobs.length}] ${job} ...`);
   // sprites at 2× (supersampled, downsampled below); plates at full 4K
-  const args = kind === 'sprite' ? ['192', '2', GEOM[id].join(',')] : ['384', '1'];
+  const args = kind === 'sprite' ? ['192', '2', GEOM[id].join(',')] : kind === 'shadow' ? ['96', '1', GEOM[shadowOf].join(',')] : ['384', '1'];
   execFileSync(BLENDER, ['-b', '--factory-startup', '--python', 'blender/scene.py', '--', job, png, ...args], { stdio: ['ignore', 'ignore', 'inherit'] });
   if (kind === 'plate') {
     await sharp(png).webp({ quality: 88, effort: 5 }).toFile(`${A}/environments/${id}.webp`);
+    continue;
+  }
+  if (kind === 'shadow') {
+    // floor shadow of one object in one environment (+ its frame in cm for the app)
+    mkdirSync(`${A}/shadows/${id}`, { recursive: true });
+    await sharp(png).webp({ quality: 80, alphaQuality: 90, effort: 5 }).toFile(`${A}/shadows/${id}/${shadowOf}.webp`);
+    const frame = JSON.parse(readFileSync(`${png}.json`, 'utf8'));
+    (manifest[id] ??= {})[shadowOf] = [frame.w, frame.h, frame.g];
+    writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
     continue;
   }
   const { width, height } = await sharp(png).metadata();

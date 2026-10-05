@@ -8,7 +8,7 @@ import type { Stage, StageObject as StageObjectData } from '../../types/stage';
 import { DEFAULT_AMPLITUDE, DEFAULT_SWING_ANGLE } from '../../utils/motion';
 import { drawOrder, elevationPx, objectSize, pxPerMeter } from '../../utils/perspective';
 import { viewTransform } from '../../utils/view';
-import { type ObjectChange, StageObject } from './StageObject';
+import { type ObjectChange, ObjectShadow, StageObject, shadowOf } from './StageObject';
 
 interface Props {
   stage: Stage;
@@ -161,6 +161,11 @@ export const StageCanvas = ({
         )}
       </Layer>
       <Layer ref={layerRef} listening={interactive} {...view}>
+        {/* all floor shadows first, so no shadow is ever drawn over an object */}
+        {ordered.map((obj) => {
+          const sprite = shadowOf(obj, env);
+          return sprite ? <ObjectShadow key={`${obj.id}#shadow`} obj={obj} env={env} width={width} height={height} sprite={sprite} registerNode={register} /> : null;
+        })}
         {ordered.map((obj) => (
           <StageObject
             key={obj.id}

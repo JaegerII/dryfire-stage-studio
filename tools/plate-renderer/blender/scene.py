@@ -11,6 +11,7 @@ Sprites: level camera at eye height 8 m away, off-axis so the frame is exactly v
 in the object's plane with the ground line at groundY (registry geometry), transparent film +
 shadow catcher floor.
 """
+import json
 import math
 import os
 import random
@@ -760,43 +761,124 @@ VIEW_DISTANCE = 8.0
 EYE = 1.5
 
 
-def render_sprite(sid):
-    sc = reset()
-    s = dict(zip(('viewW', 'viewH', 'groundY'), GEOM))
-    build, floor_shadow = BUILDERS[sid]
-    sc.render.film_transparent = True
-    sc.render.resolution_x = round(s['viewW'] * PX_PER_CM * SCALE)
-    sc.render.resolution_y = round(s['viewH'] * PX_PER_CM * SCALE)
-    sc.render.resolution_percentage = 100
-    world_hdri(0.4, rotation=1.2)
-    make_materials()
-    build()
-    if floor_shadow:
-        # floor that only keeps shadows (and contact occlusion)
-        catcher = floor_plane('shadow_catcher', 30, 30, (0, 0, 0), material('catcher', '#808080', rough=0.9))
-        catcher.is_shadow_catcher = True
-    # key: soft high-bay light above and slightly in front; fill from the right
-    key = area_light('key', 2.5, (-0.6, -4.5, 7.0), 1100, '#fff4e6')
-    look_at(key, (0, 0, 0.8))
-    fill = area_light('fill', 3.0, (3.5, -4.0, 2.0), 140, '#e4ecff')
-    look_at(fill, (0, 0, 0.8))
-    # camera: level at eye height, frame = viewW × viewH cm in the object plane
+def eye_camera(sc, view_w, view_h, ground_y):
+    """Level camera at eye height, VIEW_DISTANCE away; the frame is view_w × view_h cm in the
+    object's plane with the ground line ground_y cm below the top edge."""
     camd = bpy.data.cameras.new('cam')
     cam = link(bpy.data.objects.new('cam', camd))
     sc.camera = cam
     cam.location = (0, -VIEW_DISTANCE, EYE)
     cam.rotation_euler = (math.pi / 2, 0, 0)
-    w, h = s['viewW'] / 100, s['viewH'] / 100
+    w, h = view_w / 100, view_h / 100
     big = max(w, h)
     camd.sensor_fit = 'AUTO'
     camd.sensor_width = 36
     camd.lens = 36 * VIEW_DISTANCE / big
-    zc = (2 * s['groundY'] - s['viewH']) / 200
+    zc = (2 * ground_y - view_h) / 200
     camd.shift_y = (zc - EYE) / big
     camd.clip_start = 0.5
     camd.clip_end = 50
+
+
+def render_sprite(sid):
+    """The object alone (no floor shadow — the app draws the environment's rendered shadow below it)."""
+    sc = reset()
+    view_w, view_h, ground_y = GEOM
+    sc.render.film_transparent = True
+    sc.render.resolution_x = round(view_w * PX_PER_CM * SCALE)
+    sc.render.resolution_y = round(view_h * PX_PER_CM * SCALE)
+    sc.render.resolution_percentage = 100
+    world_hdri(0.4, rotation=1.2)
+    make_materials()
+    BUILDERS[sid][0]()
+    # key: soft high-bay light above and slightly in front; fill from the right
+    key = area_light('key', 2.5, (-0.6, -4.5, 7.0), 1100, '#fff4e6')
+    look_at(key, (0, 0, 0.8))
+    fill = area_light('fill', 3.0, (3.5, -4.0, 2.0), 140, '#e4ecff')
+    look_at(fill, (0, 0, 0.8))
+    eye_camera(sc, view_w, view_h, ground_y)
     sc.render.filepath = OUT
     bpy.ops.render.render(write_still=True)
+
+
+# ---- shadow sprites: the floor shadow of one object, lit like one environment
+
+SHADOW_PX_PER_CM = 4  # shadows are soft — half the sprite resolution is plenty
+OBJECT_Y = 8.5  # where an object stands in the indoor halls when we light it (≈ 10.7 m from the plate camera)
+
+# Outdoor shadows use the soft, diffuse light of the overcast sky everywhere: a low evening /
+# sunset sun throws long hard shadows across the whole stage, which reads badly in a drill.
+SOFT_OUTDOOR_SHADOWS = True
+
+# sun direction for the outdoor plates: azimuth (deg, world XY, towards the sun) and elevation (deg, measured from the HDRI)
+SUN = {'outdoor_01': (-120, 73.5), 'outdoor_02': (-125, 20.7), 'outdoor_04': (160, 3.2)}
+
+
+def shadow_frame(env, view_w, view_h, ground_y):
+    """Shadow image frame (cm): wider than the sprite so long shadows fit; ground line at the same height.
+    Returns (width, height, groundY)."""
+    if env in SUN and not SOFT_OUTDOOR_SHADOWS:
+        az, el = (math.radians(v) for v in SUN[env])
+        length = min(3.0, 1 / math.tan(max(math.radians(1), el)))
+        side = view_h * length * abs(math.cos(az))
+        toward = max(0.0, math.sin(az)) * view_h / 100 * length  # meters towards the shooter (sun ahead)
+    else:
+        side, toward = view_h * 0.5, view_h / 100 * 0.3
+    e_side = max(40.0, min(450.0, side + 30))
+    e_down = max(12.0, min(120.0, EYE * 100 * (VIEW_DISTANCE / max(1.0, VIEW_DISTANCE - toward) - 1) + 12))
+    return view_w + 2 * e_side, view_h + e_down, ground_y
+
+
+def shadow_lights(env):
+    """Light the object exactly like the environment does."""
+    if env.startswith('outdoor') and SOFT_OUTDOOR_SHADOWS:
+        outdoor_world('farmland_overcast', 1.0, rotation=0.6)
+    elif env == 'outdoor_01':
+        outdoor_world('countrytrax_midday', 1.0, sun_azimuth=math.radians(SUN[env][0]))
+    elif env == 'outdoor_02':
+        outdoor_world('evening_meadow', 1.0, sun_azimuth=math.radians(SUN[env][0]))
+    elif env == 'outdoor_03':
+        outdoor_world('farmland_overcast', 1.0, rotation=0.6)
+    elif env == 'outdoor_04':
+        outdoor_world('grasslands_sunset', 1.0, sun_azimuth=math.radians(SUN[env][0]))
+    elif env in ('indoor_01', 'indoor_02'):
+        world_hdri(0.08)
+        style = INDOOR_HALL[env]
+        for x in (-4.5, 0, 4.5):
+            for y in (3, 8.5, 14, 19.5, 25):
+                area_light('bay', 1.4, (x, y - OBJECT_Y, 6 - 0.47), style['power'], style['light'], size_y=0.4)
+    elif env == 'indoor_03':
+        world_hdri(0.1)
+        for i in range(11):
+            area_light('strip_l', 8 * 0.45, (0, 1 + i * 3 - OBJECT_Y, 3.6 - 0.05), 150, '#f5f8ff', size_y=0.16)
+    elif env == 'indoor_04':
+        world_hdri(0.1)
+        for x in (-4.8, -1.6, 1.6, 4.8):
+            for y in (2, 7, 12, 17, 22, 27):
+                area_light('spot_l', 0.3, (x, y - OBJECT_Y, 4.6 - 0.75), 110, '#fff6e8')
+
+
+def render_shadow(env, sid):
+    """Only the shadow the object throws on the floor (object invisible, shadow-catcher floor)."""
+    sc = reset()
+    sw, sh, sg = shadow_frame(env, *GEOM)
+    sc.render.film_transparent = True
+    sc.render.resolution_x = round(sw * SHADOW_PX_PER_CM * SCALE)
+    sc.render.resolution_y = round(sh * SHADOW_PX_PER_CM * SCALE)
+    sc.render.resolution_percentage = 100
+    make_materials()
+    BUILDERS[sid][0]()
+    for ob in list(bpy.context.scene.objects):
+        if ob.type == 'MESH':
+            ob.visible_camera = False  # still casts shadows
+    catcher = floor_plane('shadow_catcher', 60, 60, (0, 0, 0), material('catcher', '#808080', rough=0.9))
+    catcher.is_shadow_catcher = True
+    shadow_lights(env)
+    eye_camera(sc, sw, sh, sg)
+    sc.render.filepath = OUT
+    bpy.ops.render.render(write_still=True)
+    with open(OUT + '.json', 'w') as f:
+        json.dump({'w': round(sw, 2), 'h': round(sh, 2), 'g': round(sg, 2)}, f)
 
 
 # ---- plate: indoor 01
@@ -1040,8 +1122,8 @@ def hdri_sun_azimuth(path):
     lum = px.reshape(256, 512, 4)[:, :, :3].sum(axis=2)
     v, u = np.unravel_index(int(np.argmax(lum)), lum.shape)
     bpy.data.images.remove(im)
-    a = ((u + 0.5) / 512 - 0.5) * 2 * math.pi
-    return math.atan2(math.sin(a), -math.cos(a)), (v + 0.5) / 256
+    # Blender's equirect lookup: u = -atan2(dir.y, dir.x) / 2pi + 0.5
+    return -((u + 0.5) / 512 - 0.5) * 2 * math.pi, (v + 0.5) / 256
 
 
 def outdoor_world(hdri, strength=1.0, sun_azimuth=None, rotation=0.0):
@@ -1425,9 +1507,11 @@ def render_plate(pid):
     bpy.ops.render.render(write_still=True)
 
 
-kind, name = JOB.split(':')
+kind, name = JOB.split(':', 1)
 if kind == 'sprite':
     render_sprite(name)
+elif kind == 'shadow':
+    render_shadow(*name.split(':'))
 else:
     render_plate(name)
 print('RENDERED', JOB, '->', OUT)

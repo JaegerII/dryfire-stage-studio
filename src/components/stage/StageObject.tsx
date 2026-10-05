@@ -1,12 +1,12 @@
 import type Konva from 'konva';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 import { Circle, Group, Image as KImage, Text } from 'react-konva';
 import type { EnvironmentDef } from '../../assets/environments';
 import { ASSETS } from '../../assets/registry';
 import { useAssetImage } from '../../hooks/useAssetImage';
 import type { StageObject as StageObjectData } from '../../types/stage';
 import { elevationPx, objectSize } from '../../utils/perspective';
-import { shadowTransform, silhouette } from '../../utils/shadow';
+import { type ShadowSprite, shadowFor } from '../../assets/shadows';
 
 export type ObjectChange = (id: string, patch: Partial<StageObjectData>, opts?: { transient?: boolean }) => void;
 
@@ -31,39 +31,17 @@ const AssetImage = ({ obj, env, height }: Pick<Props, 'obj' | 'env' | 'height'>)
   const img = useAssetImage(asset.src);
   const { w, h, groundOffset } = objectSize(obj, env, height);
   const yaw = ((obj.yaw ?? 0) * Math.PI) / 180;
-  const scaleX = Math.max(0.12, Math.cos(yaw)) * (obj.flip ? -1 : 1);
-  const sun = asset.banner ? undefined : env.shadow;
-  const sil = useMemo(() => (img && sun ? silhouette(img, sun.softness) : null), [img, sun]);
-  const cast = sil && sun && img ? shadowTransform(sun, env, obj.y) : null;
-  const k = img ? w / img.naturalWidth : 1;
   return (
-    <>
-      {sil && cast && (
-        <KImage
-          image={sil.canvas}
-          width={sil.canvas.width * k}
-          height={sil.canvas.height * k}
-          offsetX={sil.pad * k + w / 2}
-          offsetY={sil.pad * k + groundOffset}
-          scaleX={scaleX}
-          scaleY={cast.scaleY}
-          skewX={cast.skewX}
-          opacity={sun!.opacity}
-          listening={false}
-          perfectDrawEnabled={false}
-        />
-      )}
-      <KImage
-        image={img}
-        width={w}
-        height={h}
-        offsetX={w / 2}
-        offsetY={groundOffset}
-        scaleX={scaleX}
-        skewY={-Math.sin(yaw) * 0.16}
-        perfectDrawEnabled={false}
-      />
-    </>
+    <KImage
+      image={img}
+      width={w}
+      height={h}
+      offsetX={w / 2}
+      offsetY={groundOffset}
+      scaleX={Math.max(0.12, Math.cos(yaw)) * (obj.flip ? -1 : 1)}
+      skewY={-Math.sin(yaw) * 0.16}
+      perfectDrawEnabled={false}
+    />
   );
 };
 
@@ -99,6 +77,43 @@ export const TargetObject = ({ obj, env, height, showLabel }: Pick<Props, 'obj' 
 export const BarrierObject = ({ obj, env, height }: Pick<Props, 'obj' | 'env' | 'height'>) => (
   <AssetImage obj={obj} env={env} height={height} />
 );
+
+/**
+ * The object's rendered floor shadow. Drawn in its own pass below ALL objects (a near wall's
+ * shadow must never cover a target behind it); the player moves it together with the object.
+ */
+export const ObjectShadow = memo(function ObjectShadow({
+  obj,
+  env,
+  width,
+  height,
+  sprite,
+  registerNode,
+}: Pick<Props, 'obj' | 'env' | 'width' | 'height' | 'registerNode'> & { sprite: ShadowSprite }) {
+  const img = useAssetImage(sprite.src);
+  const ref = useCallback((node: Konva.Group | null) => registerNode?.(`${obj.id}#shadow`, node), [registerNode, obj.id]);
+  const { h } = objectSize(obj, env, height);
+  const s = h / ASSETS[obj.type].viewH; // px per cm at the object's depth
+  const yaw = ((obj.yaw ?? 0) * Math.PI) / 180;
+  return (
+    <Group ref={ref} x={obj.x * width} y={obj.y * height - elevationPx(obj, env, height)} rotation={obj.rotation} opacity={obj.opacity ?? 1} listening={false}>
+      <Group name="motion">
+        <KImage
+          image={img}
+          width={sprite.viewW * s}
+          height={sprite.viewH * s}
+          offsetX={(sprite.viewW * s) / 2}
+          offsetY={sprite.groundY * s}
+          scaleX={Math.max(0.12, Math.cos(yaw))}
+          perfectDrawEnabled={false}
+        />
+      </Group>
+    </Group>
+  );
+});
+
+/** Rendered shadow for this object in this environment, if there is one. */
+export const shadowOf = (obj: StageObjectData, env: EnvironmentDef) => shadowFor(env.id, obj.type);
 
 const snapTo = (v: number, step: number) => (step ? Math.round(v / step) * step : v);
 
