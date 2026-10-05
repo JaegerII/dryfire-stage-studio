@@ -19,7 +19,7 @@ const GEOM = {};
 for (const m of reg.matchAll(/^\s+(\w+): \{ type: '\w+',.*?viewW: ([\d.]+), viewH: ([\d.]+), groundY: ([\d.]+)/gm)) GEOM[m[1]] = [m[2], m[3], m[4]];
 const SKIP = ['start_box']; // floor marking, stays a drawing
 const SPRITES = Object.keys(GEOM).filter((t) => !SKIP.includes(t));
-const PLATES = ['indoor_01'];
+const PLATES = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04'];
 
 const argJobs = process.argv.slice(2);
 const jobs = !argJobs.length

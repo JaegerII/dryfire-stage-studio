@@ -819,57 +819,122 @@ def plate_camera(sc):
     camd.clip_end = 400
 
 
-def indoor_01():
-    W, D, H = W_ROOM, D_ROOM, H_ROOM
-    yc = D / 2 - 6
-    back = D - 6
-    world_hdri(0.08)
-    floor = pbr('floor', 'Concrete034', tile=1.8, tint='#7d7b78', rough_mul=0.66, normal=0.15, stains=0.3)
-    floor_plane('floor', W * 2, D, (0, yc, 0), floor)
-    # saw-cut joints in the concrete
-    joint = material('joint', '#2a2a29', rough=0.9)
-    plane('joint_c', 0.008, D, (0, yc, 0.0006), joint, rot=(math.pi / 2, 0, 0))
-    for y in (4, 10, 16, 22):
-        plane(f'joint_{y}', W * 2, 0.008, (0, y, 0.0006), joint, rot=(math.pi / 2, 0, 0))
-
-    # acoustic panels: fabric with panel seams (brick texture as seam pattern)
-    wall = bpy.data.materials.new('panels')
-    wall.use_nodes = True
-    N, L = wall.node_tree.nodes, wall.node_tree.links
+def grid_material(name, c1, c2, mortar, brick_w, row_h, mortar_size=0.012, offset=0.0, normal_img='Fabric030', normal_tile=0.33,
+                  normal=0.6, bump=0.4, rough=0.95, photo=None, photo_tile=1.5, emission=0.0, axes='xz', photo_mix=0.5):
+    """Panels / blocks / tiles: brick-texture grid with seams, optional photo texture in the faces."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
     b = N['Principled BSDF']
     tc = N.new('ShaderNodeTexCoord')
     br = N.new('ShaderNodeTexBrick')
-    br.offset = 0.0
-    br.inputs['Color1'].default_value = hex_rgba('#3f4042')
-    br.inputs['Color2'].default_value = hex_rgba('#3a3b3d')
-    br.inputs['Mortar'].default_value = hex_rgba('#1c1d1e')
+    br.offset = offset
+    br.inputs['Color1'].default_value = hex_rgba(c1)
+    br.inputs['Color2'].default_value = hex_rgba(c2)
+    br.inputs['Mortar'].default_value = hex_rgba(mortar)
     br.inputs['Scale'].default_value = 1.0
-    br.inputs['Mortar Size'].default_value = 0.012
-    br.inputs['Brick Width'].default_value = 1.2
-    br.inputs['Row Height'].default_value = 2.0
-    L.new(tc.outputs['Object'], br.inputs['Vector'])
-    L.new(br.outputs['Color'], b.inputs['Base Color'])
-    b.inputs['Roughness'].default_value = 0.95
-    fn = N.new('ShaderNodeTexImage')
-    fn.image = _img(os.path.join(TEX, 'Fabric030_normal.jpg'), True)
-    fn.projection = 'BOX'
-    mp = N.new('ShaderNodeMapping')
-    mp.inputs['Scale'].default_value = (3, 3, 3)
-    L.new(tc.outputs['Object'], mp.inputs['Vector'])
-    L.new(mp.outputs['Vector'], fn.inputs['Vector'])
-    nm = N.new('ShaderNodeNormalMap')
-    nm.inputs['Strength'].default_value = 0.6
-    L.new(fn.outputs['Color'], nm.inputs['Color'])
-    bump = N.new('ShaderNodeBump')
-    bump.inputs['Strength'].default_value = 0.4
-    bump.invert = True
-    L.new(br.outputs['Fac'], bump.inputs['Height'])
-    L.new(nm.outputs['Normal'], bump.inputs['Normal'])
-    L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    br.inputs['Mortar Size'].default_value = mortar_size
+    br.inputs['Brick Width'].default_value = brick_w
+    br.inputs['Row Height'].default_value = row_h
+    # the brick grid runs in the wall's own plane (u along the wall, v up)
+    sep = N.new('ShaderNodeSeparateXYZ')
+    L.new(tc.outputs['Object'], sep.inputs['Vector'])
+    comb = N.new('ShaderNodeCombineXYZ')
+    L.new(sep.outputs[axes[0].upper()], comb.inputs['X'])
+    L.new(sep.outputs[axes[1].upper()], comb.inputs['Y'])
+    L.new(comb.outputs['Vector'], br.inputs['Vector'])
+    col = br.outputs['Color']
+    if photo:
+        mp2 = N.new('ShaderNodeMapping')
+        mp2.inputs['Scale'].default_value = (1 / photo_tile,) * 3
+        L.new(tc.outputs['Object'], mp2.inputs['Vector'])
+        ph = N.new('ShaderNodeTexImage')
+        ph.image = _img(os.path.join(TEX, f'{photo}_color.jpg'))
+        ph.projection = 'BOX'
+        ph.projection_blend = 0.2
+        L.new(mp2.outputs['Vector'], ph.inputs['Vector'])
+        gray = N.new('ShaderNodeRGBToBW')
+        L.new(ph.outputs['Color'], gray.inputs['Color'])
+        sc_ = N.new('ShaderNodeMath')
+        sc_.operation = 'MULTIPLY'
+        sc_.inputs[1].default_value = 2.0
+        L.new(gray.outputs['Val'], sc_.inputs[0])
+        mix = N.new('ShaderNodeMix')
+        mix.data_type = 'RGBA'
+        mix.blend_type = 'MULTIPLY'
+        mix.inputs['Factor'].default_value = photo_mix
+        L.new(col, mix.inputs['A'])
+        L.new(sc_.outputs['Value'], mix.inputs['B'])
+        col = mix.outputs['Result']
+    L.new(col, b.inputs['Base Color'])
+    if emission:
+        L.new(col, b.inputs['Emission Color'])
+        b.inputs['Emission Strength'].default_value = emission
+    b.inputs['Roughness'].default_value = rough
+    nrm = None
+    if normal_img:
+        fn = N.new('ShaderNodeTexImage')
+        fn.image = _img(os.path.join(TEX, f'{normal_img}_normal.jpg'), True)
+        fn.projection = 'BOX'
+        mp = N.new('ShaderNodeMapping')
+        mp.inputs['Scale'].default_value = (1 / normal_tile,) * 3
+        L.new(tc.outputs['Object'], mp.inputs['Vector'])
+        L.new(mp.outputs['Vector'], fn.inputs['Vector'])
+        nm = N.new('ShaderNodeNormalMap')
+        nm.inputs['Strength'].default_value = normal
+        L.new(fn.outputs['Color'], nm.inputs['Color'])
+        nrm = nm.outputs['Normal']
+    bp = N.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = bump
+    bp.invert = True
+    L.new(br.outputs['Fac'], bp.inputs['Height'])
+    if nrm:
+        L.new(nrm, bp.inputs['Normal'])
+    L.new(bp.outputs['Normal'], b.inputs['Normal'])
+    return m
 
-    box('back_wall', (W * 2, 0.1, H), (0, back + 0.05, H / 2), wall)
+
+def brass(count=40, spread=1.0, seed=9):
+    """Spent 9 mm brass lying around the shooting position."""
+    mat = material('brass', '#c99d48', rough=0.32, metal=1.0)
+    rnd = random.Random(seed)
+    for i in range(count):
+        y = -0.8 + rnd.random() ** 1.8 * 4.5
+        x = (rnd.random() - 0.5) * (3 + y * 0.9) * spread
+        cylinder('case', 0.0048, 0.019, (x, y, 0.0048), (math.pi / 2, 0, rnd.random() * math.tau), mat, verts=12)
+
+
+def floor_joints(W, D, yc, ys, color='#2a2a29'):
+    joint = material('joint', color, rough=0.9)
+    plane('joint_c', 0.008, D, (0, yc, 0.0006), joint, rot=(math.pi / 2, 0, 0))
+    for y in ys:
+        plane(f'joint_{y}', W, 0.008, (0, y, 0.0006), joint, rot=(math.pi / 2, 0, 0))
+
+
+INDOOR_HALL = {
+    # dark fabric acoustic panels, warm-neutral high bays
+    'indoor_01': dict(wall=lambda ax: grid_material('panels', '#3f4042', '#3a3b3d', '#1c1d1e', 1.2, 2.0, axes=ax), floor_tint='#7d7b78', light='#f7f5f0', power=340),
+    # light grey concrete block, cooler and brighter LED bay
+    'indoor_02': dict(
+        wall=lambda ax: grid_material('blocks', '#aeb0b2', '#a6a8aa', '#7f8285', 0.4, 0.2, mortar_size=0.012, offset=0.5, normal_img='Concrete036',
+                                      normal_tile=1.0, normal=0.4, bump=0.35, rough=0.9, photo='Concrete036', photo_tile=1.2, axes=ax, photo_mix=0.35),
+        floor_tint='#8d8f90', light='#f3f5fa', power=380),
+}
+
+
+def indoor_hall(pid):
+    style = INDOOR_HALL[pid]
+    W, D, H = 16, 34, 6
+    yc = D / 2 - 6
+    back = D - 6
+    world_hdri(0.08)
+    floor = pbr('floor', 'Concrete034', tile=1.8, tint=style['floor_tint'], rough_mul=0.66, normal=0.15, stains=0.3)
+    floor_plane('floor', W * 2, D, (0, yc, 0), floor)
+    floor_joints(W * 2, D, yc, (4, 10, 16, 22))
+    box('back_wall', (W * 2, 0.1, H), (0, back + 0.05, H / 2), style['wall']('xz'))
+    side = style['wall']('yz')
     for s in (-1, 1):
-        box('side_wall', (0.1, D, H), (s * (W / 2 + 0.05), yc, H / 2), wall)
+        box('side_wall', (0.1, D, H), (s * (W / 2 + 0.05), yc, H / 2), side)
     steel = pbr('steel', 'PaintedMetal004', tile=0.8, color=False, tint='#3a3d40', rough_mul=0.7, normal=0.3, metal=0.6)
     dark_steel = pbr('dark_steel', 'PaintedMetal004', tile=0.8, color=False, tint='#202224', rough_mul=0.7, normal=0.3, metal=0.5)
     for s in (-1, 1):
@@ -878,34 +943,88 @@ def indoor_01():
     for s in (-1, 1):
         for y in (5, 12, 19):
             box('column', (0.6, 0.6, H), (s * (W / 2 - 0.3), y, H / 2), column, bevel=0.01)
-    # backstop: rubber granulate berm + steel baffle
     rubber = pbr('rubber', 'Rubber001', tile=0.7, tint='#8a8a8a', rough_mul=1.0, normal=0.8)
     berm = box('berm', (W, 0.6, 3.2), (0, back - 1.3, 1.15), rubber)
     berm.rotation_euler = (-0.9, 0, 0)
     baffle = box('baffle', (W, 0.08, 1.1), (0, back - 0.4, 3.6), dark_steel)
     baffle.rotation_euler = (0.35, 0, 0)
-    # ceiling, trusses, lights
     ceiling = material('ceiling', '#111213', rough=1.0)
     box('ceiling', (W * 2, D, 0.1), (0, yc, H + 0.05), ceiling)
     for y in (3, 8.5, 14, 19.5, 25):
         box('truss', (W, 0.18, 0.35), (0, y + 2.7, H - 0.25), dark_steel)
-    fixture = material('fixture', '#ffffff', rough=0.3, emission='#f7f5f0', emission_strength=12)
+    fixture = material('fixture', '#ffffff', rough=0.3, emission=style['light'], emission_strength=12)
     housing = material('housing', '#2b2c2e', rough=0.5, metal=0.6)
     for x in (-4.5, 0, 4.5):
         for y in (3, 8.5, 14, 19.5, 25):
             box('housing', (1.46, 0.46, 0.08), (x, y, H - 0.41), housing)
             box('fixture', (1.4, 0.4, 0.02), (x, y, H - 0.455), fixture)
-            area_light('bay', 1.4, (x, y, H - 0.47), 340, '#f7f5f0', size_y=0.4)
-    # spent brass near the shooting position
-    brass = material('brass', '#c99d48', rough=0.32, metal=1.0)
-    rnd = random.Random(9)
-    for i in range(40):
-        y = -0.8 + rnd.random() ** 1.8 * 4.5
-        x = (rnd.random() - 0.5) * (3 + y * 0.9)
-        cylinder('case', 0.0048, 0.019, (x, y, 0.0048), (math.pi / 2, 0, rnd.random() * math.tau), brass, verts=12)
+            area_light('bay', 1.4, (x, y, H - 0.47), style['power'], style['light'], size_y=0.4)
+    brass()
 
 
-PLATES = {'indoor_01': indoor_01}
+def indoor_tunnel():
+    """Indoor 03: long bright lane, white acoustic tiles on walls + ceiling, LED strips, green floor."""
+    W, D, H = 8, 40, 3.6
+    y0, back = -4, 34
+    yc = y0 + D / 2
+    world_hdri(0.1)
+    floor = pbr('green_floor', 'Rubber004', tile=0.9, color=False, tint='#3a6448', rough=0.6, normal=0.25)
+    floor_plane('floor', W, D, (0, yc, 0), floor)
+    tile = lambda ax: grid_material('tiles', '#d9dcdb', '#d4d7d6', '#a9aeac', 0.6, 0.6, mortar_size=0.01, normal=0.4, bump=0.3, axes=ax)
+    side, ceil = tile('yz'), tile('xy')
+    for s in (-1, 1):
+        box('wall', (0.1, D, H), (s * (W / 2 + 0.05), yc, H / 2), side)
+    box('ceiling', (W, D, 0.1), (0, yc, H + 0.05), ceil)
+    tiles = tile('xz')
+    strip = material('strip', '#ffffff', rough=0.3, emission='#f5f8ff', emission_strength=14)
+    for i in range(11):
+        y = 1 + i * 3
+        box('strip', (W * 0.45, 0.16, 0.04), (0, y, H - 0.02), strip)
+        area_light('strip_l', W * 0.45, (0, y, H - 0.05), 150, '#f5f8ff', size_y=0.16)
+    # backstop: lit white wall with alternating teal / white baffles, steel trap below, tiled header
+    backwall = material('backwall', '#f2f4f3', rough=0.8, emission='#ffffff', emission_strength=0.6)
+    box('backwall', (W, 0.1, H), (0, back + 0.65, H / 2), backwall)
+    teal = material('teal', '#2e8a80', rough=0.7)
+    white = material('baffle_white', '#e3e8e6', rough=0.7)
+    for i in range(9):
+        box('baffle', (0.5, 0.08, 2.2), (-2.4 + i * 0.6, back + 0.4, 1.6), white if i % 2 else teal)
+    trap = pbr('trap', 'PaintedMetal004', tile=0.8, color=False, tint='#2a2d2e', rough=0.5, normal=0.3, metal=0.4)
+    box('trap', (W, 0.6, 0.56), (0, back, 0.28), trap)
+    box('header', (W, 0.1, 0.8), (0, back - 0.6, H - 0.5), tiles)
+    brass(30, 0.6)
+
+
+def indoor_beams():
+    """Indoor 04: light concrete floor, dark speckled walls, bright ceiling with beams and spots."""
+    W, D, H = 14, 38, 4.6
+    y0, back = -4, 32
+    yc = y0 + D / 2
+    world_hdri(0.1)
+    floor = pbr('floor', 'Concrete034', tile=1.8, tint='#b9b7b2', rough_mul=0.6, normal=0.15, stains=0.25)
+    floor_plane('floor', W, D, (0, yc, 0), floor)
+    floor_joints(W, D, yc, (3, 9, 15, 21, 27))
+    walls = pbr('walls', 'Concrete036', tile=1.6, tint='#6a6d71', rough_mul=1.0, normal=0.6)
+    for s in (-1, 1):
+        box('wall', (0.1, D, H), (s * (W / 2 + 0.05), yc, H / 2), walls)
+    box('back', (W, 0.1, H), (0, back + 0.05, H / 2), walls)
+    ceiling = material('ceiling', '#f1f0ec', rough=0.8)
+    box('ceiling', (W, D, 0.1), (0, yc, H + 0.05), ceiling)
+    beam = material('beam', '#e6e5e1', rough=0.6)
+    spot = material('spot', '#ffffff', rough=0.3, emission='#fff6e8', emission_strength=16)
+    for x in (-4.8, -1.6, 1.6, 4.8):
+        box('beam', (0.55, D, 0.7), (x, yc, H - 0.35), beam)
+        for y in (2, 7, 12, 17, 22, 27):
+            box('spot', (0.3, 0.3, 0.05), (x, y, H - 0.72), spot)
+            area_light('spot_l', 0.3, (x, y, H - 0.75), 110, '#fff6e8')
+    brass(40)
+
+
+PLATES = {
+    'indoor_01': lambda: indoor_hall('indoor_01'),
+    'indoor_02': lambda: indoor_hall('indoor_02'),
+    'indoor_03': indoor_tunnel,
+    'indoor_04': indoor_beams,
+}
 
 
 def render_plate(pid):
