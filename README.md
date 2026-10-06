@@ -226,3 +226,21 @@ scripts/generate-assets.mjs   the single source of the target / barrier / start-
 * **Moving targets:** `motion` is in the data model, the editor and the player loop.
 * **Random stage generator:** a pure function returning a `Stage`; feed it into `normalizeStage` and open it in the editor.
 * **TV casting / second screen:** the player is a plain route (`#/play/<id>`) with no editor dependencies.
+
+## Training programs (PP1 / NPA)
+
+`#/training` (or **Training** in the top bar) opens two dry-fire training programs on a turning-target simulation:
+**PP1 Training** (one target: 25 m 12 reps / 120 s, 15 m 2 rounds × 6 × 2 s, 10 m 3 × 2 s with 2 reps) and
+**NPA Training** (LEFT and RIGHT: 25 m, 20 m, 15 m exposures, 10 m). Unofficial dry-fire training simulation —
+not affiliated with or endorsed by any shooting association; no shots are detected or scored.
+
+* Every series: task card → READY → short pause (or optional random start delay) → 3…2…1 → start signal → targets →
+  end signal → SERIES COMPLETE (NEXT button, or automatic after the configured pause). During a series the screen shows
+  only the target(s), the distance and the remaining time.
+* Targets turn about their vertical axis; the turn happens outside the visible time, so a 2 s exposure is 2 s fully facing.
+* Keys: Space start / pause / resume, F fullscreen (Esc leaves it), M mute, N next, R reset.
+* Code (`src/training/`): `config.ts` (all times, one place), `TrainingPhase.ts` (data model), `programs.ts`
+  (`PP1Program`, `NPAProgram` — a new discipline is a new object there), `TrainingSequence.ts` (timeline),
+  `Timer.ts` (pausable, on the audio clock), `AudioController.ts`, `targets.tsx` (`Target`, `TurningTarget`, the
+  target design registry — the built-in neutral geometric target can be replaced by any SVG without touching the logic).
+  The gap between exposures and the round pause are training values in `config.ts`, not official values.

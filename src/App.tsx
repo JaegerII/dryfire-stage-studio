@@ -1,3 +1,6 @@
+import { TrainingHome } from './components/training/TrainingHome';
+import { TrainingRunner } from './components/training/TrainingRunner';
+import { programById } from './training/programs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StageEditor } from './components/editor/StageEditor';
 import { HomePage } from './components/home/HomePage';
@@ -17,8 +20,15 @@ import { matchStages } from './utils/matchUtils';
  *   #/match/<id>/edit/<stage>   edit a stage of that match (breadcrumb back to the match)
  *   #/edit/<stage>              edit a stage on its own
  *   #/play/<stage>              play one stage
+ *   #/training                  training programs (PP1 / NPA)
+ *   #/training/<program>        run a training program
  */
-type View = { page: 'home' } | { page: 'match'; matchId: string } | { page: 'edit'; stageId: string; matchId?: string };
+type View =
+  | { page: 'home' }
+  | { page: 'match'; matchId: string }
+  | { page: 'edit'; stageId: string; matchId?: string }
+  | { page: 'training' }
+  | { page: 'program'; programId: string };
 
 interface Playing {
   stages: Stage[];
@@ -46,6 +56,8 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
     const s = stageRepository.get(dec(m[1]));
     return { view: { page: 'edit', stageId: dec(m[1]) }, playing: s ? { stages: [s] } : null };
   }
+  if ((m = hash.match(/^#\/training\/(.+)$/)) && programById(dec(m[1]))) return { view: { page: 'program', programId: dec(m[1]) }, playing: null };
+  if (hash === '#/training') return { view: { page: 'training' }, playing: null };
   return { view: { page: 'home' }, playing: null };
 };
 
@@ -54,6 +66,8 @@ const toHash = (view: View, playing: Playing | null) => {
   if (playing) return `#/play/${enc(playing.stages[0].id)}`;
   if (view.page === 'match') return `#/match/${enc(view.matchId)}`;
   if (view.page === 'edit') return view.matchId ? `#/match/${enc(view.matchId)}/edit/${enc(view.stageId)}` : `#/edit/${enc(view.stageId)}`;
+  if (view.page === 'training') return '#/training';
+  if (view.page === 'program') return `#/training/${enc(view.programId)}`;
   return '#/';
 };
 
@@ -101,7 +115,7 @@ export const App = () => {
     [play],
   );
 
-  const match = view.page !== 'home' && view.matchId ? matchRepository.get(view.matchId) : undefined;
+  const match = (view.page === 'match' || view.page === 'edit') && view.matchId ? matchRepository.get(view.matchId) : undefined;
 
   return (
     <>
@@ -111,7 +125,12 @@ export const App = () => {
           onPlayMatch={playMatch}
           onOpenStage={(id) => go({ page: 'edit', stageId: id })}
           onPlayStage={playStage}
+          onOpenTraining={() => go({ page: 'training' })}
         />
+      )}
+      {view.page === 'training' && <TrainingHome onHome={() => go({ page: 'home' })} onOpen={(id) => go({ page: 'program', programId: id })} />}
+      {view.page === 'program' && programById(view.programId) && (
+        <TrainingRunner key={`program:${view.programId}`} program={programById(view.programId)!} onExit={() => go({ page: 'training' })} />
       )}
       {view.page === 'match' && (
         <MatchPage

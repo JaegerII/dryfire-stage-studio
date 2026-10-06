@@ -328,3 +328,63 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .record-armed span { font-size: 2.4cqh; color: var(--sage); max-width: 90cqh; }
 .record-armed em { font-style: normal; font-size: 1.8cqh; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
 @keyframes armed-blink { 50% { opacity: 0.25; } }
+
+/* ================================================================ training programs (PP1 / NPA) */
+.brand-btn { background: none; border: 0; padding: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; color: inherit; text-align: left; }
+.program-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; max-width: 1100px; }
+.program-card { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; white-space: normal; text-align: left; padding: 26px 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+.program-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.program-card .eyebrow { color: var(--accent); font-size: 11px; }
+.program-card strong { font-size: 30px; font-weight: 900; letter-spacing: 0.02em; }
+.program-desc { color: var(--sage); font-size: 14px; }
+.program-card ol { margin: 6px 0 0; padding-left: 18px; color: var(--text); font-size: 13.5px; line-height: 1.7; }
+.program-go { margin-top: 8px; font-weight: 800; font-size: 12px; letter-spacing: 0.18em; color: var(--accent); }
+.disclaimer { margin-top: 26px; font-size: 11.5px; color: var(--faint); }
+
+.training-runner { position: fixed; inset: 0; z-index: 40; background: #050605; display: flex; flex-direction: column; font-family: var(--font); color: var(--text); }
+.training-area { flex: 1; min-height: 0; display: grid; place-items: center; }
+.training-box { position: relative; container-type: size; overflow: hidden; background: radial-gradient(ellipse 70% 60% at 50% 30%, #181b19, #0b0c0b 70%); }
+.range-floor { position: absolute; left: 0; right: 0; bottom: 0; height: 22%; background: linear-gradient(180deg, #121412, #0a0b0a); border-top: 1px solid rgba(237, 237, 230, 0.07); }
+.targets-row { position: absolute; left: 0; right: 0; bottom: 22%; display: flex; justify-content: center; align-items: flex-end; gap: 24cqw; }
+.turning-target { position: relative; display: flex; flex-direction: column; align-items: center; perspective: 120cqh; }
+.tt-board { width: 100%; transform-origin: 50% 50%; backface-visibility: hidden; filter: drop-shadow(0 1.2cqh 2cqh rgba(0, 0, 0, 0.55)); }
+.tt-edge { position: absolute; top: 0; left: 50%; width: 0.7cqh; margin-left: -0.35cqh; background: linear-gradient(90deg, #8b8678, #d8d4c9, #8b8678); border-radius: 0.3cqh; pointer-events: none; }
+.tt-post { flex: 1; width: 0.9cqh; background: linear-gradient(90deg, #3a3e40, #5a5f62, #2c2f31); }
+.tt-label { position: absolute; bottom: -5cqh; font-size: 2.2cqh; font-weight: 800; letter-spacing: 0.3em; padding-left: 0.3em; color: var(--sage); }
+.turning-target.dim .tt-label { color: var(--faint); }
+
+.training-hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.training-card, .training-count, .training-setup, .training-paused { z-index: 6; }
+.th-distance { position: absolute; left: 4cqh; top: 3.4cqh; font-size: 4.2cqh; font-weight: 900; letter-spacing: 0.04em; color: var(--sage); }
+.th-time { position: absolute; right: 4cqh; top: 3cqh; text-align: right; font-variant-numeric: tabular-nums; }
+.th-time b { display: block; font-size: 7.2cqh; font-weight: 900; line-height: 1; }
+.th-time span { display: block; font-size: 2.4cqh; font-weight: 700; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 0.8cqh; }
+
+.training-card { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); min-width: 56cqh; padding: 3.2cqh 6cqh 3.6cqh; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1.6cqh;
+  background: rgba(15, 16, 16, 0.9); border: 1px solid rgba(237, 237, 230, 0.12); border-radius: 1.4cqh; box-shadow: 0 3cqh 8cqh -2cqh rgba(0, 0, 0, 0.85); animation: fade 0.25s ease-out both; }
+.training-card.wide { min-width: 90cqh; }
+.tc-eyebrow { font-size: 1.9cqh; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: var(--sage); }
+.tc-eyebrow.go { color: var(--go); }
+.tc-big { font-size: 8cqh; font-weight: 900; letter-spacing: 0.06em; line-height: 1; text-transform: uppercase; }
+.tc-big.distance { text-transform: none; }
+.tc-big.ready { color: var(--sage); letter-spacing: 0.12em; }
+.tc-big.time { color: var(--accent); letter-spacing: 0.12em; }
+.tc-task { font-size: 2.6cqh; font-weight: 600; color: var(--text); }
+.tc-list { margin: 0; padding: 0; list-style: none; font-size: 2.1cqh; color: var(--sage); line-height: 1.7; }
+.tc-next { margin-top: 1cqh; font-size: 2.2cqh !important; padding: 1cqh 4cqh !important; letter-spacing: 0.12em; }
+.training-count { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: 26cqh; font-weight: 900; line-height: 1; color: var(--text); text-shadow: 0 2cqh 6cqh rgba(0, 0, 0, 0.8); }
+.training-paused { position: absolute; left: 50%; top: 8%; transform: translateX(-50%); font-size: 2.6cqh; font-weight: 800; letter-spacing: 0.4em; color: var(--standby); }
+
+.training-setup { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: 96cqh; padding: 4cqh 6cqh; background: rgba(15, 16, 16, 0.93); border: 1px solid rgba(237, 237, 230, 0.12); border-radius: 1.6cqh; box-shadow: 0 3cqh 8cqh -2cqh rgba(0, 0, 0, 0.85); }
+.training-setup h1 { margin: 1cqh 0 2.6cqh; font-size: 6.4cqh; font-weight: 900; letter-spacing: 0.02em; }
+.training-setup .tc-eyebrow { color: var(--accent); }
+.training-setup ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.2cqh; font-size: 2.4cqh; }
+.training-setup li span { display: inline-block; width: 4cqh; color: var(--faint); font-weight: 800; }
+.setup-opts { display: flex; gap: 4cqh; margin-top: 3cqh; font-size: 2cqh; }
+.setup-opts label { display: flex; align-items: center; gap: 1cqh; cursor: pointer; }
+.training-setup .hint { margin-top: 2.4cqh; font-size: 1.7cqh; }
+
+.training-controls { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--sunken); border-top: 1px solid var(--line); }
+.training-controls .spacer { flex: 1; }
+.training-controls button.on { border-color: var(--accent); }
+.training-controls.hidden { display: none; }

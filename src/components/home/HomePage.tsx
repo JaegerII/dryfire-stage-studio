@@ -15,12 +15,13 @@ interface Props {
   onPlayMatch: (id: string) => void;
   onOpenStage: (id: string) => void;
   onPlayStage: (id: string) => void;
+  onOpenTraining: () => void;
 }
 
 const date = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : '');
 
 /** Start page: all matches as cards (active / archived) plus every stage. */
-export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }: Props) => {
+export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, onOpenTraining }: Props) => {
   const [tab, setTab] = useState<Tab>('active');
   const [, refresh] = useState(0);
   const reload = () => refresh((n) => n + 1);
@@ -72,6 +73,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage }:
           <button className={tab === 'stages' ? 'on' : ''} onClick={() => setTab('stages')}>
             All stages <em>{stages.length}</em>
           </button>
+          <button onClick={onOpenTraining}>Training</button>
         </nav>
         <div className="inline">
           <button onClick={() => file.current?.click()}>Import</button>
