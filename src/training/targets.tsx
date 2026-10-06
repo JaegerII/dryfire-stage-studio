@@ -6,6 +6,7 @@
  * with a central aiming area). It is NOT a copy of any association's official target.
  */
 import type { ReactNode } from 'react';
+import pp1Art from '../assets/training/pp1_target.webp';
 
 export interface TargetDesign {
   id: string;
@@ -59,7 +60,29 @@ const neutral: TargetDesign = {
   },
 };
 
-export const TARGET_DESIGNS: Record<string, TargetDesign> = { neutral };
+/** PP1 training target: your own artwork (camouflage pattern, oval zones 5–10) as an image, cut corners like the board. */
+const pp1: TargetDesign = {
+  id: 'pp1',
+  name: 'PP1 camo',
+  aspect: 1024 / 1536,
+  render: () => {
+    const H = W / (1024 / 1536);
+    const c = W * 0.026; // the board's cut corners
+    const pts = [[c, 0], [W - c, 0], [W, c], [W, H - c], [W - c, H], [c, H], [0, H - c], [0, c]].map((p) => p.join(',')).join(' ');
+    return (
+      <>
+        <defs>
+          <clipPath id="pp1-cut">
+            <polygon points={pts} />
+          </clipPath>
+        </defs>
+        <image href={pp1Art} x={0} y={0} width={W} height={H} preserveAspectRatio="none" clipPath="url(#pp1-cut)" />
+      </>
+    );
+  },
+};
+
+export const TARGET_DESIGNS: Record<string, TargetDesign> = { neutral, pp1 };
 
 /** Plain target face. */
 export const Target = ({ design }: { design: TargetDesign }) => (

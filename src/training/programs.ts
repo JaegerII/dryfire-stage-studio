@@ -11,7 +11,7 @@ export const PP1Program: TrainingProgram = {
   name: 'PP1 Training',
   description: 'One target · 25 m precision, 15 m and 10 m exposures.',
   layout: ['center'],
-  design: 'neutral',
+  design: 'pp1',
   phases: [
     { distance: 25, type: 'continuous', duration: 120, reps: 12, active: ['center'] },
     { distance: 15, type: 'exposure', rounds: 2, exposures: 6, exposureTime: 2, repsPerExposure: 1, active: ['center'] },
