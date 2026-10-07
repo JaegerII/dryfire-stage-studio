@@ -6,6 +6,7 @@
  * with a central aiming area). It is NOT a copy of any association's official target.
  */
 import type { ReactNode } from 'react';
+import npaArt from '../assets/training/npa_target.webp';
 import pp1Art from '../assets/training/pp1_target.webp';
 
 export interface TargetDesign {
@@ -60,29 +61,33 @@ const neutral: TargetDesign = {
   },
 };
 
-/** PP1 training target: your own artwork (camouflage pattern, oval zones 5–10) as an image, cut corners like the board. */
-const pp1: TargetDesign = {
-  id: 'pp1',
-  name: 'PP1 camo',
-  aspect: 1024 / 1536,
+/** A target from your own artwork (image), clipped to the board's cut corners. */
+const imageDesign = (id: string, name: string, src: string, px: [number, number], cut = 0.026): TargetDesign => ({
+  id,
+  name,
+  aspect: px[0] / px[1],
   render: () => {
-    const H = W / (1024 / 1536);
-    const c = W * 0.026; // the board's cut corners
+    const H = (W * px[1]) / px[0];
+    const c = W * cut;
     const pts = [[c, 0], [W - c, 0], [W, c], [W, H - c], [W - c, H], [c, H], [0, H - c], [0, c]].map((p) => p.join(',')).join(' ');
     return (
       <>
         <defs>
-          <clipPath id="pp1-cut">
+          <clipPath id={`${id}-cut`}>
             <polygon points={pts} />
           </clipPath>
         </defs>
-        <image href={pp1Art} x={0} y={0} width={W} height={H} preserveAspectRatio="none" clipPath="url(#pp1-cut)" />
+        <image href={src} x={0} y={0} width={W} height={H} preserveAspectRatio="none" clipPath={`url(#${id}-cut)`} />
       </>
     );
   },
-};
+});
 
-export const TARGET_DESIGNS: Record<string, TargetDesign> = { neutral, pp1 };
+/** PP1: rounded camouflage pattern, oval zones 5–10. NPA: angular pattern, elliptical zones 5–10. */
+const pp1 = imageDesign('pp1', 'PP1 camo', pp1Art, [1024, 1536]);
+const npa = imageDesign('npa', 'NPA camo', npaArt, [971, 1619]);
+
+export const TARGET_DESIGNS: Record<string, TargetDesign> = { neutral, pp1, npa };
 
 /** Plain target face. */
 export const Target = ({ design }: { design: TargetDesign }) => (

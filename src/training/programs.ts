@@ -25,7 +25,7 @@ export const NPAProgram: TrainingProgram = {
   name: 'NPA Training',
   description: 'Two targets, LEFT and RIGHT · 25 m to 10 m.',
   layout: ['left', 'right'],
-  design: 'neutral',
+  design: 'npa',
   phases: [
     { distance: 25, type: 'continuous', duration: 15, reps: 6, active: ['left'] },
     { distance: 20, type: 'continuous', duration: 10, reps: 6, active: ['left', 'right'], split: { left: 3, right: 3 } },
