@@ -8,6 +8,7 @@ import { MatchPage } from './components/match/MatchPage';
 import { TrainingPlayer } from './components/player/TrainingPlayer';
 import { matchRepository } from './data/matchRepository';
 import { stageRepository } from './data/stageRepository';
+import type { MatchSettings } from './types/match';
 import type { Stage } from './types/stage';
 import { createStage } from './utils/stageIO';
 import { matchStages } from './utils/matchUtils';
@@ -34,6 +35,7 @@ interface Playing {
   stages: Stage[];
   matchName?: string;
   matchId?: string;
+  settings?: MatchSettings;
 }
 
 const dec = decodeURIComponent;
@@ -46,7 +48,7 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
     const stages = match ? matchStages(match) : [];
     return {
       view: { page: 'match', matchId: dec(m[1]) },
-      playing: match && stages.length ? { stages, matchName: match.name, matchId: match.id } : null,
+      playing: match && stages.length ? { stages, matchName: match.name, matchId: match.id, settings: match.settings } : null,
     };
   }
   if ((m = hash.match(/^#\/match\/([^/]+)\/edit\/(.+)$/))) return { view: { page: 'edit', matchId: dec(m[1]), stageId: dec(m[2]) }, playing: null };
@@ -103,7 +105,7 @@ export const App = () => {
     (id: string) => {
       const m = matchRepository.get(id);
       const stages = m ? matchStages(m) : [];
-      if (m && stages.length) play({ stages, matchName: m.name, matchId: m.id });
+      if (m && stages.length) play({ stages, matchName: m.name, matchId: m.id, settings: m.settings });
     },
     [play],
   );
@@ -169,6 +171,7 @@ export const App = () => {
           key={`play:${playing.matchId ?? playing.stages[0].id}`}
           stages={playing.stages}
           matchName={playing.matchName}
+          matchSettings={playing.settings}
           onExit={() => setState((s) => ({ ...s, playing: null }))}
         />
       )}

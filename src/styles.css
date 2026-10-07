@@ -392,3 +392,16 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .training-controls .spacer { flex: 1; }
 .training-controls button.on { border-color: var(--accent); }
 .training-controls.hidden { display: none; }
+
+/* match settings */
+.match-settings { margin: 14px 0 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px 14px; }
+.match-settings summary { cursor: pointer; font-weight: 800; letter-spacing: 0.04em; padding: 4px 0; }
+.match-settings summary .hint { font-weight: 500; margin-left: 8px; }
+.ms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+.ms-col h4 { margin: 6px 0 8px; }
+.ms-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--line-soft, rgba(237,237,230,.06)); }
+.ms-row small { color: var(--faint); font-weight: 500; }
+.ms-field { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.ms-field input[type='number'] { width: 76px; }
+.ms-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+@media (max-width: 900px) { .ms-grid { grid-template-columns: 1fr; } }

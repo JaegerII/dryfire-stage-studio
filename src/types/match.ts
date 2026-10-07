@@ -6,6 +6,32 @@
 
 export const MATCH_SCHEMA_VERSION = 1;
 
+/** Match-wide timing (seconds) — missing values use MATCH_TIMING. */
+export interface MatchTimingSettings {
+  /** FORTH TRACE logo screen. */
+  brand?: number;
+  /** Safety screen. */
+  safety?: number;
+  /** Title card before every stage ("Stage 2 / 3"). */
+  title?: number;
+  /** MAKE READY lead-in while the camera pushes into the stage. */
+  lead?: number;
+}
+
+/** Values applied to every stage of the match (unset = each stage keeps its own). */
+export interface MatchStageOverrides {
+  resetTime?: number;
+  repetitions?: number;
+  standbyDelay?: { min: number; max: number };
+}
+
+export interface MatchSettings {
+  /** Logo + safety intro before the first stage (default on). */
+  intro?: boolean;
+  timing?: MatchTimingSettings;
+  overrides?: MatchStageOverrides;
+}
+
 export interface Match {
   schemaVersion: number;
   id: string;
@@ -15,6 +41,8 @@ export interface Match {
   stageIds: string[];
   /** Archived matches are kept unchanged but hidden from the active list. */
   archived?: boolean;
+  /** Match settings: intro, times between the stages, values for all stages. */
+  settings?: MatchSettings;
   meta?: {
     author?: string;
     tags?: string[];

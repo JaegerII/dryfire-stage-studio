@@ -1,3 +1,4 @@
+import type { MatchSettings } from '../../types/match';
 import type Konva from 'konva';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ENVIRONMENTS } from '../../assets/environments';
@@ -19,6 +20,8 @@ interface Props {
   stages: Stage[];
   /** Match name (undefined when a single stage is played). */
   matchName?: string;
+  /** Match settings: intro default and the times between the stages. */
+  matchSettings?: MatchSettings;
   onExit: () => void;
 }
 
@@ -44,7 +47,7 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).p
  * scheduled sample-accurately, the HUD and moving targets follow it on
  * requestAnimationFrame.
  */
-export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
+export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Props) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
@@ -52,7 +55,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
   const isMatch = matchName !== undefined;
 
   const [opts, setOpts] = useState<Options>({
-    intro: isMatch,
+    intro: isMatch && (matchSettings?.intro ?? true),
     timer: false,
     voice: true,
     signalBorder: true,
@@ -188,7 +191,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
     await e.load();
     await e.resume();
     e.volume = opts.volume;
-    const ms = buildMatchSchedule(stages, { seed: opts.seed, intro: opts.intro, voiceLead: opts.voice ? STANDBY_VOICE_LEAD : 0 });
+    const ms = buildMatchSchedule(stages, { seed: opts.seed, intro: opts.intro, voiceLead: opts.voice ? STANDBY_VOICE_LEAD : 0, timing: matchSettings?.timing });
     schedule.current = ms;
     t0.current = e.now + 0.3;
     for (const seg of ms.segments) {
@@ -304,7 +307,7 @@ export const TrainingPlayer = ({ stages, matchName, onExit }: Props) => {
   }, [status]);
 
   const set = <K extends keyof Options>(k: K, v: Options[K]) => setOpts((o) => ({ ...o, [k]: v }));
-  const duration = estimateMatchDuration(stages, opts.intro, opts.voice ? STANDBY_VOICE_LEAD : 0);
+  const duration = estimateMatchDuration(stages, opts.intro, opts.voice ? STANDBY_VOICE_LEAD : 0, matchSettings?.timing);
   const playing = status === 'running' || status === 'paused';
   const totalReps = stages.reduce((s, st) => s + st.repetitions, 0);
   // the stage is visible in setup, during its own segment and on the complete screen; hidden behind intro/title cards

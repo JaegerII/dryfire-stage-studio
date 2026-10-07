@@ -71,6 +71,16 @@ The browser's back button works between pages. Leaving the editor with unsaved c
 
 A single stage played on its own skips the intro by default.
 
+### Match settings
+
+On the match page, **Match settings** apply to that match only (stored in the match, so export / import keeps them):
+
+* **Intro & timing:** logo + safety intro on/off, logo screen, safety screen, stage title card (the break between two
+  stages) and the Make Ready lead-in, in seconds (0 skips the logo, safety or title card). Defaults: 5 / 7 / 4 / 2 s.
+* **For all stages:** reset time, repetitions and standby delay. A checked value replaces the value of every stage in
+  this match while it is played; the stages themselves are not changed. "Reset to defaults" removes all settings.
+* The match length on the match page, the home page and in the player uses these values.
+
 ## Player
 
 Each rep runs: reset/prep → **STAND BY** (spoken cue) → random delay → start beep → par time → end beep → reset → … → **TRAINING COMPLETE**.

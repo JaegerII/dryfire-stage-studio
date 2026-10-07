@@ -9,6 +9,7 @@
 import type { Stage } from '../types/stage';
 import { type PlayerSnapshot, type Schedule, buildSchedule, estimateDuration, snapshotAt } from './schedule';
 
+/** Default match timing (seconds); every match can override it in its settings. */
 export const MATCH_TIMING = {
   brand: 5,
   safety: 7,
@@ -28,22 +29,29 @@ export interface MatchSchedule {
   end: number;
 }
 
+export type MatchTiming = typeof MATCH_TIMING;
+
 export interface MatchOptions {
   seed: string;
   intro: boolean;
   voiceLead: number;
+  /** Match-specific times (defaults: MATCH_TIMING). */
+  timing?: Partial<MatchTiming>;
 }
 
+export const resolveTiming = (t?: Partial<MatchTiming>): MatchTiming => ({ ...MATCH_TIMING, ...t });
+
 export const buildMatchSchedule = (stages: Stage[], opts: MatchOptions): MatchSchedule => {
+  const T = resolveTiming(opts.timing);
   const segments: Segment[] = [];
   let t = 0;
   if (opts.intro) {
-    segments.push({ kind: 'brand', start: t, end: (t += MATCH_TIMING.brand) });
-    segments.push({ kind: 'safety', start: t, end: (t += MATCH_TIMING.safety) });
+    if (T.brand > 0) segments.push({ kind: 'brand', start: t, end: (t += T.brand) });
+    if (T.safety > 0) segments.push({ kind: 'safety', start: t, end: (t += T.safety) });
   }
   stages.forEach((stage, stageIndex) => {
-    segments.push({ kind: 'title', stageIndex, start: t, end: (t += MATCH_TIMING.title) });
-    const schedule = buildSchedule(stage, { seed: `${opts.seed}:${stageIndex}`, lead: MATCH_TIMING.lead, voiceLead: opts.voiceLead });
+    if (T.title > 0) segments.push({ kind: 'title', stageIndex, start: t, end: (t += T.title) });
+    const schedule = buildSchedule(stage, { seed: `${opts.seed}:${stageIndex}`, lead: T.lead, voiceLead: opts.voiceLead });
     segments.push({ kind: 'stage', stageIndex, start: t, end: (t += schedule.completeAt), schedule });
   });
   return { segments, end: t };
@@ -67,6 +75,7 @@ export const matchSnapshotAt = (ms: MatchSchedule, t: number, stages: Stage[]): 
 };
 
 /** Total length in seconds (average standby delays). */
-export const estimateMatchDuration = (stages: Stage[], intro: boolean, voiceLead: number) =>
-  (intro ? MATCH_TIMING.brand + MATCH_TIMING.safety : 0) +
-  stages.reduce((sum, s) => sum + MATCH_TIMING.title + estimateDuration(s, MATCH_TIMING.lead, voiceLead), 0);
+export const estimateMatchDuration = (stages: Stage[], intro: boolean, voiceLead: number, timing?: Partial<MatchTiming>) => {
+  const T = resolveTiming(timing);
+  return (intro ? T.brand + T.safety : 0) + stages.reduce((sum, s) => sum + T.title + estimateDuration(s, T.lead, voiceLead), 0);
+};

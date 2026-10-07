@@ -4,7 +4,8 @@ import { matchRepository } from '../../data/matchRepository';
 import { stageRepository } from '../../data/stageRepository';
 import type { Match } from '../../types/match';
 import { exportMatchFile } from '../../utils/matchIO';
-import { formatLength, matchLength } from '../../utils/matchUtils';
+import { formatLength, matchIntro, matchLength } from '../../utils/matchUtils';
+import { MatchSettingsPanel } from './MatchSettingsPanel';
 import { newId } from '../../utils/random';
 import { createStage } from '../../utils/stageIO';
 import { BrandMark } from '../BrandMark';
@@ -90,12 +91,20 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
           <input className="match-name" value={match.name} onChange={(e) => save({ ...match, name: e.target.value })} />
           <textarea rows={2} placeholder="Description" value={match.description ?? ''} onChange={(e) => save({ ...match, description: e.target.value })} />
           <div className="hint">
-            {match.stageIds.length} stages · ≈ {formatLength(matchLength(match))} min with logo + safety intro
+            {match.stageIds.length} stages · ≈ {formatLength(matchLength(match))} min{matchIntro(match) ? ' with logo + safety intro' : ''}
           </div>
+
+          <MatchSettingsPanel
+            match={match}
+            stages={match.stageIds.map((id) => stageRepository.get(id)).filter((x): x is NonNullable<typeof x> => !!x)}
+            onChange={(settings) => save({ ...match, settings: Object.keys(settings).length ? settings : undefined })}
+          />
 
           <ol className="stage-list match-stages">
             {match.stageIds.map((id, i) => {
-              const s = stages.find((x) => x.id === id);
+              const stored = stages.find((x) => x.id === id);
+              // what the match actually plays (its "for all stages" repetitions applied)
+              const s = stored && { ...stored, repetitions: match.settings?.overrides?.repetitions ?? stored.repetitions };
               const move = (d: number) => {
                 const ids = [...match.stageIds];
                 [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
