@@ -1,6 +1,13 @@
 import { useRef } from 'react';
 import { BrandMark } from '../BrandMark';
 
+export interface StageNav {
+  index: number;
+  count: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+}
+
 interface Props {
   stageName: string;
   dirty: boolean;
@@ -11,6 +18,8 @@ interface Props {
   matchName?: string;
   onHome: () => void;
   onBackToMatch?: () => void;
+  /** Stage switcher inside a match: "◀ 2 / 3 ▶". */
+  stageNav?: StageNav;
   onSave: () => void;
   onDuplicate: () => void;
   onImport: (file: File) => void;
@@ -41,6 +50,19 @@ export const EditorToolbar = (p: Props) => {
         )}
         <strong>{p.stageName}</strong>
         {p.dirty && <span className="dirty" title="Unsaved changes">●</span>}
+        {p.stageNav && (
+          <span className="stage-nav">
+            <button onClick={p.stageNav.onPrev} disabled={!p.stageNav.onPrev} title="Previous stage of this match">
+              ◀
+            </button>
+            <em>
+              Stage {p.stageNav.index + 1} / {p.stageNav.count}
+            </em>
+            <button onClick={p.stageNav.onNext} disabled={!p.stageNav.onNext} title="Next stage of this match">
+              ▶
+            </button>
+          </span>
+        )}
       </div>
       <nav>
         <div className="group">

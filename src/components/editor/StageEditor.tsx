@@ -12,7 +12,7 @@ import { readImportFile, saveImportedMatch } from '../../utils/matchIO';
 import { StageCanvas } from '../stage/StageCanvas';
 import { useStageHistory } from '../../hooks/useStageHistory';
 import { AssetLibrary, DND_TYPE } from './AssetLibrary';
-import { EditorToolbar } from './EditorToolbar';
+import { EditorToolbar, type StageNav } from './EditorToolbar';
 import { PropertiesPanel, type GroupMove } from './PropertiesPanel';
 
 const SNAP_STEP = 0.0125;
@@ -28,6 +28,8 @@ interface Props {
   matchName?: string;
   onHome: () => void;
   onBackToMatch?: () => void;
+  /** Switch to the previous / next stage of the match. */
+  stageNav?: StageNav;
   /** Lets the app warn before navigating away from unsaved changes. */
   onDirtyChange: (dirty: boolean) => void;
 }
@@ -37,7 +39,7 @@ const isTyping = (e: KeyboardEvent) => {
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
 };
 
-export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBackToMatch, onDirtyChange }: Props) => {
+export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBackToMatch, stageNav, onDirtyChange }: Props) => {
   const { stage, update, commit, undo, redo, reset, canUndo, canRedo } = useStageHistory(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -336,6 +338,7 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
         matchName={matchName}
         onHome={onHome}
         onBackToMatch={onBackToMatch}
+        stageNav={stageNav}
         onSave={save}
         onDuplicate={() => {
           const copy: Stage = { ...structuredClone(stage), id: newId('stage'), name: `${stage.name} (copy)` };

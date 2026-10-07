@@ -173,6 +173,10 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
 .crumbs > span { color: var(--faint); }
 .crumbs strong { overflow: hidden; text-overflow: ellipsis; }
+.stage-nav { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; flex: none; }
+.crumbs .linkish { max-width: 220px; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 40px; }
+.stage-nav em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; padding: 0 4px; }
+.stage-nav button { padding: 3px 9px; }
 .tabs { display: flex; gap: 4px; }
 .tabs button { background: none; border-color: transparent; }
 .tabs button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }

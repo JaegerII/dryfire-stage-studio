@@ -151,6 +151,13 @@ export const App = () => {
           matchName={match?.name}
           onHome={() => go({ page: 'home' })}
           onBackToMatch={match ? () => go({ page: 'match', matchId: match.id }) : undefined}
+          stageNav={(() => {
+            const ids = match?.stageIds ?? [];
+            const i = ids.indexOf(view.stageId);
+            if (!match || i < 0 || ids.length < 2) return undefined;
+            const to = (j: number) => () => go({ page: 'edit', stageId: ids[j], matchId: match.id });
+            return { index: i, count: ids.length, onPrev: i > 0 ? to(i - 1) : undefined, onNext: i < ids.length - 1 ? to(i + 1) : undefined };
+          })()}
           onDirtyChange={(d) => {
             editorDirty.current = d;
           }}
