@@ -121,6 +121,8 @@ export const ENV3D = {
   indoor_02: { label: 'Indoor Range 02', kind: 'indoor', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
   indoor_03: { label: 'Indoor Range 03 (bright lane)', kind: 'indoor', x0: -4, x1: 4, d0: -4, d1: 34.6, height: 3.6, backstop: 1 },
   indoor_04: { label: 'Indoor Range 04 (beam ceiling)', kind: 'indoor', x0: -7, x1: 7, d0: -4, d1: 32, height: 4.6, backstop: 0 },
+  indoor_05: { label: 'Indoor Range 05 (270° rubber hall)', kind: 'indoor', x0: -12, x1: 12, d0: -4, d1: 30, height: 5, backstop: 0 },
+  indoor_06: { label: 'Indoor Range 06 (red duct ceiling)', kind: 'indoor', x0: -6, x1: 6, d0: -4, d1: 26, height: 3.8, backstop: 0 },
   outdoor_01: { label: 'Outdoor Berm 01 (midday)', kind: 'outdoor', x0: -8.4, x1: 8.4, d0: -6, d1: 15, height: 2.6, backstop: 0, berms: true, sun: { azimuth: -120, elevation: 73.5 } },
   outdoor_02: { label: 'Outdoor Berm 02 (evening)', kind: 'outdoor', x0: -8.4, x1: 8.4, d0: -6, d1: 15.5, height: 2.4, backstop: 0, berms: true, sun: { azimuth: -125, elevation: 20.7 } },
   outdoor_03: { label: 'Outdoor Berm 03 (overcast)', kind: 'outdoor', x0: -10.8, x1: 10.8, d0: -6, d1: 17.5, height: 4, backstop: 0, berms: true },

@@ -21,9 +21,9 @@ const SKIP = ['start_box']; // floor marking, stays a drawing
 const SPRITES = Object.keys(GEOM).filter((t) => !SKIP.includes(t));
 // objects without a floor shadow: cards placed on boxes / overlays, banners on walls
 const NO_SHADOW = /^(paper_card|no_shoot_overlay|paper_hc_\w+_card|banner_\w+)$/;
-const ENVS = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04', 'outdoor_05'];
+const ENVS = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'indoor_05', 'indoor_06', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04', 'outdoor_05'];
 const SHADOWS = ENVS.flatMap((e) => SPRITES.filter((t) => !NO_SHADOW.test(t)).map((t) => `shadow:${e}:${t}`));
-const PLATES = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04', 'outdoor_05'];
+const PLATES = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'indoor_05', 'indoor_06', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04', 'outdoor_05'];
 
 const argJobs = process.argv.slice(2);
 const jobs = !argJobs.length

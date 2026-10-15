@@ -36,7 +36,9 @@ mirroring, motion), shooter **positions** (`x`, `d`, `heading`) and **legs** bet
 previous position, `duration`, `reload`, optional `via` corner points). Par = all waits + moves + `finalTime`.
 Repetitions, reset time and standby delay as before.
 
-* **Environments:** Indoor Range 01–04, Outdoor Berm 01–03, Outdoor 04 (sunset, covered bays) and Outdoor 05
+* **Environments:** Indoor Range 01–04, Indoor Range 05 (270° hall lined with black rubber mats, white ceiling with red
+  panels — Glockstore style), Indoor Range 06 (white walls with a rubber-mat band, red textile ducts on the ceiling —
+  Swiss Tactical style), Outdoor Berm 01–03, Outdoor 04 (sunset, covered bays) and Outdoor 05
   (limestone hillside like the Slovak Open: bright limestone gravel, earth berms with dry grass, a steep slope with
   bushes, rock outcrops and trees). Built-in stage *Slovak Open – Hillside* (`stage_701`) shows it off.
 * **Objects:** paper targets (full, mini, hard cover, cards, stacks, swinger), no-shoots, steel (popper, plate, rack),
@@ -49,10 +51,11 @@ Repetitions, reset time and standby delay as before.
   table*): shown in the briefing and on the title card. With a table right in front of the start box the shooter looks
   down at the table until the beep, then up to the targets. Built-in example: *Table Start – Rubber Stands*.
 * **Walkways:** every move between two positions runs in a lane marked by red wooden slats on the floor (outdoors with
-  gravel between them), from the edge of one shooting box to the next — in the briefing and during the run.
-* **Built-in indoor stages with the mobile rubber targets:** *Glockstore 270 Bay* (inspired by the 270° bays of Glockstore
-  Nashville: targets left, ahead and right, turning to both sides) and *Swiss Tactical Indoor* (black partitions, through
-  a window, wide rubber walls, steel to finish).
+  gravel between them), from the edge of one shooting box to the next. The red path arrows belong to the briefing (and
+  the editor) only; during the run there are just the slats.
+* **Built-in indoor stages with the mobile rubber targets:** *Glockstore 270 Bay* (Indoor Range 05: targets left, ahead and
+  right, turning to both sides) and *Swiss Tactical Indoor* (Indoor Range 06: black partitions, through a window, wide
+  rubber walls, steel to finish).
 * **Top-view editor:** plan of the range in meters next to a live 3D view (from the selected shooting box, or the
   briefing view from above).
   * **Environment** at the top of the left panel. Objects that do not fit the new room are pulled inside; outdoors the

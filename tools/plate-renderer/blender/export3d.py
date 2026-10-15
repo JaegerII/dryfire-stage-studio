@@ -225,6 +225,23 @@ ROOMS = {
         ('backstop', named('backwall', 'baffle', 'trap', 'header'), (2048, 2048), 'smart', False),
         ('ceiling', named('ceiling', 'strip'), (4096, 4096), 'smart', True),
     ]),
+    # Glockstore-style 270° bay: black rubber mats all round, white ceiling with red panels and black baffles
+    'indoor_05': dict(W=24.0, H=5.0, d0=-4.0, back=30.0, groups=[
+        ('floor', named('floor'), (4096, 8192), 'top', True),
+        ('wall_l', named('wall', side=-1), (8192, 1536), 'yz', True),
+        ('wall_r', named('wall', side=1), (8192, 1536), 'yz', True),
+        ('wall_back', named('back'), (4096, 1024), 'xz', True),
+        ('ceiling', named('ceiling', 'acoustic', 'baffle', 'fixture'), (4096, 4096), 'smart', True),
+    ]),
+    # Swiss-Tactical-style: white walls with a rubber band, red textile ducts on the ceiling
+    'indoor_06': dict(W=12.0, H=3.8, d0=-4.0, back=26.0, groups=[
+        ('floor', named('floor'), (2048, 8192), 'top', True),
+        ('wall_l', named('wall', side=-1), (8192, 1024), 'yz', True),
+        ('wall_r', named('wall', side=1), (8192, 1024), 'yz', True),
+        ('wall_back', named('back'), (2048, 1024), 'xz', True),
+        ('details', named('band'), (4096, 1024), 'smart', False),
+        ('ceiling', named('ceiling', 'duct', 'lamp'), (4096, 4096), 'smart', True),
+    ]),
     # light concrete floor, dark walls, bright ceiling with beams and spots
     'indoor_04': dict(W=14.0, H=4.6, d0=-4.0, back=32.0, groups=[
         ('floor', named('floor'), (4096, 8192), 'top', True),

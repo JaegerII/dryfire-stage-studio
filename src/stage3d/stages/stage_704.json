@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "stage_704",
   "name": "Swiss Tactical Indoor",
-  "description": "Indoor tactical range with granulate bullet traps: mobile rubber walls behind black partitions. Through the window first, then around the wall on the right, steel to finish.",
-  "environment": "indoor_04",
+  "description": "Swiss-Tactical-style indoor range: white walls with rubber mats, red ducts on the ceiling, mobile rubber walls behind black partitions. Through the window first, then around the wall on the right, steel to finish.",
+  "environment": "indoor_06",
   "repetitions": 5,
   "resetTime": 6,
   "standbyDelay": {
@@ -86,7 +86,7 @@
     {
       "id": "s_net_1",
       "type": "mesh_wall_black",
-      "x": -5.2,
+      "x": -4.6,
       "d": 9.6,
       "yaw": -20
     },
@@ -152,14 +152,14 @@
     {
       "id": "s_rs2",
       "type": "rubber_stand",
-      "x": 5.6,
+      "x": 5,
       "d": 12.2,
       "yaw": 25
     },
     {
       "id": "s_rs2c",
       "type": "paper_card",
-      "x": 5.6,
+      "x": 5,
       "d": 12.2,
       "elevation": 0.95,
       "yaw": 25
@@ -185,13 +185,13 @@
     {
       "id": "s_drum",
       "type": "barrel_stack",
-      "x": -5.6,
+      "x": -5,
       "d": 13.8
     },
     {
       "id": "s_drum2",
       "type": "barrel_steel",
-      "x": 6.2,
+      "x": 5.2,
       "d": 9.8
     }
   ]

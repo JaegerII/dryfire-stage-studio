@@ -66,6 +66,8 @@ const LIGHT: Record<Env3D, Light> = {
   indoor_02: INDOOR,
   indoor_03: INDOOR,
   indoor_04: INDOOR,
+  indoor_05: INDOOR,
+  indoor_06: INDOOR,
   outdoor_01: { sky: '#d6e2f2', ground: '#8a7f68', hemi: 1.3, sun: '#fff3e0', key: 3.2, fill: 4, env: 0.8, shadow: 0.55 },
   outdoor_02: { sky: '#cdd6e4', ground: '#6f6b4c', hemi: 1.1, sun: '#ffd9ab', key: 2.8, fill: 3.5, env: 0.8, shadow: 0.5 },
   outdoor_03: { sky: '#e6eaee', ground: '#6c7356', hemi: 1.9, sun: '#f4f6f8', key: 0.7, fill: 2.5, env: 0.8, shadow: 0.22 },

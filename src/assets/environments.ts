@@ -10,6 +10,8 @@ import indoor01 from './environments/indoor_01.webp';
 import indoor02 from './environments/indoor_02.webp';
 import indoor03 from './environments/indoor_03.webp';
 import indoor04 from './environments/indoor_04.webp';
+import indoor05 from './environments/indoor_05.webp';
+import indoor06 from './environments/indoor_06.webp';
 import outdoor01 from './environments/outdoor_01.webp';
 import outdoor02 from './environments/outdoor_02.webp';
 import outdoor03 from './environments/outdoor_03.webp';
@@ -34,6 +36,8 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentDef> = {
   indoor_02: { id: 'indoor_02', label: 'Indoor Range 02', kind: 'indoor', src: indoor02, ...PLATE },
   indoor_03: { id: 'indoor_03', label: 'Indoor Range 03 (bright lane)', kind: 'indoor', src: indoor03, ...PLATE },
   indoor_04: { id: 'indoor_04', label: 'Indoor Range 04 (beam ceiling)', kind: 'indoor', src: indoor04, ...PLATE },
+  indoor_05: { id: 'indoor_05', label: 'Indoor Range 05 (270° rubber hall)', kind: 'indoor', src: indoor05, ...PLATE },
+  indoor_06: { id: 'indoor_06', label: 'Indoor Range 06 (red duct ceiling)', kind: 'indoor', src: indoor06, ...PLATE },
   outdoor_01: { id: 'outdoor_01', label: 'Outdoor Berm 01 (midday)', kind: 'outdoor', src: outdoor01, ...PLATE },
   outdoor_02: { id: 'outdoor_02', label: 'Outdoor Berm 02 (evening)', kind: 'outdoor', src: outdoor02, ...PLATE },
   outdoor_03: { id: 'outdoor_03', label: 'Outdoor Berm 03 (overcast)', kind: 'outdoor', src: outdoor03, ...PLATE },

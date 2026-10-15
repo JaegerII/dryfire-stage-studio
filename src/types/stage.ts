@@ -3,7 +3,7 @@
  * The stages themselves are 3D stages (src/stage3d/types.ts).
  */
 
-export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04' | 'outdoor_05';
+export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'indoor_05' | 'indoor_06' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04' | 'outdoor_05';
 
 export type TargetType =
   | 'paper_full'

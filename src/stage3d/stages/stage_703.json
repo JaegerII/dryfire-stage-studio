@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "stage_703",
   "name": "Glockstore 270 Bay",
-  "description": "Inspired by the 270° bays of Glockstore Nashville: mobile rubber targets left, ahead and right of the shooter. Turn to both sides, move forward, reload on the second move.",
-  "environment": "indoor_01",
+  "description": "Glockstore-style 270° bay: mobile rubber targets left, ahead and right of the shooter in a hall lined with rubber mats. Turn to both sides, move forward, reload on the second move.",
+  "environment": "indoor_05",
   "repetitions": 5,
   "resetTime": 5,
   "standbyDelay": {

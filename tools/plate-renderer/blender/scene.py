@@ -1301,7 +1301,77 @@ def indoor_beams():
     brass(40)
 
 
+def rubber_mats(name='rubber_mats', axes='yz', tint='#262626'):
+    """Walls lined with black rubber mats (1 × 2 m), visible seams, granulate texture."""
+    return grid_material(name, tint, '#2c2c2c', '#0d0d0d', 1.0, 2.0, mortar_size=0.008, normal_img='Rubber004', normal_tile=0.5,
+                         normal=0.7, bump=0.3, rough=0.9, photo='Rubber004', photo_tile=0.8, axes=axes, photo_mix=0.25)
+
+
+def indoor_rubber_hall():
+    """Indoor 05 (Glockstore-style 270° bay): a wide hall lined with black rubber mats on three sides and
+    the back, polished light grey floor, white ceiling with red acoustic panels, black baffles, many lights."""
+    W, H = 24, 5.0
+    y0, back = -4, 30
+    D = back - y0
+    yc = (y0 + back) / 2
+    world_hdri(0.08)
+    floor = pbr('floor', 'Concrete034', tile=2.0, tint='#b4b5b3', rough_mul=0.42, normal=0.1, stains=0.15)
+    floor_plane('floor', W, D, (0, yc, 0), floor)
+    floor_joints(W, D, yc, (2, 8, 14, 20, 26))
+    for s in (-1, 1):
+        box('wall', (0.1, D, H), (s * (W / 2 + 0.05), yc, H / 2), rubber_mats(axes='yz'))
+    box('back', (W, 0.1, H), (0, back + 0.05, H / 2), rubber_mats('rubber_back', axes='xz'))
+    ceiling = material('ceiling', '#e9e9e6', rough=0.85)
+    box('ceiling', (W, D, 0.1), (0, yc, H + 0.05), ceiling)
+    red = material('acoustic', '#c3262c', rough=0.9)
+    black = material('baffle', '#191a1b', rough=0.8)
+    lamp = material('fixture', '#ffffff', rough=0.3, emission='#f6f7fb', emission_strength=12)
+    for y in range(int(y0) + 2, int(back), 4):
+        # red acoustic panels in two rows, black baffles down the middle, light panels between
+        for x in (-8.0, -3.2, 3.2, 8.0):
+            box('acoustic', (2.6, 1.0, 0.06), (x, y + (0.8 if abs(x) > 5 else -0.6), H - 0.03), red)
+        box('baffle', (2.4, 0.5, 0.45), (0, y + 1.0, H - 0.25), black)
+        for x in (-10.5, -5.6, 0.0, 5.6, 10.5):
+            box('fixture', (1.2, 0.3, 0.03), (x, y - 0.6 if x else y + 2.2, H - 0.015), lamp)
+            area_light('panel', 1.2, (x, y - 0.6 if x else y + 2.2, H - 0.05), 230, '#f6f7fb', size_y=0.3)
+    brass(60, 1.4)
+
+
+def indoor_red_ducts():
+    """Indoor 06 (Swiss-Tactical-style): white walls with a black rubber-mat band at target height,
+    light concrete floor, the ceiling full of red textile ventilation ducts, round LED panel lights."""
+    W, H = 12, 3.8
+    y0, back = -4, 26
+    D = back - y0
+    yc = (y0 + back) / 2
+    world_hdri(0.1)
+    floor = pbr('floor', 'Concrete034', tile=1.8, tint='#c2c0bb', rough_mul=0.55, normal=0.15, stains=0.3)
+    floor_plane('floor', W, D, (0, yc, 0), floor)
+    floor_joints(W, D, yc, (2, 7, 12, 17, 22))
+    wall = material('wall_white', '#e4e2de', rough=0.85)
+    for s in (-1, 1):
+        box('wall', (0.1, D, H), (s * (W / 2 + 0.05), yc, H / 2), wall)
+        box('band', (0.04, D, 0.6), (s * (W / 2 - 0.02), yc, 1.35), rubber_mats('band_mats', axes='yz'))
+    box('back', (W, 0.1, H), (0, back + 0.05, H / 2), wall)
+    box('band', (W, 0.04, 0.6), (0, back - 0.02, 1.35), rubber_mats('band_back', axes='xz'))
+    # the ceiling: dark red, covered by red textile ducts running downrange, sagging a little
+    ceiling = material('ceiling', '#7a1a20', rough=0.95)
+    box('ceiling', (W, D, 0.1), (0, yc, H + 0.05), ceiling)
+    fabric = pbr('duct', 'Fabric030', tile=0.6, tint='#ff3a44', rough=0.9, normal=0.6, sat=1.0, value=1.6)
+    for x in [-5.0 + i * 1.25 for i in range(9)]:
+        cylinder('duct', 0.42, D, (x, yc, H - 0.32), (math.pi / 2, 0, 0), fabric, verts=24)
+    lamp = material('lamp', '#ffffff', rough=0.3, emission='#f4f6fb', emission_strength=14)
+    for y in range(int(y0) + 2, int(back), 3):
+        # between two ducts, hanging just below them
+        for x in (-4.375, -1.875, 1.875, 4.375):
+            cylinder('lamp', 0.28, 0.04, (x, y, H - 0.8), (0, 0, 0), lamp, verts=24)
+            area_light('lamp', 0.5, (x, y, H - 0.84), 120, '#f4f6fb')
+    brass(40, 1.0)
+
+
 PLATES = {
+    'indoor_05': indoor_rubber_hall,
+    'indoor_06': indoor_red_ducts,
     'indoor_01': lambda: indoor_hall('indoor_01'),
     'indoor_02': lambda: indoor_hall('indoor_02'),
     'indoor_03': indoor_tunnel,

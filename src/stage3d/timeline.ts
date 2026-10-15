@@ -308,7 +308,8 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
   }
   if (segment === 'flyin') {
     const u = (t - tl.briefingEnd) / T.flyIn;
-    const arrows = s.legs.map(() => Math.max(0, 1 - u * 2.5)); // the path fades as we descend
+    // the arrows belong to the briefing: gone within the first moment of the flight (the run shows only the slats)
+    const arrows = s.legs.map(() => Math.max(0, 1 - u * 8));
     const eyes = povPose(start, t, shakeOf(s));
     const table = startTablePitch(s);
     if (table !== null) eyes.pitch = table;
