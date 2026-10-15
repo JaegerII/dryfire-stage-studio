@@ -14,6 +14,7 @@ import outdoor01 from './environments/outdoor_01.webp';
 import outdoor02 from './environments/outdoor_02.webp';
 import outdoor03 from './environments/outdoor_03.webp';
 import outdoor04 from './environments/outdoor_04.webp';
+import outdoor05 from './environments/outdoor_05.webp';
 
 export interface EnvironmentDef {
   id: EnvironmentId;
@@ -37,6 +38,7 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentDef> = {
   outdoor_02: { id: 'outdoor_02', label: 'Outdoor Berm 02 (evening)', kind: 'outdoor', src: outdoor02, ...PLATE },
   outdoor_03: { id: 'outdoor_03', label: 'Outdoor Berm 03 (overcast)', kind: 'outdoor', src: outdoor03, ...PLATE },
   outdoor_04: { id: 'outdoor_04', label: 'Outdoor 04 (sunset, covered bays)', kind: 'outdoor', src: outdoor04, ...PLATE },
+  outdoor_05: { id: 'outdoor_05', label: 'Outdoor 05 (limestone hillside)', kind: 'outdoor', src: outdoor05, ...PLATE },
 };
 
 export const ENVIRONMENT_LIST = Object.values(ENVIRONMENTS);

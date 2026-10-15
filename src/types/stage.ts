@@ -3,7 +3,7 @@
  * The stages themselves are 3D stages (src/stage3d/types.ts).
  */
 
-export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04';
+export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04' | 'outdoor_05';
 
 export type TargetType =
   | 'paper_full'
@@ -35,7 +35,7 @@ export type BarrierType =
   | 'wood_wall'
   | 'barrel'
   | 'barrel_barricade';
-export type OtherType = 'start_box' | 'crate' | 'crate_wide';
+export type OtherType = 'start_box' | 'crate' | 'crate_wide' | 'tire' | 'tire_stack';
 export type BannerType = 'banner_forth_trace_black' | 'banner_forth_trace_white' | 'banner_west_arms';
 export type ObjectType = TargetType | BarrierType | OtherType | BannerType;
 

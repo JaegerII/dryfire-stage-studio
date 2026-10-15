@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_701",
+  "name": "Slovak Open – Hillside",
+  "description": "Start in the box, left behind the diagonal wall: two targets over the tyres. Reload on the move to the right: tyre-covered target, no-shoot, popper activates the swinger, steel on the slope.",
+  "environment": "outdoor_05",
+  "repetitions": 5,
+  "resetTime": 5,
+  "standbyDelay": { "min": 1, "max": 3 },
+  "positions": [
+    { "id": "so_start", "label": "START", "x": 0, "d": 0.5, "heading": 0 },
+    { "id": "so_p2", "label": "P2", "x": -2, "d": 4.2, "heading": -28 },
+    { "id": "so_p3", "label": "P3", "x": 3, "d": 4.6, "heading": 22 }
+  ],
+  "legs": [
+    { "after": 2.5, "duration": 2.2, "reload": false },
+    { "after": 3, "duration": 3, "reload": true, "via": [{ "x": 0.4, "d": 4.6 }] }
+  ],
+  "finalTime": 4.5,
+  "camera": { "shake": 0.8 },
+  "objects": [
+    { "id": "so_open_l", "type": "paper_full", "x": -1.6, "d": 9.5 },
+    { "id": "so_open_r", "type": "paper_full", "x": 1.4, "d": 10 },
+
+    { "id": "so_wall_l", "type": "mesh_wall_diagonal", "x": -4.3, "d": 5.8, "yaw": 25 },
+    { "id": "so_wall_l2", "type": "mesh_wall", "x": -5.9, "d": 7.3, "yaw": 55 },
+    { "id": "so_t_l1", "type": "paper_full", "x": -5.4, "d": 11.2, "yaw": -15 },
+    { "id": "so_tyre_l1", "type": "tire", "x": -5.3, "d": 10.5 },
+    { "id": "so_t_l2", "type": "paper_hc_half", "x": -3.1, "d": 12.8, "yaw": -10 },
+    { "id": "so_tyre_l2", "type": "tire_stack", "x": -3.1, "d": 12.1 },
+
+    { "id": "so_wall_r", "type": "mesh_wall", "x": 4.6, "d": 6.4, "yaw": -30 },
+    { "id": "so_wall_r2", "type": "mesh_wall_short", "x": 6.2, "d": 7.3, "yaw": -60 },
+    { "id": "so_t_r1", "type": "paper_full", "x": 6.4, "d": 11, "yaw": 12 },
+    { "id": "so_tyre_r1", "type": "tire_stack", "x": 6.4, "d": 10.3 },
+    { "id": "so_ns_r", "type": "no_shoot", "x": 5.6, "d": 11.3, "yaw": 12 },
+    { "id": "so_t_r2", "type": "paper_full", "x": 4.2, "d": 13.4, "yaw": 8 },
+    { "id": "so_tyre_r2", "type": "tire", "x": 4.2, "d": 12.7 },
+
+    { "id": "so_popper", "type": "steel_popper", "x": 2.2, "d": 12.6, "motion": { "kind": "fall", "delay": 7.2 } },
+    { "id": "so_swinger", "type": "paper_swinger", "x": 0.4, "d": 14.6, "motion": { "kind": "swing", "angle": 40, "period": 1.6, "trigger": "so_popper", "delay": 0, "hiddenUntilStart": true } },
+    { "id": "so_plate_1", "type": "steel_plate", "x": -1.2, "d": 15.4 },
+    { "id": "so_plate_2", "type": "steel_plate", "x": 1.8, "d": 15.8 }
+  ]
+}

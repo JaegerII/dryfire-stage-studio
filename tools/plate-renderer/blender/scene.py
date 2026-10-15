@@ -401,6 +401,8 @@ def make_materials():
     M.mesh = mesh_material()
     M.drum = pbr('drum', 'Concrete034', tile=0.8, color=False, tint='#1d5ca8', rough=0.4, normal=0.08)
     M.drum_cap = material('drum_cap', '#16467f', rough=0.45)
+    # worn black tyre rubber: a little grey from dust, not glossy
+    M.tire = pbr('tire', 'Rubber001', tile=0.35, tint='#3a3a3a', rough=0.82, normal=0.9, sat=0.0)
     M.faces = {}
 
 
@@ -690,6 +692,41 @@ def barrel_barricade():
         drum(x)
 
 
+def tire(z=0.0, turn=0.0, name='tire'):
+    """Old car tyre lying flat (205/55 R16-ish: Ø 63 cm, 20 cm high), tread blocks on the
+    running surface, the open inside between the beads dark."""
+    # cross-section (r, z) once around, starting at the lower bead: sidewall → tread → sidewall →
+    # upper bead → the inner cavity back down
+    prof = [(0.205, 0.02), (0.235, 0.004), (0.285, 0.006), (0.308, 0.03), (0.315, 0.06), (0.316, 0.1), (0.315, 0.14),
+            (0.308, 0.17), (0.285, 0.194), (0.235, 0.196), (0.205, 0.18), (0.2, 0.165), (0.225, 0.155), (0.275, 0.15),
+            (0.292, 0.1), (0.275, 0.05), (0.225, 0.045), (0.2, 0.035)]
+    tread = {4, 5, 6}  # running-surface points: grooves cut into them
+    n = 96
+    bm = bmesh.new()
+    rings = []
+    for i in range(n):
+        a = math.tau * i / n + turn
+        groove = 0.007 if i % 3 == 0 else 0.0  # a block every 3 steps (≈ 2 cm grooves)
+        ring = []
+        for j, (r, zz) in enumerate(prof):
+            rr = r - (groove if j in tread else 0.0)
+            ring.append(bm.verts.new((rr * math.cos(a), rr * math.sin(a), z + zz)))
+        rings.append(ring)
+    m = len(prof)
+    for i in range(n):
+        a, b = rings[i], rings[(i + 1) % n]
+        for j in range(m):
+            f = bm.faces.new((a[j], b[j], b[(j + 1) % m], a[(j + 1) % m]))
+            f.smooth = True
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    mesh_obj(name, bm, [M.tire])
+
+
+def tire_stack():
+    tire(0.0)
+    tire(0.198, turn=0.4)
+
+
 def crate(width):
     """Black box, width × 60 × 60 cm, with dark battens on the front."""
     box('box', (cm(width), cm(60), cm(60)), (0, cm(30), cm(30)), M.black_ply, bevel=cm(0.5))
@@ -747,6 +784,8 @@ BUILDERS = {
     'wood_wall': (wood_wall, True),
     'barrel': (barrel, True),
     'barrel_barricade': (barrel_barricade, True),
+    'tire': (tire, True),
+    'tire_stack': (tire_stack, True),
     'crate': (lambda: crate(60), True),
     'crate_wide': (lambda: crate(120), True),
     'banner_forth_trace_black': (lambda: banner('banner_forth_trace_black'), False),
@@ -811,7 +850,7 @@ OBJECT_Y = 8.5  # where an object stands in the indoor halls when we light it (�
 SOFT_OUTDOOR_SHADOWS = True
 
 # sun direction for the outdoor plates: azimuth (deg, world XY, towards the sun) and elevation (deg, measured from the HDRI)
-SUN = {'outdoor_01': (-120, 73.5), 'outdoor_02': (-125, 20.7), 'outdoor_04': (160, 3.2)}
+SUN = {'outdoor_01': (-120, 73.5), 'outdoor_02': (-125, 20.7), 'outdoor_04': (160, 3.2), 'outdoor_05': (-70, 73.5)}
 
 
 def shadow_frame(env, view_w, view_h, ground_y):
@@ -1287,7 +1326,7 @@ GRASS = ('Grass004', '#d8dcc2', 1.6, 0.85, 1.0)
 GRASS_WARM = ('Grass004', '#ece2c0', 1.6, 0.85, 1.0)
 
 
-def hair_material(name, colors, rough=0.6):
+def hair_material(name, colors, rough=0.6, root=0.45):
     """Grass blade material: colour varies per strand (random) between the given hex colours."""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
@@ -1309,7 +1348,7 @@ def hair_material(name, colors, rough=0.6):
     L.new(hi.outputs['Random'], ramp.inputs['Fac'])
     # darker towards the root (self-shadowing in the turf)
     grad = N.new('ShaderNodeMapRange')
-    grad.inputs['To Min'].default_value = 0.45
+    grad.inputs['To Min'].default_value = root
     grad.inputs['To Max'].default_value = 1.0
     L.new(hi.outputs['Intercept'], grad.inputs['Value'])
     mul = N.new('ShaderNodeMix')
@@ -1344,7 +1383,7 @@ def hair_material(name, colors, rough=0.6):
     return m
 
 
-def grass_patch(name, area, density, length, colors, patchy=0.0, seed=1, z=0.0, emitter=None, length_random=0.5):
+def grass_patch(name, area, density, length, colors, patchy=0.0, seed=1, z=0.0, emitter=None, length_random=0.5, root=0.45):
     """Real grass blades (hair particles). area = (x0, x1, y0, y1) for a flat patch,
     or emitter = an existing mesh (berm) to grow from. density = blades per m².
     patchy > 0 thins the grass out in noise-shaped patches (0..1)."""
@@ -1363,7 +1402,7 @@ def grass_patch(name, area, density, length, colors, patchy=0.0, seed=1, z=0.0, 
         hide_emitter = False
         ob = emitter
         area_m2 = sum(p.area for p in ob.data.polygons) * ob.scale.x * ob.scale.y
-    mat = hair_material(f'{name}_hair', colors)
+    mat = hair_material(f'{name}_hair', colors, root=root)
     ob.data.materials.append(mat)
     mod = ob.modifiers.new(name, 'PARTICLE_SYSTEM')
     ps = mod.particle_system
@@ -1495,7 +1534,307 @@ def outdoor_sunset():
     grass_patch('lawn', (-26, 26, -1.5, 30), 1800, 0.08, LAWN_WARM, patchy=0.15, seed=2)
 
 
+def rock_material(name='rock'):
+    """Weathered limestone: light grey-beige, darker in cracks and hollows (procedural)."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N['Principled BSDF']
+    b.inputs['Roughness'].default_value = 0.9
+    tc = N.new('ShaderNodeTexCoord')
+    nz = N.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 1.6
+    nz.inputs['Detail'].default_value = 12
+    nz.inputs['Roughness'].default_value = 0.62
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    vo = N.new('ShaderNodeTexVoronoi')
+    vo.feature = 'DISTANCE_TO_EDGE'
+    vo.inputs['Scale'].default_value = 3.5
+    vo.inputs['Randomness'].default_value = 1.0
+    L.new(tc.outputs['Object'], vo.inputs['Vector'])
+    ramp = N.new('ShaderNodeValToRGB')
+    els = ramp.color_ramp.elements
+    els[0].position, els[0].color = 0.3, hex_rgba('#6e6a62')
+    els[1].position, els[1].color = 0.72, hex_rgba('#b9b3a6')
+    L.new(nz.outputs['Fac'], ramp.inputs['Fac'])
+    # cracks: dark where the voronoi edge distance is small
+    crack = N.new('ShaderNodeMapRange')
+    crack.inputs['From Min'].default_value = 0.0
+    crack.inputs['From Max'].default_value = 0.03
+    crack.inputs['To Min'].default_value = 0.72
+    crack.inputs['To Max'].default_value = 1.0
+    L.new(vo.outputs['Distance'], crack.inputs['Value'])
+    mul = N.new('ShaderNodeMix')
+    mul.data_type = 'RGBA'
+    mul.blend_type = 'MULTIPLY'
+    mul.inputs['Factor'].default_value = 1.0
+    L.new(ramp.outputs['Color'], mul.inputs['A'])
+    cc = N.new('ShaderNodeCombineColor')
+    for ch in ('Red', 'Green', 'Blue'):
+        L.new(crack.outputs['Result'], cc.inputs[ch])
+    L.new(cc.outputs['Color'], mul.inputs['B'])
+    L.new(mul.outputs['Result'], b.inputs['Base Color'])
+    bump = N.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 1.0
+    L.new(nz.outputs['Fac'], bump.inputs['Height'])
+    L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    return m
+
+
+def hill_material(soil):
+    """The slope: the soil material, with limestone (a second BSDF) where the mesh's 'rock'
+    attribute says so."""
+    m = soil.copy()
+    m.name = 'hill'
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N['Principled BSDF']
+    out = N['Material Output']
+    rb = N.new('ShaderNodeBsdfPrincipled')
+    rb.inputs['Roughness'].default_value = 0.9
+    tc = N.new('ShaderNodeTexCoord')
+    nz = N.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 0.9
+    nz.inputs['Detail'].default_value = 12
+    nz.inputs['Roughness'].default_value = 0.62
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    ramp = N.new('ShaderNodeValToRGB')
+    els = ramp.color_ramp.elements
+    els[0].position, els[0].color = 0.35, hex_rgba('#6f6b63')
+    els[1].position, els[1].color = 0.68, hex_rgba('#c9c4b8')
+    L.new(nz.outputs['Fac'], ramp.inputs['Fac'])
+    vo = N.new('ShaderNodeTexVoronoi')
+    vo.feature = 'DISTANCE_TO_EDGE'
+    vo.inputs['Scale'].default_value = 2.5
+    vo.inputs['Randomness'].default_value = 1.0
+    L.new(tc.outputs['Object'], vo.inputs['Vector'])
+    crack = N.new('ShaderNodeMapRange')
+    crack.inputs['From Max'].default_value = 0.025
+    crack.inputs['To Min'].default_value = 0.35
+    L.new(vo.outputs['Distance'], crack.inputs['Value'])
+    shade = N.new('ShaderNodeMix')
+    shade.data_type = 'RGBA'
+    shade.blend_type = 'MULTIPLY'
+    shade.inputs['Factor'].default_value = 1.0
+    L.new(ramp.outputs['Color'], shade.inputs['A'])
+    cc = N.new('ShaderNodeCombineColor')
+    for ch in ('Red', 'Green', 'Blue'):
+        L.new(crack.outputs['Result'], cc.inputs[ch])
+    L.new(cc.outputs['Color'], shade.inputs['B'])
+    L.new(shade.outputs['Result'], rb.inputs['Base Color'])
+    bump = N.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 1.0
+    L.new(nz.outputs['Fac'], bump.inputs['Height'])
+    L.new(bump.outputs['Normal'], rb.inputs['Normal'])
+    attr = N.new('ShaderNodeAttribute')
+    attr.attribute_name = 'rock'
+    mix = N.new('ShaderNodeMixShader')
+    L.new(attr.outputs['Fac'], mix.inputs['Fac'])
+    L.new(b.outputs['BSDF'], mix.inputs[1])
+    L.new(rb.outputs['BSDF'], mix.inputs[2])
+    L.new(mix.outputs['Shader'], out.inputs['Surface'])
+    return m
+
+
+def rock_mask(x, y, seed):
+    """0..1: where limestone comes through on the slope (smooth noise patches)."""
+    from mathutils import noise
+    rk = noise.noise(Vector((x * 0.11, y * 0.16, seed * 5 + 3)))
+    return max(0.0, min(1.0, (rk - 0.18) / 0.22))
+
+
+def quarry_hill(name, x0, x1, y0, y1, height, seed=1.0):
+    """The steep slope behind the bay: rises fast from its foot (≈ 40°), flattens towards the top,
+    lumpy, with limestone outcrops (vertex attribute 'rock' 0..1, they also stand out a little)."""
+    from mathutils import noise
+    nx, ny = 180, 90
+    bm = bmesh.new()
+    rock_layer = bm.verts.layers.float.new('rock')
+    grid = []
+    for i in range(nx + 1):
+        x = x0 + (x1 - x0) * i / nx
+        col = []
+        for j in range(ny + 1):
+            y = y0 + (y1 - y0) * j / ny
+            s = (y - y0) / (y1 - y0)
+            # ends fade into the side berms / ground
+            end = min(1.0, (min(x - x0, x1 - x) / 8.0))
+            end = end * end * (3 - 2 * end)
+            prof = 1 - (1 - s) ** 1.7
+            lump = 0.9 * noise.noise(Vector((x * 0.07, y * 0.07, seed))) + 0.35 * noise.noise(Vector((x * 0.25, y * 0.25, seed * 2)))
+            rock = rock_mask(x, y, seed) * min(1.0, s * 4)  # not at the very foot
+            z = (height * prof + lump * (0.3 + s) + rock * 0.4) * end
+            v = bm.verts.new((x, y, max(0.0, z)))
+            v[rock_layer] = rock
+            col.append(v)
+        grid.append(col)
+    for i in range(nx):
+        for j in range(ny):
+            f = bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+            f.smooth = True
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    # the float layer becomes a point attribute named 'rock' (read by the shader and the grass density)
+    ob = bpy.data.objects.new(name, me)
+    return link(ob)
+
+
+def leaf_material(name, colors):
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N['Principled BSDF']
+    b.inputs['Roughness'].default_value = 0.75
+    try:
+        b.inputs['Subsurface Weight'].default_value = 0.1
+    except KeyError:
+        pass
+    oi = N.new('ShaderNodeObjectInfo')
+    ramp = N.new('ShaderNodeValToRGB')
+    els = ramp.color_ramp.elements
+    els[0].color = hex_rgba(colors[0])
+    els[1].color = hex_rgba(colors[-1])
+    for i, c in enumerate(colors[1:-1], 1):
+        els.new(i / (len(colors) - 1)).color = hex_rgba(c)
+    L.new(oi.outputs['Random'], ramp.inputs['Fac'])
+    # leaves: fine clumps, dark gaps between them
+    nz = N.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 28
+    nz.inputs['Detail'].default_value = 6
+    tc = N.new('ShaderNodeTexCoord')
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    mr = N.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = 0.35
+    mr.inputs['From Max'].default_value = 0.7
+    mr.inputs['To Min'].default_value = 0.25
+    mr.inputs['To Max'].default_value = 1.25
+    L.new(nz.outputs['Fac'], mr.inputs['Value'])
+    mul = N.new('ShaderNodeMix')
+    mul.data_type = 'RGBA'
+    mul.blend_type = 'MULTIPLY'
+    mul.inputs['Factor'].default_value = 1.0
+    L.new(ramp.outputs['Color'], mul.inputs['A'])
+    cc = N.new('ShaderNodeCombineColor')
+    for ch in ('Red', 'Green', 'Blue'):
+        L.new(mr.outputs['Result'], cc.inputs[ch])
+    L.new(cc.outputs['Color'], mul.inputs['B'])
+    L.new(mul.outputs['Result'], b.inputs['Base Color'])
+    bump = N.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 1.0
+    L.new(nz.outputs['Fac'], bump.inputs['Height'])
+    L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    return m
+
+
+def blob(name, loc, radius, mat, squash=0.8, seed=0.0):
+    """A bush / tree crown: a lumpy sphere."""
+    from mathutils import noise
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=radius, location=loc)
+    ob = bpy.context.active_object
+    ob.name = name
+    for v in ob.data.vertices:
+        p = v.co / radius
+        n = 0.3 * noise.noise(Vector((p.x * 1.6 + seed, p.y * 1.6, p.z * 1.6))) + 0.16 * noise.noise(Vector((p.x * 5 + seed, p.y * 5, p.z * 5))) + 0.07 * noise.noise(Vector((p.x * 13, p.y * 13 + seed, p.z * 13)))
+        v.co *= 1 + n
+        v.co.z *= squash
+    ob.data.materials.append(mat)
+    bpy.ops.object.shade_smooth()
+    return ob
+
+
+def height_at(ob, x, y):
+    """Surface height of a heightfield object at (x, y) (ray from above)."""
+    from mathutils import Vector as V
+    hit, loc, *_ = ob.ray_cast(V((x, y, 200)), V((0, 0, -1)))
+    return loc.z if hit else 0.0
+
+
+AUTUMN = ['#3d4a1e', '#56602a', '#6f6a2c', '#7d6328', '#9a7a34', '#465222']
+GOLDEN = ['#b8a26a', '#cdb880', '#dccb98', '#c0aa70', '#e6d7a8', '#a8935c']
+TREE = ['#3f4f22', '#556229', '#6b6a2e', '#7d6a2c', '#465426']
+
+
+def outdoor_quarry():
+    """Outdoor 05 (like the Slovak Open): bright limestone gravel bay, dry earth berms with grass on
+    the sides, behind it a high steep hillside — dry grass, bushes, limestone outcrops, trees on top."""
+    rnd = random.Random(7)
+    outdoor_world('countrytrax_midday', 1.0, sun_azimuth=math.radians(SUN['outdoor_05'][0]))
+    LIME = ('Gravel041', '#fffdf8', 2.0, 0.35, 1.5)
+    ground(terrain_material('ground', {'base': LIME, 'dirt': DIRT}, patch=('dirt', 0.2, 0.05)))
+    soil = terrain_material('berm', {'base': ('Ground048', '#f2e6cc', 2.6, 0.4, 1.7), 'gravel': LIME}, foot=('gravel', 0.4))
+    rock = rock_material()
+    hill = quarry_hill('hill', -42, 42, 17.5, 46, 15.0, seed=1.7)
+    hill.data.materials.append(hill_material(soil))
+    # side berms: earth with dry grass
+    berms = []
+    for s in (-1, 1):
+        # they end where the slope begins
+        berms.append(ridge('side_berm', (s * 12.5, 4, 0), 25, 7, 2.6, soil, rot_z=math.pi / 2, seed=3.1 + s))
+    # dry grass on the slope (not on the rock) and the berms; a few tufts in the bay
+    grass_patch('hill_grass', None, 700, 0.32, GOLDEN, patchy=0.18, seed=21, emitter=hill, root=0.8)
+    # no grass on the rock; the slope is seen from the front, its grid is fine enough as it is
+    vg = hill.vertex_groups['density']
+    rock_attr = hill.data.attributes['rock'].data
+    for v in hill.data.vertices:
+        vg.add([v.index], vg.weight(v.index) * max(0.0, 1 - 2 * rock_attr[v.index].value), 'REPLACE')
+    ps = hill.particle_systems[-1]
+    ps.vertex_group_density = ''
+    ps.vertex_group_density = 'density'
+    del hill['grass_patchy']
+    for i, ob in enumerate(berms):
+        grass_patch(f'berm_grass{i}', None, 450, 0.24, GOLDEN, patchy=0.4, seed=31 + i, emitter=ob, root=0.8)
+    grass_patch('ground_grass', (-11, 11, 0, 16), 18, 0.09, GOLDEN, patchy=0.97, seed=5, root=0.7)
+    # bushes on the slope and along its foot, trees on the top
+    bush = leaf_material('bush', AUTUMN)
+    tree = leaf_material('tree', TREE)
+    bark = material('bark', '#4a3f33', rough=0.9)
+    for i in range(170):
+        x = rnd.uniform(-38, 38)
+        y = rnd.uniform(19, 42)
+        z = height_at(hill, x, y)
+        if z < 0.3:
+            continue
+        r = rnd.uniform(0.35, 1.0)
+        blob(f'bush{i}', (x, y, z + r * 0.45), r, bush, squash=rnd.uniform(0.65, 0.9), seed=i * 1.3)
+    for i in range(26):
+        x = rnd.uniform(-40, 40)
+        y = rnd.uniform(40, 46)
+        z = height_at(hill, x, y)
+        h = rnd.uniform(4, 8)
+        cylinder(f'trunk{i}', 0.18, h * 0.6, (x, y, z + h * 0.3), (0, 0, 0), bark, verts=8)
+        blob(f'crown{i}', (x, y, z + h * 0.7), rnd.uniform(1.8, 3.0), tree, squash=1.1, seed=i * 2.1)
+    # limestone boulders where the rock comes through: rough, half sunk into the slope
+    from mathutils import noise
+    placed = 0
+    for i in range(2000):
+        if placed >= 70:
+            break
+        x = rnd.uniform(-38, 38)
+        y = rnd.uniform(20, 42)
+        if rock_mask(x, y, 1.7) < 0.35:
+            continue
+        z = height_at(hill, x, y)
+        r = rnd.uniform(0.8, 2.4)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=r, location=(x, y, z - r * 0.35))
+        ob = bpy.context.active_object
+        ob.name = f'boulder{placed}'
+        for v in ob.data.vertices:
+            q = v.co / r
+            # ridged noise: sharp edges and flat faces like broken limestone
+            n = 0.35 * (1 - abs(noise.noise(Vector((q.x * 1.3 + i, q.y * 1.3, q.z * 1.3))))) + 0.12 * noise.noise(Vector((q.x * 4, q.y * 4 + i, q.z * 4)))
+            v.co *= 0.75 + n
+        ob.scale = (rnd.uniform(1.0, 1.6), rnd.uniform(0.7, 1.0), rnd.uniform(0.6, 0.9))
+        ob.rotation_euler = (0, 0, rnd.uniform(0, math.tau))
+        ob.data.materials.append(rock)
+        bpy.ops.object.shade_smooth()
+        placed += 1
+    # light-grey stones along the hill's foot
+    stones(60, (-14, 14, 15, 19), 9, rock, size=(0.06, 0.25))
+
+
 PLATES.update({
+    'outdoor_05': outdoor_quarry,
     'outdoor_01': lambda: outdoor_bay('outdoor_01'),
     'outdoor_02': lambda: outdoor_bay('outdoor_02'),
     'outdoor_03': outdoor_meadow,

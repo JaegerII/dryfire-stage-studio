@@ -36,8 +36,11 @@ mirroring, motion), shooter **positions** (`x`, `d`, `heading`) and **legs** bet
 previous position, `duration`, `reload`, optional `via` corner points). Par = all waits + moves + `finalTime`.
 Repetitions, reset time and standby delay as before.
 
-* **Environments:** Indoor Range 01–04 and Outdoor Berm 01–03 / Outdoor 04 (sunset, covered bays) — the same Blender
-  scenes as the former photo plates.
+* **Environments:** Indoor Range 01–04, Outdoor Berm 01–03, Outdoor 04 (sunset, covered bays) and Outdoor 05
+  (limestone hillside like the Slovak Open: bright limestone gravel, earth berms with dry grass, a steep slope with
+  bushes, rock outcrops and trees). Built-in stage *Slovak Open – Hillside* (`stage_701`) shows it off.
+* **Objects:** paper targets (full, mini, hard cover, cards, stacks, swinger), no-shoots, steel (popper, plate, rack),
+  mesh / wood walls, barrels, boxes, **car tyres** (single or two stacked — in front of a target as at many matches).
 * **Top-view editor:** plan of the range in meters next to a live 3D view (from the selected shooting box, or the
   briefing view from above).
   * **Environment** at the top of the left panel. Objects that do not fit the new room are pulled inside; outdoors the
@@ -120,6 +123,10 @@ To make a stage available for everyone, copy its exported JSON into `src/stage3d
   is baked geometry). The sky is the HDRI as a tone-mapped panorama (`sky_outdoor_0X.jpg`, `scene.background`); the
   objects are lit by the HDRI's sun (`SUN` in `scene.py`, overcast for 03) plus a sky / ground hemisphere. The grass
   colour seen from above is matched to the plates by `blender/calibrate_grass.py` (`GRASS_GAIN` in `export3d.py`).
+  Outdoor 05's steep hillside cannot be textured from above: it is rendered from the shooter's side (12° down) and
+  that picture is projected onto it (`backdrop` in `OUTDOOR`, `export3d.py`).
+* **Light on the objects outdoors:** the HDRI's sun, a sky / ground hemisphere and a shadowless fill from behind the
+  shooter (`LIGHT` in `StageScene3D.ts`), tuned so cardboard and white no-shoots read as clearly as indoors.
 * **Files:** `public/3d/*.glb` (+ `sky_*.jpg`), made by `tools/plate-renderer` → `npm run blender3d` (hall bake ≈ 20 min
   on an RTX 2060; `npm run blender3d obj:paper_full` for single objects, `npm run blender3d env:outdoor_02` for one
   outdoor range ≈ 10–30 min, `OUTDOOR_SAMPLES` sets its samples).

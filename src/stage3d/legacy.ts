@@ -53,7 +53,7 @@ export interface LegacyStage {
   meta?: { createdAt?: string; updatedAt?: string };
 }
 
-const ENV_IDS: EnvironmentId[] = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04'];
+const ENV_IDS: EnvironmentId[] = ['indoor_01', 'indoor_02', 'indoor_03', 'indoor_04', 'outdoor_01', 'outdoor_02', 'outdoor_03', 'outdoor_04', 'outdoor_05'];
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const envOf = (v: unknown, d: EnvironmentId): EnvironmentId => (typeof v === 'string' && (ENV_IDS as string[]).includes(v) ? (v as EnvironmentId) : d);
 

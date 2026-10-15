@@ -123,6 +123,7 @@ export const ENV3D = {
   outdoor_02: { label: 'Outdoor Berm 02 (evening)', kind: 'outdoor', x0: -8.4, x1: 8.4, d0: -6, d1: 15.5, height: 2.4, backstop: 0, berms: true, sun: { azimuth: -125, elevation: 20.7 } },
   outdoor_03: { label: 'Outdoor Berm 03 (overcast)', kind: 'outdoor', x0: -10.8, x1: 10.8, d0: -6, d1: 17.5, height: 4, backstop: 0, berms: true },
   outdoor_04: { label: 'Outdoor 04 (sunset, covered bays)', kind: 'outdoor', x0: -15, x1: 15, d0: -6, d1: 26, height: 3.3, backstop: 0, sun: { azimuth: 160, elevation: 3.2 } },
+  outdoor_05: { label: 'Outdoor 05 (limestone hillside)', kind: 'outdoor', x0: -8.6, x1: 8.6, d0: -6, d1: 17, height: 15, backstop: 0, berms: true, sun: { azimuth: -70, elevation: 73.5 } },
 } satisfies Record<string, Room>;
 
 export type Env3D = keyof typeof ENV3D;

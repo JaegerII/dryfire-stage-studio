@@ -45,17 +45,32 @@ const loadSky = (env: string) => {
 
 /**
  * Live light for the objects, matched by eye to each environment's bake / plates:
- * hemisphere (sky / ground colour) + key (the HDRI sun outdoors), opacity of the floor shadows.
+ * hemisphere (sky / ground colour) + key (the HDRI sun outdoors) + fill (no shadows, from behind
+ * the shooter: outdoors the light the bright ground and sky throw onto the target faces, so
+ * targets read as clearly as indoors whatever the sun does), reflections of the environment,
+ * opacity of the floor shadows.
  */
-const LIGHT: Record<Env3D, { sky: string; ground: string; hemi: number; sun: string; key: number; shadow: number }> = {
-  indoor_01: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
-  indoor_02: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
-  indoor_03: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
-  indoor_04: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
-  outdoor_01: { sky: '#d6e2f2', ground: '#8a7f68', hemi: 1.3, sun: '#fff3e0', key: 3.2, shadow: 0.55 },
-  outdoor_02: { sky: '#cdd6e4', ground: '#6f6b4c', hemi: 1.1, sun: '#ffd9ab', key: 2.8, shadow: 0.5 },
-  outdoor_03: { sky: '#e6eaee', ground: '#6c7356', hemi: 1.9, sun: '#f4f6f8', key: 0.7, shadow: 0.22 },
-  outdoor_04: { sky: '#c4c8d8', ground: '#5f5640', hemi: 1.0, sun: '#ffb46e', key: 2.4, shadow: 0.45 },
+interface Light {
+  sky: string;
+  ground: string;
+  hemi: number;
+  sun: string;
+  key: number;
+  fill: number;
+  env: number;
+  shadow: number;
+}
+const INDOOR: Light = { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, fill: 0, env: 0.5, shadow: 0.42 };
+const LIGHT: Record<Env3D, Light> = {
+  indoor_01: INDOOR,
+  indoor_02: INDOOR,
+  indoor_03: INDOOR,
+  indoor_04: INDOOR,
+  outdoor_01: { sky: '#d6e2f2', ground: '#8a7f68', hemi: 1.3, sun: '#fff3e0', key: 3.2, fill: 4, env: 0.8, shadow: 0.55 },
+  outdoor_02: { sky: '#cdd6e4', ground: '#6f6b4c', hemi: 1.1, sun: '#ffd9ab', key: 2.8, fill: 3.5, env: 0.8, shadow: 0.5 },
+  outdoor_03: { sky: '#e6eaee', ground: '#6c7356', hemi: 1.9, sun: '#f4f6f8', key: 0.7, fill: 2.5, env: 0.8, shadow: 0.22 },
+  outdoor_05: { sky: '#d6e2f2', ground: '#a39c8c', hemi: 1.3, sun: '#fff3e0', key: 3.2, fill: 4, env: 0.8, shadow: 0.55 },
+  outdoor_04: { sky: '#c4c8d8', ground: '#5f5640', hemi: 1.0, sun: '#ffb46e', key: 2.4, fill: 6, env: 0.8, shadow: 0.45 },
 };
 /** A sun just above the horizon (outdoor_04) would smear the shadow map across the whole bay. */
 const MIN_SUN_ELEVATION = 12;
@@ -262,7 +277,10 @@ export class StageScene3D {
       key.shadow.radius = 4;
       this.key = key;
       this.hemi = new THREE.HemisphereLight();
-      this.scene.add(this.hemi, key, key.target, this.stageGroup);
+      // fill: from behind the shooter and a little above, no shadows
+      this.fill = new THREE.DirectionalLight('#ffffff', 0);
+      this.fill.position.set(0, 0.45, 1);
+      this.scene.add(this.hemi, this.fill, key, key.target, this.stageGroup);
     }
     // reflections / ambient: the sky outdoors, a neutral room indoors
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -275,6 +293,13 @@ export class StageScene3D {
     this.hemi!.intensity = light.hemi;
     this.key!.color.set(light.sun);
     this.key!.intensity = light.key;
+    this.fill!.color.set(light.sky);
+    this.fill!.intensity = light.fill;
+    this.envIntensity = light.env;
+    this.stageGroup.traverse((n) => {
+      const m = (n as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (m && 'envMapIntensity' in m) m.envMapIntensity = light.env;
+    });
     // the sun's direction (towards the sun); indoors and overcast: from above, slightly from behind-left
     const s = room.sun;
     const el = Math.max(MIN_SUN_ELEVATION, s?.elevation ?? 0) * DEG;
@@ -285,6 +310,9 @@ export class StageScene3D {
   }
 
   private hemi: THREE.HemisphereLight | null = null;
+  private fill: THREE.DirectionalLight | null = null;
+  /** Reflections / ambient of the environment map on the objects. */
+  private envIntensity = 0.5;
   private sunDir = new THREE.Vector3(-2, 12, 5).normalize();
 
   /** The key light's shadow covers the stage. */
@@ -345,7 +373,7 @@ export class StageScene3D {
         // mirrored objects turn their faces inside out
         if (o.flip) mat.side = THREE.DoubleSide;
         if (mat.map) mat.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-        mat.envMapIntensity = 0.5;
+        mat.envMapIntensity = this.envIntensity;
       });
       g.userData.objectId = o.id;
       group.add(g);

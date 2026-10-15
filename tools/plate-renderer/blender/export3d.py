@@ -337,6 +337,9 @@ OUTDOOR = {
     'outdoor_02': dict(near=(-28, 28, -10, 26)),
     'outdoor_03': dict(near=(-36, 36, -12, 36)),
     'outdoor_04': dict(near=(-32, 32, -10, 40), structures=('roof', 'fascia', 'post', 'bench')),
+    # the steep hillside (with its grass, bushes, rocks and trees) is seen from the shooter's side:
+    # rendered from there and projected onto it, instead of from above
+    'outdoor_05': dict(near=(-30, 30, -10, 22), backdrop=dict(names=('hill', 'boulder', 'bush', 'trunk', 'crown'), tilt=12, px=8192)),
 }
 # From eye height (the plates) grass blades are seen side-on, sunlit, with a sky sheen; from straight above
 # the camera looks into the darker turf. Grass colour × these gains (and no root darkening) gives the ground
@@ -347,6 +350,7 @@ GRASS_GAIN = {
     'outdoor_02': (1.5, 1.5, 1.8),
     'outdoor_03': (2.06, 1.92, 2.8),
     'outdoor_04': (1.55, 1.5, 2.24),
+    'outdoor_05': (1.5, 1.5, 1.8),
 }
 MID = (-210, 210, -195, 225)
 FAR = (-2000, 2000, -2000, 3950)
@@ -361,13 +365,26 @@ TILE = 2048  # a whole 8K frame does not fit the 6 GB GPU next to the grass: ren
 OVERLAP = 48  # … each with a margin that is cropped away again (pixel filter, adaptive sampling): no seams
 
 
-def render_rect(rect, rx, ry, path, samples):
-    """One orthographic render straight down onto `rect` (x0, x1, y0, y1 m) at rx × ry pixels."""
+def front_basis(tilt):
+    """Image axes of a camera looking downrange (+Y), `tilt` degrees down: right = +X, up, view direction."""
+    a = math.radians(tilt)
+    return (0.0, math.sin(a), math.cos(a)), (0.0, math.cos(a), -math.sin(a))
+
+
+def render_rect(rect, rx, ry, path, samples, tilt=None):
+    """One orthographic render onto `rect` (x0, x1, y0, y1 m in the image plane) at rx × ry pixels:
+    straight down (image plane = ground), or with `tilt` looking downrange, tilted that many degrees down."""
     sc = bpy.context.scene
     x0, x1, y0, y1 = rect
     camd = bpy.data.cameras.new('top')
     cam = S.link(bpy.data.objects.new('top', camd))
-    cam.location = ((x0 + x1) / 2, (y0 + y1) / 2, 300)
+    if tilt is None:
+        cam.location = ((x0 + x1) / 2, (y0 + y1) / 2, 300)
+    else:
+        up, view = front_basis(tilt)
+        cs, ct = (x0 + x1) / 2, (y0 + y1) / 2
+        cam.location = (cs, up[1] * ct - view[1] * 200, up[2] * ct - view[2] * 200)
+        cam.rotation_euler = (math.pi / 2 - math.radians(tilt), 0, 0)
     camd.type = 'ORTHO'
     camd.ortho_scale = max(x1 - x0, y1 - y0)
     camd.sensor_fit = 'AUTO'
@@ -393,15 +410,16 @@ def render_rect(rect, rx, ry, path, samples):
     bpy.data.objects.remove(cam)
 
 
-def render_top(rect, px, path, samples):
-    """The ground of `rect` from straight above; px = pixels along the longer side. Returns the image."""
+def render_top(rect, px, path, samples, tilt=None):
+    """The ground of `rect` from straight above (or the front view, see render_rect); px = pixels along
+    the longer side. Returns the image."""
     import numpy as np
     x0, x1, y0, y1 = rect
     mpp = max(x1 - x0, y1 - y0) / px
     W, H = round((x1 - x0) / mpp), round((y1 - y0) / mpp)
     nx, ny = math.ceil(W / TILE), math.ceil(H / TILE)
     if nx * ny == 1:
-        render_rect(rect, W, H, path, samples)
+        render_rect(rect, W, H, path, samples, tilt)
         return bpy.data.images.load(path)
     out = np.zeros((H, W, 4), dtype=np.float32)
     for i in range(nx):
@@ -410,7 +428,7 @@ def render_top(rect, px, path, samples):
             a0, a1, b0, b1 = i * W // nx, (i + 1) * W // nx, j * H // ny, (j + 1) * H // ny
             pa0, pa1, pb0, pb1 = max(0, a0 - OVERLAP), min(W, a1 + OVERLAP), max(0, b0 - OVERLAP), min(H, b1 + OVERLAP)
             tile = path.replace('.jpg', f'_{i}{j}.jpg')
-            render_rect((x0 + pa0 * mpp, x0 + pa1 * mpp, y0 + pb0 * mpp, y0 + pb1 * mpp), pa1 - pa0, pb1 - pb0, tile, samples)
+            render_rect((x0 + pa0 * mpp, x0 + pa1 * mpp, y0 + pb0 * mpp, y0 + pb1 * mpp), pa1 - pa0, pb1 - pb0, tile, samples, tilt)
             im = bpy.data.images.load(tile)
             px_ = np.empty((pb1 - pb0) * (pa1 - pa0) * 4, dtype=np.float32)
             im.pixels.foreach_get(px_)
@@ -479,6 +497,19 @@ def uv_rect(ob, rect):
     for lp in me.loops:
         co = me.vertices[lp.vertex_index].co
         uv.data[lp.index].uv = ((co.x - x0) / (x1 - x0), (co.y - y0) / (y1 - y0))
+    use_only_uv(ob, 'bake')
+
+
+def uv_front(ob, rect, tilt):
+    """UVs of the front view (render_rect with `tilt`): s = x, t = height in the tilted image plane."""
+    up, _ = front_basis(tilt)
+    s0, s1, t0, t1 = rect
+    me = ob.data
+    uv = me.uv_layers.new(name='bake')
+    for lp in me.loops:
+        co = me.vertices[lp.vertex_index].co
+        t = co.y * up[1] + co.z * up[2]
+        uv.data[lp.index].uv = ((co.x - s0) / (s1 - s0), (t - t0) / (t1 - t0))
     use_only_uv(ob, 'bake')
 
 
@@ -553,9 +584,26 @@ def export_outdoor(pid):
     for ps in bpy.data.particles:
         ps.render_step = 2
 
-    berms = [o for o in meshes() if any(s.material and base_name(s.material) == 'berm' for s in o.material_slots)]
+    bd = cfg.get('backdrop')
+    backdrop = [o for o in meshes() if bd and any(base_name(o).startswith(n) for n in bd['names'])]
+    berms = [o for o in meshes() if o not in backdrop and any(s.material and base_name(s.material) == 'berm' for s in o.material_slots)]
     structures = [o for o in meshes() if base_name(o) in cfg.get('structures', ())]
-    apply_transforms(berms + structures)
+    apply_transforms(berms + structures + backdrop)
+
+    # backdrop (the hillside) from the shooter's side, before the grass is set up for the views from above;
+    # everything else is hidden from that camera (still casts its shadows)
+    if backdrop:
+        up, _ = front_basis(bd['tilt'])
+        ts = [(o.matrix_world @ v.co) for o in backdrop for v in o.data.vertices]
+        tvals = [p.y * up[1] + p.z * up[2] for p in ts]
+        xs = [p.x for p in ts]
+        bd_rect = (min(xs) - 0.5, max(xs) + 0.5, min(tvals) - 0.5, max(tvals) + 0.5)
+        hidden = [o for o in meshes() if o not in backdrop and o.visible_camera]
+        for o in hidden:
+            o.visible_camera = False
+        bd_img = render_top(bd_rect, bd['px'], os.path.join(BAKE_DIR, f'env_{pid}_backdrop.jpg'), OUTDOOR_SAMPLES, tilt=bd['tilt'])
+        for o in hidden:
+            o.visible_camera = True
     originals = refine_grass()
     grass_gain(GRASS_GAIN[pid])
 
@@ -593,6 +641,16 @@ def export_outdoor(pid):
         ob.data.materials.clear()
         ob.data.materials.append(baked_material('baked_berms', imgs['near'], rough=1.0))
         uv_rect(ob, near)
+        parts.append(ob)
+
+    if backdrop:
+        for o in backdrop:
+            for m in list(o.modifiers):
+                o.modifiers.remove(m)
+        ob = join(backdrop, 'backdrop')
+        ob.data.materials.clear()
+        ob.data.materials.append(baked_material('baked_backdrop', bd_img, rough=1.0))
+        uv_front(ob, bd_rect, bd['tilt'])
         parts.append(ob)
 
     parts += [

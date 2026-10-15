@@ -41,6 +41,8 @@ import bannerForthTraceWhite from './realistic/banner_forth_trace_white.webp';
 import bannerWestArms from './realistic/banner_west_arms.webp';
 import crate from './realistic/crate.webp';
 import crateWide from './realistic/crate_wide.webp';
+import tire from './realistic/tire.webp';
+import tireStack from './realistic/tire_stack.webp';
 import startBox from './other/start_box.svg';
 
 export type AssetCategory = 'target' | 'barrier' | 'banner' | 'other';
@@ -101,6 +103,8 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   banner_west_arms: { type: 'banner_west_arms', category: 'banner', label: 'Banner West Arms', src: bannerWestArms, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
+  tire: { type: 'tire', category: 'other', label: 'Car tyre', src: tire, viewW: 76, viewH: 36, groundY: 32, scoring: false },
+  tire_stack: { type: 'tire_stack', category: 'other', label: 'Car tyres (2 stacked)', src: tireStack, viewW: 76, viewH: 56, groundY: 52, scoring: false },
   crate_wide: { type: 'crate_wide', category: 'other', label: 'Box wide (120 cm)', src: crateWide, viewW: 136, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
 };
 
