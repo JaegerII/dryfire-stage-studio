@@ -101,6 +101,103 @@ export const footprintOf = (type: string): Promise<Footprint | null> => {
   return footprints.get(type)!;
 };
 
+/** Points every `step` m along a path (three.js floor coordinates: x, z = −d). */
+const evenly = (path: { x: number; d: number }[], step: number) => {
+  const raw = path.map((p) => new THREE.Vector2(p.x, -p.d));
+  const out: THREE.Vector2[] = [];
+  for (let i = 0; i < raw.length - 1; i++) {
+    const n = Math.max(1, Math.ceil(raw[i].distanceTo(raw[i + 1]) / step));
+    for (let k = 0; k < n; k++) out.push(raw[i].clone().lerp(raw[i + 1], k / n));
+  }
+  out.push(raw[raw.length - 1].clone());
+  return out;
+};
+
+/** A lath lying on the floor along a line: top and both sides (w wide, h high). */
+const stripGeometry = (line: THREE.Vector2[], w: number, h: number) => {
+  const pos: number[] = [];
+  const idx: number[] = [];
+  line.forEach((p, i) => {
+    const q = line[Math.min(i + 1, line.length - 1)];
+    const o = line[Math.max(i - 1, 0)];
+    const t = q.clone().sub(o).normalize();
+    const nx = -t.y * (w / 2);
+    const nz = t.x * (w / 2);
+    // 4 vertices per point: left bottom, left top, right top, right bottom
+    pos.push(p.x + nx, 0, p.y + nz, p.x + nx, h, p.y + nz, p.x - nx, h, p.y - nz, p.x - nx, 0, p.y - nz);
+    if (i > 0) {
+      const a = (i - 1) * 4;
+      const b = i * 4;
+      for (const [u, v] of [[0, 1], [1, 2], [2, 3]]) idx.push(a + u, b + u, a + v, a + v, b + u, b + v);
+    }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+};
+
+/** Flat band between two lines (gravel), UVs in meters. */
+const ribbonGeometry = (a: THREE.Vector2[], b: THREE.Vector2[], y: number) => {
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  let run = 0;
+  a.forEach((p, i) => {
+    if (i > 0) run += p.distanceTo(a[i - 1]);
+    pos.push(p.x, y, p.y, b[i].x, y, b[i].y);
+    uv.push(0, run, p.distanceTo(b[i]), run);
+    if (i > 0) {
+      const k = (i - 1) * 2;
+      idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
+    }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+};
+
+let walkway: { slat: THREE.Material; gravel: THREE.Material } | null = null;
+/** Red painted slats; light gravel (a small generated texture, repeats every 40 cm). */
+const walkwayMaterials = () => {
+  if (walkway) return walkway;
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#b9b3a6';
+  ctx.fillRect(0, 0, 256, 256);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 2600; i++) {
+    const x = rnd() * 256;
+    const y = rnd() * 256;
+    const r = 1.5 + rnd() * 4.5;
+    const v = 150 + rnd() * 95;
+    ctx.fillStyle = `rgb(${v}, ${v - 6}, ${v - 16})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * (0.6 + rnd() * 0.4), rnd() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(40, 36, 30, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x + r * 0.35, y + r * 0.35, r * 0.9, r * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1 / 0.4, 1 / 0.4);
+  tex.anisotropy = 8;
+  walkway = {
+    slat: new THREE.MeshStandardMaterial({ color: '#b02a22', roughness: 0.75 }),
+    gravel: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  };
+  return walkway;
+};
+
 interface Mover {
   o: StageObject3D;
   node: THREE.Object3D;
@@ -401,6 +498,10 @@ export class StageScene3D {
       group.add(box);
     }
 
+    // ---- walkways: red wooden slats along every move (outdoors with gravel in between)
+    const outdoor = roomOf(stage.environment).kind === 'outdoor';
+    stage.legs.forEach((_, i) => this.makeWalkway(legPath(stage, i), outdoor, group));
+
     // ---- briefing arrows along the legs
     this.arrows = stage.legs.map((_, i) => this.makeArrow(legPath(stage, i), group));
 
@@ -417,6 +518,41 @@ export class StageScene3D {
     this.scene.add(group);
     this.stage = stage;
     this.movers = movers;
+  }
+
+  /**
+   * The lane a move runs in, as at matches: two red wooden slats (5 × 3 cm) 1.2 m apart along the walked
+   * line, from the edge of one shooting box to the edge of the next; outdoors gravel between them.
+   */
+  private makeWalkway(path: { x: number; d: number }[], gravel: boolean, group: THREE.Group) {
+    const HALF = 0.6;
+    const pts = evenly(path, 0.1);
+    // leave the shooting boxes (1 × 1 m) free
+    const len = pts.length;
+    const cut = Math.min(Math.floor(len / 3), 6);
+    const lane = pts.slice(cut, len - cut);
+    if (lane.length < 2) return;
+    const side = (k: number) =>
+      lane.map((p, i) => {
+        const q = lane[Math.min(i + 1, lane.length - 1)];
+        const o = lane[Math.max(i - 1, 0)];
+        const tx = q.x - o.x;
+        const tz = q.y - o.y;
+        const n = Math.hypot(tx, tz) || 1;
+        return new THREE.Vector2(p.x + (-tz / n) * HALF * k, p.y + (tx / n) * HALF * k);
+      });
+    for (const k of [-1, 1]) {
+      const slat = new THREE.Mesh(stripGeometry(side(k), 0.05, 0.03), walkwayMaterials().slat);
+      slat.castShadow = slat.receiveShadow = true;
+      slat.userData.own = true;
+      group.add(slat);
+    }
+    if (gravel) {
+      const g = new THREE.Mesh(ribbonGeometry(side(-1), side(1), 0.006), walkwayMaterials().gravel);
+      g.receiveShadow = true;
+      g.userData.own = true;
+      group.add(g);
+    }
   }
 
   /**

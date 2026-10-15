@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_703",
+  "name": "Glockstore 270 Bay",
+  "description": "Inspired by the 270° bays of Glockstore Nashville: mobile rubber targets left, ahead and right of the shooter. Turn to both sides, move forward, reload on the second move.",
+  "environment": "indoor_01",
+  "repetitions": 5,
+  "resetTime": 5,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "start": "Hands relaxed at the sides, pistol loaded and holstered",
+  "positions": [
+    {
+      "id": "g_start",
+      "label": "START",
+      "x": 0,
+      "d": 2,
+      "heading": 0
+    },
+    {
+      "id": "g_p2",
+      "label": "P2",
+      "x": -1.8,
+      "d": 6,
+      "heading": -70
+    },
+    {
+      "id": "g_p3",
+      "label": "P3",
+      "x": 1.8,
+      "d": 7.5,
+      "heading": 70
+    }
+  ],
+  "legs": [
+    {
+      "after": 3.5,
+      "duration": 2.4,
+      "reload": false
+    },
+    {
+      "after": 3,
+      "duration": 2.6,
+      "reload": true
+    }
+  ],
+  "finalTime": 3.5,
+  "camera": {
+    "shake": 0.8
+  },
+  "objects": [
+    {
+      "id": "g_l1",
+      "type": "rubber_stand",
+      "x": -6.4,
+      "d": 3.5,
+      "yaw": -90
+    },
+    {
+      "id": "g_l1c",
+      "type": "paper_card",
+      "x": -6.4,
+      "d": 3.5,
+      "elevation": 0.95,
+      "yaw": -90
+    },
+    {
+      "id": "g_l2",
+      "type": "rubber_wall",
+      "x": -6.6,
+      "d": 6.8,
+      "yaw": -90
+    },
+    {
+      "id": "g_l2c1",
+      "type": "paper_card",
+      "x": -6.6,
+      "d": 6.5,
+      "elevation": 0.95,
+      "yaw": -90
+    },
+    {
+      "id": "g_l2ns",
+      "type": "no_shoot_overlay",
+      "x": -6.6,
+      "d": 7.1,
+      "elevation": 0.95,
+      "yaw": -90
+    },
+    {
+      "id": "g_l3",
+      "type": "rubber_stand",
+      "x": -5.8,
+      "d": 9.8,
+      "yaw": -60
+    },
+    {
+      "id": "g_l3c",
+      "type": "paper_hc_half_card",
+      "x": -5.8,
+      "d": 9.8,
+      "elevation": 0.95,
+      "yaw": -60
+    },
+    {
+      "id": "g_f1",
+      "type": "rubber_stand",
+      "x": -1.6,
+      "d": 13
+    },
+    {
+      "id": "g_f1c",
+      "type": "paper_card",
+      "x": -1.6,
+      "d": 13,
+      "elevation": 0.95
+    },
+    {
+      "id": "g_f2",
+      "type": "rubber_wall",
+      "x": 1.2,
+      "d": 14
+    },
+    {
+      "id": "g_f2c1",
+      "type": "paper_card",
+      "x": 0.9,
+      "d": 14,
+      "elevation": 0.95
+    },
+    {
+      "id": "g_f2c2",
+      "type": "paper_card",
+      "x": 1.5,
+      "d": 14,
+      "elevation": 0.95
+    },
+    {
+      "id": "g_popper",
+      "type": "steel_popper",
+      "x": 3.4,
+      "d": 12.6,
+      "motion": {
+        "kind": "fall",
+        "delay": 6.2
+      }
+    },
+    {
+      "id": "g_swinger",
+      "type": "paper_swinger",
+      "x": -0.2,
+      "d": 16.5,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.6,
+        "trigger": "g_popper",
+        "delay": 0,
+        "hiddenUntilStart": true
+      }
+    },
+    {
+      "id": "g_r1",
+      "type": "rubber_stand",
+      "x": 6.4,
+      "d": 4,
+      "yaw": 90
+    },
+    {
+      "id": "g_r1c",
+      "type": "paper_card",
+      "x": 6.4,
+      "d": 4,
+      "elevation": 0.95,
+      "yaw": 90
+    },
+    {
+      "id": "g_r2",
+      "type": "rubber_wall",
+      "x": 6.6,
+      "d": 7.6,
+      "yaw": 90
+    },
+    {
+      "id": "g_r2c1",
+      "type": "paper_card",
+      "x": 6.6,
+      "d": 7.3,
+      "elevation": 0.95,
+      "yaw": 90
+    },
+    {
+      "id": "g_r2ns",
+      "type": "no_shoot_overlay",
+      "x": 6.6,
+      "d": 7.9,
+      "elevation": 0.95,
+      "yaw": 90
+    },
+    {
+      "id": "g_r3",
+      "type": "rubber_stand",
+      "x": 5.8,
+      "d": 10.6,
+      "yaw": 60
+    },
+    {
+      "id": "g_r3c",
+      "type": "paper_hc_diagonal_card",
+      "x": 5.8,
+      "d": 10.6,
+      "elevation": 0.95,
+      "yaw": 60
+    },
+    {
+      "id": "g_wall_c",
+      "type": "wall_black",
+      "x": 0,
+      "d": 9.2
+    },
+    {
+      "id": "g_net_l",
+      "type": "mesh_wall_black_short",
+      "x": -3.4,
+      "d": 4.2,
+      "yaw": -80
+    },
+    {
+      "id": "g_net_r",
+      "type": "mesh_wall_black_short",
+      "x": 3.4,
+      "d": 4.6,
+      "yaw": 80
+    },
+    {
+      "id": "g_drum",
+      "type": "barrel_steel",
+      "x": -3.2,
+      "d": 11.2
+    }
+  ]
+}

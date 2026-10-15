@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_704",
+  "name": "Swiss Tactical Indoor",
+  "description": "Indoor tactical range with granulate bullet traps: mobile rubber walls behind black partitions. Through the window first, then around the wall on the right, steel to finish.",
+  "environment": "indoor_04",
+  "repetitions": 5,
+  "resetTime": 6,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "start": "Wrists above the shoulders, pistol loaded and holstered",
+  "positions": [
+    {
+      "id": "s_start",
+      "label": "START",
+      "x": 0,
+      "d": 0,
+      "heading": 0
+    },
+    {
+      "id": "s_p2",
+      "label": "P2",
+      "x": -2.6,
+      "d": 5.4,
+      "heading": -8
+    },
+    {
+      "id": "s_p3",
+      "label": "P3",
+      "x": 2.8,
+      "d": 7.6,
+      "heading": 12
+    }
+  ],
+  "legs": [
+    {
+      "after": 2.5,
+      "duration": 2.6,
+      "reload": false
+    },
+    {
+      "after": 3.5,
+      "duration": 3.2,
+      "reload": true,
+      "via": [
+        {
+          "x": 0,
+          "d": 4.2
+        }
+      ]
+    }
+  ],
+  "finalTime": 4,
+  "camera": {
+    "shake": 0.8
+  },
+  "objects": [
+    {
+      "id": "s_win",
+      "type": "wall_black_window",
+      "x": -2.6,
+      "d": 6.4
+    },
+    {
+      "id": "s_wall_l",
+      "type": "wall_black",
+      "x": -1.25,
+      "d": 6.4
+    },
+    {
+      "id": "s_wall_mid",
+      "type": "wall_black",
+      "x": 0.6,
+      "d": 8.4,
+      "yaw": 30
+    },
+    {
+      "id": "s_wall_r",
+      "type": "wall_black",
+      "x": 4.4,
+      "d": 9.2,
+      "yaw": -35
+    },
+    {
+      "id": "s_net_1",
+      "type": "mesh_wall_black",
+      "x": -5.2,
+      "d": 9.6,
+      "yaw": -20
+    },
+    {
+      "id": "s_rw1",
+      "type": "rubber_wall",
+      "x": -3.4,
+      "d": 13.5,
+      "yaw": -10
+    },
+    {
+      "id": "s_rw1c1",
+      "type": "paper_card",
+      "x": -3.7,
+      "d": 13.45,
+      "elevation": 0.95,
+      "yaw": -10
+    },
+    {
+      "id": "s_rw1c2",
+      "type": "paper_card",
+      "x": -3.1,
+      "d": 13.55,
+      "elevation": 0.95,
+      "yaw": -10
+    },
+    {
+      "id": "s_rs1",
+      "type": "rubber_stand",
+      "x": -1.2,
+      "d": 15.5
+    },
+    {
+      "id": "s_rs1c",
+      "type": "paper_hc_vertical_card",
+      "x": -1.2,
+      "d": 15.5,
+      "elevation": 0.95
+    },
+    {
+      "id": "s_rw2",
+      "type": "rubber_wall",
+      "x": 3.6,
+      "d": 14.5,
+      "yaw": 10
+    },
+    {
+      "id": "s_rw2c",
+      "type": "paper_card",
+      "x": 3.3,
+      "d": 14.55,
+      "elevation": 0.95,
+      "yaw": 10
+    },
+    {
+      "id": "s_rw2ns",
+      "type": "no_shoot_overlay",
+      "x": 3.9,
+      "d": 14.45,
+      "elevation": 0.95,
+      "yaw": 10
+    },
+    {
+      "id": "s_rs2",
+      "type": "rubber_stand",
+      "x": 5.6,
+      "d": 12.2,
+      "yaw": 25
+    },
+    {
+      "id": "s_rs2c",
+      "type": "paper_card",
+      "x": 5.6,
+      "d": 12.2,
+      "elevation": 0.95,
+      "yaw": 25
+    },
+    {
+      "id": "s_plate1",
+      "type": "steel_plate",
+      "x": 1.4,
+      "d": 18.5
+    },
+    {
+      "id": "s_plate2",
+      "type": "steel_plate",
+      "x": 2.6,
+      "d": 18.8
+    },
+    {
+      "id": "s_popper",
+      "type": "steel_popper",
+      "x": 4.6,
+      "d": 17.5
+    },
+    {
+      "id": "s_drum",
+      "type": "barrel_stack",
+      "x": -5.6,
+      "d": 13.8
+    },
+    {
+      "id": "s_drum2",
+      "type": "barrel_steel",
+      "x": 6.2,
+      "d": 9.8
+    }
+  ]
+}

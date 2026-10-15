@@ -816,8 +816,9 @@ def table(start=False):
     if not start:
         return
     zt = cm(h)
-    pistol(cm(-12), cm(4), zt)
-    for i, x in enumerate((18, 28)):
+    # magazines on the left, the pistol on the right (muzzle downrange)
+    pistol(cm(22), cm(4), zt)
+    for i, x in enumerate((-28, -18)):
         mag = box('mag', (cm(3.4), cm(13), cm(2.4)), (cm(x), cm(6), zt + cm(1.2)), M.mag)
         mag.rotation_euler = (0, 0, math.radians(8 - 14 * i))
         box('mag_base', (cm(3.8), cm(1.2), cm(2.8)), (cm(x) + math.sin(math.radians(8 - 14 * i)) * cm(7), cm(6) - math.cos(math.radians(8 - 14 * i)) * cm(7), zt + cm(1.4)), M.mag_base)
@@ -936,7 +937,7 @@ BUILDERS = {
     'mesh_wall_black': (lambda: black_mesh_wall(180), True),
     'mesh_wall_black_short': (lambda: black_mesh_wall(90), True),
     'wall_black': (lambda: black_wall(120), True),
-    'wall_black_window': (lambda: black_wall(120, (-30, 95, 60, 50)), True),
+    'wall_black_window': (lambda: black_wall(120, (-30, 115, 60, 55)), True),
     'barrel_steel': (barrel_steel, True),
     'barrel_stack': (barrel_stack, True),
     'barrel_lying': (barrel_lying, True),
