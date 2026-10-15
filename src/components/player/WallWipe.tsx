@@ -12,9 +12,9 @@ const SRC = { mesh: meshWall, wood: woodWall };
 
 /**
  * Area change: a barrier very close to the camera sweeps across the whole
- * screen, as if the shooter moved past it to the next position. Solid
- * backing, so the area swap behind it (at 50 %) is never visible.
- * Positioned imperatively every frame — no React render.
+ * screen, faster than the background pans (parallax), as if the shooter ran
+ * past it to the next position. The mesh is see-through: the next area is
+ * already visible behind it. Positioned imperatively every frame — no React render.
  */
 export const WallWipe = forwardRef<WallWipeHandle, { transition: AreaTransition }>(function WallWipe({ transition }, ref) {
   const root = useRef<HTMLDivElement>(null);

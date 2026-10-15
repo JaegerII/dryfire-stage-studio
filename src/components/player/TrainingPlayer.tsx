@@ -8,7 +8,7 @@ import type { Stage } from '../../types/stage';
 import { AudioEngine, STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
 import { type MatchSchedule, buildMatchSchedule, estimateMatchDuration, matchSnapshotAt } from '../../utils/matchSchedule';
 import { applyStageMotion, stageMotionData } from '../../utils/stageMotion';
-import { areaAt, areaCount, areaStage, areaTimeline, isDynamic, transitionOf } from '../../utils/areas';
+import { type AreaView, areaAt, areaCount, areaStage, areaTimeline, isDynamic, transitionOf } from '../../utils/areas';
 import { WallWipe, type WallWipeHandle } from './WallWipe';
 import { TabRecorder, downloadBlob, recordingSupported, videoFileName } from '../../utils/recorder';
 import { StageCanvas } from '../stage/StageCanvas';
@@ -97,7 +97,7 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
   const layers = useRef<(Konva.Layer | null)[]>([]);
   const nodes = useRef<Map<string, Konva.Group>[]>([]);
   const areaEls = useRef<(HTMLDivElement | null)[]>([]);
-  const shownArea = useRef(0);
+  const shownKey = useRef('0');
   const wipe = useRef<WallWipeHandle>(null);
   const boxRef = useRef(box);
   boxRef.current = box;
@@ -127,24 +127,46 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
     [areaStages],
   );
 
-  /** Shows area `k` (hides the others) and shifts it during a transition (parallax: the shooter moves). */
-  const showArea = useCallback((k: number, st: Stage, progress: number | null) => {
-    if (shownArea.current !== k) {
-      areaEls.current.forEach((el, i) => {
+  /**
+   * Shows the current area. During a transition the view pans: the old area slides out, the
+   * next one (already visible through the see-through barrier) slides in from the side the
+   * barrier comes from; the seam between the two plates is blended.
+   */
+  const showArea = useCallback((av: AreaView, st: Stage) => {
+    const els = areaEls.current;
+    const on = av.pair && av.transition !== null ? [av.pair.from, av.pair.to] : [av.area];
+    const key = on.join('>');
+    if (shownKey.current !== key) {
+      els.forEach((el, i) => {
         if (!el) return;
-        el.style.visibility = i === k ? 'visible' : 'hidden';
+        el.style.visibility = on.includes(i) ? 'visible' : 'hidden';
         el.style.transform = '';
+        el.style.zIndex = '';
+        el.style.opacity = '';
+        el.style.maskImage = el.style.webkitMaskImage = '';
       });
-      shownArea.current = k;
+      shownKey.current = key;
     }
-    const el = areaEls.current[k];
-    if (el && isDynamic(st)) {
+    if (av.pair && av.transition !== null) {
+      const p = av.transition;
+      const e = 0.5 - Math.cos(Math.PI * p) / 2; // camera pan: ease in and out
       const dir = transitionOf(st).direction === 'ltr' ? 1 : -1;
       const W = boxRef.current.width;
-      const off = progress === null ? 0 : progress < 0.5 ? dir * 0.12 * W * (progress / 0.5) : -dir * 0.12 * W * (1 - (progress - 0.5) / 0.5);
-      el.style.transform = off ? `translate3d(${off}px,0,0)` : '';
+      const from = els[av.pair.from];
+      const to = els[av.pair.to];
+      // the barrier moves left → right, so the shooter moves to the left: the next area comes in from the left
+      if (from) from.style.transform = `translate3d(${dir * e * W}px,0,0)`;
+      if (to) {
+        // the incoming plate overlaps the old one by a shrinking margin and fades out over it
+        const fade = 0.18 * W * (1 - e);
+        to.style.transform = `translate3d(${-dir * (1 - e) * (W - 0.18 * W)}px,0,0)`;
+        to.style.zIndex = '1';
+        to.style.opacity = String(Math.min(1, p * 6));
+        const m = `linear-gradient(to ${dir > 0 ? 'right' : 'left'}, #000 calc(100% - ${fade}px), transparent)`;
+        to.style.maskImage = to.style.webkitMaskImage = m;
+      }
     }
-    wipe.current?.update(progress);
+    wipe.current?.update(av.transition);
   }, []);
 
   // ---------------------------------------------------------------- frame loop
@@ -172,11 +194,14 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
       // dynamic stage: which area is on screen, and is a barrier passing right now?
       const activeWindow = rs.phase === 'active' || (rs.phase === 'reset' && rs.sinceStart < st.parTime + 1);
       const av = areaAt(st, timelines[seg.stageIndex], rs.sinceStart, activeWindow);
-      showArea(av.area, st, av.transition);
-      // each area's targets run on that area's own clock (from the moment it appears)
-      const local = { ...rs, sinceStart: rs.sinceStart - av.areaStart };
-      const m = nodes.current[av.area];
-      if (m && applyStageMotion(areaStage(st, av.area), motionData[seg.stageIndex][av.area], local, m, boxRef.current)) layers.current[av.area]?.batchDraw();
+      showArea(av, st);
+      // each area's targets run on that area's own clock (from the moment it appears); during a pan both are on screen
+      const visible = av.pair && av.transition !== null ? [[av.pair.from, av.pair.fromStart], [av.pair.to, av.pair.toStart]] : [[av.area, av.areaStart]];
+      for (const [k, start] of visible) {
+        const m = nodes.current[k];
+        const local = { ...rs, sinceStart: rs.sinceStart - start };
+        if (m && applyStageMotion(areaStage(st, k), motionData[seg.stageIndex][k], local, m, boxRef.current)) layers.current[k]?.batchDraw();
+      }
     }
     raf.current = requestAnimationFrame(tick);
   }, [stages, motionData, timelines, showArea, finishRecording]);
@@ -271,7 +296,7 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
     engine.current?.stopAll();
     schedule.current = null;
     const st = stages[0];
-    if (st) showArea(0, st, null);
+    if (st) showArea({ area: 0, areaStart: 0, transition: null }, st);
     setStatus('setup');
     setScene('stage');
     setStageIndex(0);

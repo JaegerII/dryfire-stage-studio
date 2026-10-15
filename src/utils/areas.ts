@@ -58,18 +58,21 @@ export const areaTimeline = (s: Stage): TimelinePart[] => {
 };
 
 export interface AreaView {
-  /** The area to show (during a transition: the one behind the barrier at this moment). */
+  /** The area that counts as current (during a transition: the old one until 50 %, then the new one). */
   area: number;
   /** When that area's own clock started (seconds after the beep) — motion runs on it. */
   areaStart: number;
   /** 0..1 progress of a running transition, null otherwise. */
   transition: number | null;
+  /** During a transition both areas are on screen (the view pans from one to the next). */
+  pair?: { from: number; fromStart: number; to: number; toStart: number };
 }
 
 /**
  * What the screen shows `sinceStart` seconds after the beep. Outside the
  * par window (`active` false) the stage shows area 1 — the start position.
- * The swap happens at the middle of a transition, when the barrier covers the screen.
+ * During a transition the view pans from one area to the next (`pair`);
+ * `area` switches to the new one at 50 %.
  */
 export const areaAt = (s: Stage, parts: TimelinePart[], sinceStart: number, active: boolean): AreaView => {
   if (!active || !isDynamic(s)) return { area: 0, areaStart: 0, transition: null };
@@ -78,7 +81,9 @@ export const areaAt = (s: Stage, parts: TimelinePart[], sinceStart: number, acti
     if (p.kind === 'area') return { area: p.area, areaStart: p.start, transition: null };
     const prog = Math.max(0, (sinceStart - p.start) / (p.end - p.start));
     // the next area's clock starts when the transition ends (its targets appear "as you arrive")
-    return prog < 0.5 ? { area: p.from, areaStart: parts.find((q) => q.kind === 'area' && q.area === p.from)!.start, transition: prog } : { area: p.to, areaStart: p.end, transition: prog };
+    const fromStart = parts.find((q) => q.kind === 'area' && q.area === p.from)!.start;
+    const pair = { from: p.from, fromStart, to: p.to, toStart: p.end };
+    return prog < 0.5 ? { area: p.from, areaStart: fromStart, transition: prog, pair } : { area: p.to, areaStart: p.end, transition: prog, pair };
   }
   const last = parts[parts.length - 1];
   return { area: last.kind === 'area' ? last.area : last.to, areaStart: last.start, transition: null };

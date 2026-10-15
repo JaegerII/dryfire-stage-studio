@@ -299,12 +299,11 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 /* dynamic stages: one layer per area, a barrier sweeps across on an area change */
 .stage-layer > .area-layer { position: absolute; inset: 0; will-change: transform; }
 .wall-wipe { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
-.wall-strip { position: absolute; top: -14%; height: 128%; display: flex; will-change: transform;
-  background: #17110c; box-shadow: 0 0 8cqh 4cqh rgba(0, 0, 0, 0.55); filter: blur(0.35cqh) brightness(0.92); }
+/* close to the camera: slightly out of focus; the mesh stays see-through, so the next area is visible behind it */
+.wall-strip { position: absolute; top: -14%; height: 128%; display: flex; will-change: transform; filter: blur(0.3cqh) brightness(0.95) drop-shadow(0 0 3cqh rgba(0, 0, 0, 0.45)); }
 .wall-strip img { height: 100%; width: auto; flex: none; display: block; }
 /* the mesh panel image has empty space beside its posts: overlap the panels into one continuous fence */
 .wall-strip.mesh img + img { margin-left: -23cqh; }
-.wall-strip.mesh { background: linear-gradient(180deg, #1d1610, #0e0a07); }
 .stage-layer.push-in { animation: push-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes push-in {
   from { opacity: 0; transform: scale(0.86); }

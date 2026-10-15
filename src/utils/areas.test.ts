@@ -34,8 +34,10 @@ describe('dynamic stage areas', () => {
     const s = dyn();
     const parts = areaTimeline(s);
     expect(areaAt(s, parts, 1, true)).toEqual({ area: 0, areaStart: 0, transition: null });
-    expect(areaAt(s, parts, 3.5, true)).toEqual({ area: 0, areaStart: 0, transition: 0.25 });
-    expect(areaAt(s, parts, 4.5, true)).toEqual({ area: 1, areaStart: 5, transition: 0.75 });
+    const pair = { from: 0, fromStart: 0, to: 1, toStart: 5 };
+    expect(areaAt(s, parts, 3.5, true)).toEqual({ area: 0, areaStart: 0, transition: 0.25, pair });
+    expect(areaAt(s, parts, 4.5, true)).toEqual({ area: 1, areaStart: 5, transition: 0.75, pair });
+    expect(areaAt(s, parts, 10, true).pair).toEqual({ from: 1, fromStart: 5, to: 2, toStart: 11 });
     expect(areaAt(s, parts, 6, true)).toEqual({ area: 1, areaStart: 5, transition: null });
     expect(areaAt(s, parts, 15, true).area).toBe(2);
     // after the end beep ("TIME") the last area stays
