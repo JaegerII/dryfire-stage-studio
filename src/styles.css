@@ -369,6 +369,69 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .p3-opt { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
 .p3-info { padding: 0 14px 10px; background: var(--sunken); color: var(--faint); font-size: 11.5px; }
 
+/* ================================================================ 3D stage editor (top view + live 3D) */
+.editor3d {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr) 310px;
+  grid-template-rows: 58px minmax(0, 1fr);
+  grid-template-areas: 'bar bar bar' 'lib center props';
+  height: 100vh;
+}
+.editor3d .toolbar { grid-area: bar; }
+.editor3d .library { grid-area: lib; border-right: 1px solid var(--line); }
+.editor3d .properties { grid-area: props; border-left: 1px solid var(--line); }
+.e3d-center { grid-area: center; position: relative; display: grid; grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.4fr); min-height: 0; background: var(--sunken); }
+.p3d-props h3 { font-size: 16px; letter-spacing: 0; text-transform: none; color: var(--text); margin: 4px 0 12px; }
+.p3d-help { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.55; font-size: 12px; display: grid; gap: 4px; }
+
+.plan-wrap { position: relative; min-height: 0; border-right: 1px solid var(--line); }
+.plan-wrap.placing .plan { cursor: crosshair; }
+.plan { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; cursor: grab; }
+.plan-floor { fill: #1a1c1b; }
+.plan-wall { fill: none; stroke: #5a625b; stroke-width: 0.12; }
+.plan .g1 { stroke: rgba(237, 237, 230, 0.05); stroke-width: 0.02; }
+.plan .g5 { stroke: rgba(237, 237, 230, 0.13); stroke-width: 0.03; }
+.plan-dist { font: 700 0.32px var(--font); fill: var(--faint); }
+.plan-note { font: 800 0.38px var(--font); fill: var(--faint); letter-spacing: 0.08px; text-anchor: middle; }
+.plan-obj { cursor: move; }
+.plan-obj .hit { fill: transparent; }
+.plan-obj .body { stroke: rgba(0, 0, 0, 0.6); stroke-width: 0.025; }
+.plan-obj .front { stroke: #ff3131; stroke-width: 0.06; stroke-linecap: round; }
+.plan-obj.sel .body { stroke: #fff; stroke-width: 0.06; }
+.plan-obj:hover .body { stroke: rgba(255, 255, 255, 0.55); }
+.plan-obj-label { font: 800 0.26px var(--font); fill: var(--sage); text-anchor: middle; pointer-events: none; }
+.rot-handle line { stroke: #ff3131; stroke-width: 0.03; stroke-dasharray: 0.08 0.06; pointer-events: none; }
+.rot-handle circle { fill: #ff3131; stroke: #fff; stroke-width: 0.04; cursor: grab; }
+.plan-pos .box { fill: rgba(43, 217, 107, 0.06); stroke: #d9d6cc; stroke-width: 0.07; cursor: move; }
+.plan-pos.start .box { stroke: #2bd96b; }
+.plan-pos.sel .box { fill: rgba(255, 49, 49, 0.12); stroke: #ff3131; }
+.plan-pos .look { stroke: #d9d6cc; stroke-width: 0.05; pointer-events: none; }
+.plan-pos .look-handle { fill: #d9d6cc; cursor: grab; }
+.plan-pos.sel .look { stroke: #ff3131; }
+.plan-pos.sel .look-handle { fill: #ff3131; }
+.plan-pos-label { font: 900 0.34px var(--font); fill: var(--text); text-anchor: middle; letter-spacing: 0.04px; pointer-events: none; }
+.plan-pos.start .plan-pos-label { fill: #2bd96b; }
+.plan-leg .leg-line { fill: none; stroke: #ff3131; stroke-width: 0.09; stroke-linejoin: round; pointer-events: none; opacity: 0.85; }
+.plan-leg .leg-hit { fill: none; stroke: transparent; stroke-width: 0.5; cursor: pointer; }
+.plan-leg.sel .leg-line { stroke-width: 0.13; opacity: 1; }
+.plan-leg .via { fill: #111; stroke: #ff3131; stroke-width: 0.05; cursor: grab; }
+.plan-leg-label { font: 800 0.27px var(--font); fill: var(--text); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: #111; stroke-width: 0.08; }
+.plan-leg-label.reload { fill: var(--standby); }
+.plan-tools { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: row-reverse; gap: 8px; align-items: center; pointer-events: none; }
+.plan-tools > * { pointer-events: auto; }
+.plan-tools .hint { font-size: 10.5px; }
+
+.preview3d { display: flex; flex-direction: column; min-height: 0; }
+.preview3d-bar { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.preview3d-area { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; }
+.preview3d-area canvas { display: block; box-shadow: 0 0 0 1px var(--line), 0 30px 80px -30px #000; }
+.e3d-center .toast { z-index: 5; }
+@media (max-width: 1250px) { .e3d-center { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 0.8fr); } .plan-wrap { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+.s3d-list li { padding: 10px 12px; }
+.s3d-icon { width: 58px; height: 40px; border-radius: 6px; display: grid; place-items: center; font-weight: 900; letter-spacing: 0.08em; color: var(--accent); background: var(--accent-soft); border: 1px solid rgba(255, 49, 49, 0.35); }
+.stages3d .page-bar select { width: auto; }
+
 /* ================================================================ training programs (PP1 / NPA) */
 .brand-btn { background: none; border: 0; padding: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; color: inherit; text-align: left; }
 .program-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; max-width: 1100px; }

@@ -27,6 +27,32 @@ const loadGlb = (url: string) => {
 
 export const assetUrl = (file: string) => new URL(`3d/${file}`, document.baseURI).href;
 
+export interface Footprint {
+  /** Bounds seen from above in the object's own frame, meters (z: + = front, towards the shooter). */
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  height: number;
+}
+
+const footprints = new Map<string, Promise<Footprint | null>>();
+
+/** Real outline of a model from above (for the top-view editor), from its glTF bounds. */
+export const footprintOf = (type: string): Promise<Footprint | null> => {
+  if (!footprints.has(type))
+    footprints.set(
+      type,
+      loadGlb(assetUrl(`obj_${type}.glb`))
+        .then((g) => {
+          const b = new THREE.Box3().setFromObject(g);
+          return { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z, height: b.max.y };
+        })
+        .catch(() => null),
+    );
+  return footprints.get(type)!;
+};
+
 interface Arrow {
   ribbon: THREE.Mesh;
   head: THREE.Mesh;
@@ -55,14 +81,23 @@ export class StageScene3D {
     this.camera.rotation.order = 'YXZ';
   }
 
+  /** Hall + stage in one go (player and video render). */
   async load(stage: Stage3D) {
-    const [env, ...objs] = await Promise.all([
-      loadGlb(assetUrl(`env_${stage.environment}.glb`)),
-      ...stage.objects.map((o) => loadGlb(assetUrl(`obj_${o.type}.glb`)).catch(() => null)),
-    ]);
-    if (this.disposed) return;
+    await this.loadEnvironment(stage.environment);
+    await this.setStage(stage);
+  }
 
-    // ---- hall: baked → unlit
+  private envLoaded = false;
+  private key: THREE.DirectionalLight | null = null;
+  private stageGroup = new THREE.Group();
+  private generation = 0;
+
+  /** The hall (baked → unlit), the light for the objects and the floor shadow catcher. Once per scene. */
+  async loadEnvironment(environment: Stage3D['environment']) {
+    if (this.envLoaded) return;
+    const env = await loadGlb(assetUrl(`env_${environment}.glb`));
+    if (this.disposed || this.envLoaded) return;
+    this.envLoaded = true;
     const hall = env.clone(true);
     hall.traverse((n) => {
       const m = n as THREE.Mesh;
@@ -75,6 +110,36 @@ export class StageScene3D {
     });
     this.scene.add(hall);
 
+    // light for the objects, matched by eye to the baked high bays (warm-neutral, from above)
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    this.scene.add(new THREE.HemisphereLight('#efede6', '#3d3b37', 1.15));
+    const key = new THREE.DirectionalLight('#fff7ec', 2.1);
+    key.castShadow = true;
+    key.shadow.mapSize.set(4096, 4096);
+    key.shadow.bias = -0.0004;
+    key.shadow.normalBias = 0.02;
+    key.shadow.radius = 4;
+    this.key = key;
+    this.scene.add(key, key.target);
+
+    // shadows of the objects on the (unlit, baked) floor
+    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(16, 34), new THREE.ShadowMaterial({ opacity: 0.42 }));
+    catcher.rotation.x = -Math.PI / 2;
+    catcher.position.set(0, 0.002, -11);
+    catcher.receiveShadow = true;
+    this.scene.add(catcher, this.stageGroup);
+  }
+
+  /** Objects, shooting boxes and path arrows of a stage — call again after every edit (the hall stays). */
+  async setStage(stage: Stage3D) {
+    const gen = ++this.generation;
+    const objs = await Promise.all(stage.objects.map((o) => loadGlb(assetUrl(`obj_${o.type}.glb`)).catch(() => null)));
+    // a newer edit arrived while the models loaded
+    if (this.disposed || gen !== this.generation) return;
+    const group = new THREE.Group();
+
     // ---- objects: lit live
     stage.objects.forEach((o, i) => {
       const src = objs[i];
@@ -82,6 +147,8 @@ export class StageScene3D {
       const g = src.clone(true);
       g.position.set(o.x, o.elevation ?? 0, -o.d);
       g.rotation.y = -(o.yaw ?? 0) * DEG;
+      const s = o.scale ?? 1;
+      g.scale.set(o.flip ? -s : s, s, s);
       g.traverse((n) => {
         const m = n as THREE.Mesh;
         if (!m.isMesh) return;
@@ -100,44 +167,14 @@ export class StageScene3D {
           mat.alphaToCoverage = true;
           mat.side = THREE.DoubleSide;
         }
+        // mirrored objects turn their faces inside out
+        if (o.flip) mat.side = THREE.DoubleSide;
         if (mat.map) mat.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
         mat.envMapIntensity = 0.5;
       });
-      this.scene.add(g);
+      g.userData.objectId = o.id;
+      group.add(g);
     });
-
-    // ---- light for the objects, matched by eye to the baked high bays (warm-neutral, from above)
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmrem.dispose();
-    this.scene.add(new THREE.HemisphereLight('#efede6', '#3d3b37', 1.15));
-    const b = stageBounds(stage);
-    const cx = (b.x0 + b.x1) / 2;
-    const cd = (b.d0 + b.d1) / 2;
-    const key = new THREE.DirectionalLight('#fff7ec', 2.1);
-    key.position.set(cx - 2, 12, -(cd - 5));
-    key.target.position.set(cx, 0, -cd);
-    key.castShadow = true;
-    key.shadow.mapSize.set(4096, 4096);
-    key.shadow.bias = -0.0004;
-    key.shadow.normalBias = 0.02;
-    key.shadow.radius = 4;
-    const sc = key.shadow.camera;
-    const half = Math.max(b.x1 - b.x0, b.d1 - b.d0) / 2 + 3;
-    sc.left = -half;
-    sc.right = half;
-    sc.top = half;
-    sc.bottom = -half;
-    sc.near = 1;
-    sc.far = 40;
-    this.scene.add(key, key.target);
-
-    // shadows of the objects on the (unlit, baked) floor
-    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(16, 34), new THREE.ShadowMaterial({ opacity: 0.42 }));
-    catcher.rotation.x = -Math.PI / 2;
-    catcher.position.set(0, 0.002, -11);
-    catcher.receiveShadow = true;
-    this.scene.add(catcher);
 
     // ---- shooting boxes: white tape squares at every position
     const tape = new THREE.MeshBasicMaterial({ color: '#d9d6cc', toneMapped: false });
@@ -152,19 +189,48 @@ export class StageScene3D {
         const strip = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tape);
         strip.rotation.x = -Math.PI / 2;
         strip.position.set(x, 0.004, z);
+        strip.userData.own = true;
         box.add(strip);
       }
       box.position.set(p.x, 0, -p.d);
       box.rotation.y = -p.heading * DEG;
-      this.scene.add(box);
+      group.add(box);
     }
 
     // ---- briefing arrows along the legs
-    stage.legs.forEach((_, i) => this.arrows.push(this.makeArrow(legPoints(stage, i))));
+    this.arrows = stage.legs.map((_, i) => this.makeArrow(legPoints(stage, i), group));
+
+    // ---- the key light's shadow covers the stage
+    if (this.key) {
+      const b = stageBounds(stage);
+      const cx = (b.x0 + b.x1) / 2;
+      const cd = (b.d0 + b.d1) / 2;
+      this.key.position.set(cx - 2, 12, -(cd - 5));
+      this.key.target.position.set(cx, 0, -cd);
+      const sc = this.key.shadow.camera;
+      const half = Math.max(b.x1 - b.x0, b.d1 - b.d0) / 2 + 3;
+      sc.left = -half;
+      sc.right = half;
+      sc.top = half;
+      sc.bottom = -half;
+      sc.near = 1;
+      sc.far = 40;
+      sc.updateProjectionMatrix();
+    }
+
+    // swap in one step: no half-built frame is ever rendered
+    this.scene.remove(this.stageGroup);
+    this.stageGroup.traverse((n) => {
+      const m = n as THREE.Mesh;
+      // clones share the cached model geometry — only free what this scene built itself
+      if (m.isMesh && m.userData.own) m.geometry.dispose();
+    });
+    this.stageGroup = group;
+    this.scene.add(group);
   }
 
   /** Flat ribbon on the floor along the path (revealed with drawRange) + an arrow head at the end. */
-  private makeArrow(pts: { x: number; d: number }[]): Arrow {
+  private makeArrow(pts: { x: number; d: number }[], group: THREE.Group): Arrow {
     const W = 0.16;
     const step = 0.05;
     const dense: THREE.Vector2[] = [];
@@ -207,7 +273,8 @@ export class StageScene3D {
     head.position.set(tip.x, 0.013, tip.y);
     head.rotation.y = Math.atan2(-dir.x, -dir.y);
     head.renderOrder = 2;
-    this.scene.add(ribbon, head);
+    ribbon.userData.own = head.userData.own = true;
+    group.add(ribbon, head);
     return { ribbon, head, total: idx.length };
   }
 
@@ -264,7 +331,8 @@ export class StageScene3D {
     this.disposed = true;
     this.scene.traverse((n) => {
       const m = n as THREE.Mesh;
-      if (m.isMesh) m.geometry.dispose();
+      // cached models are shared with other scenes (preview, render): only free our own geometry
+      if (m.isMesh && m.userData.own) m.geometry.dispose();
     });
     this.renderer.dispose();
   }

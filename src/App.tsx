@@ -14,9 +14,10 @@ import { createStage } from './utils/stageIO';
 import { matchStages } from './utils/matchUtils';
 import { TRACE_TABS, TraceApp, type TraceTab } from './trace/TraceApp';
 import { TvReceiver } from './trace/tv/TvReceiver';
+import type { Route3D } from './stage3d/Stage3DRouter';
 
-// three.js + the encoder only load when the 3D player is opened
-const Player3D = lazy(() => import('./stage3d/Player3D').then((m) => ({ default: m.Player3D })));
+// three.js + the encoder only load when a 3D page is opened
+const Stage3DRouter = lazy(() => import('./stage3d/Stage3DRouter'));
 
 /**
  * Routes (hash based, so the app works from any static host):
@@ -39,7 +40,7 @@ type View =
   | { page: 'program'; programId: string }
   | { page: 'trace'; tab: TraceTab }
   | { page: 'tv'; room?: string }
-  | { page: '3d'; stageId?: string };
+  | { page: '3d'; route: Route3D };
 
 interface Playing {
   stages: Stage[];
@@ -75,7 +76,9 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
     return { view: { page: 'trace', tab }, playing: null };
   }
   if ((m = hash.match(/^#\/tv(?:\/([A-Za-z0-9]{3,8}))?$/))) return { view: { page: 'tv', room: m[1]?.toUpperCase() }, playing: null };
-  if ((m = hash.match(/^#\/3d(?:\/(.+))?$/))) return { view: { page: '3d', stageId: m[1] && dec(m[1]) }, playing: null };
+  if ((m = hash.match(/^#\/3d\/(edit|play)\/(.+)$/))) return { view: { page: '3d', route: { kind: m[1] as 'edit' | 'play', id: dec(m[2]) } }, playing: null };
+  if ((m = hash.match(/^#\/3d\/(.+)$/))) return { view: { page: '3d', route: { kind: 'play', id: dec(m[1]) } }, playing: null };
+  if (hash === '#/3d') return { view: { page: '3d', route: { kind: 'list' } }, playing: null };
   return { view: { page: 'home' }, playing: null };
 };
 
@@ -88,7 +91,7 @@ const toHash = (view: View, playing: Playing | null) => {
   if (view.page === 'program') return `#/training/${enc(view.programId)}`;
   if (view.page === 'trace') return `#/trace/${view.tab}`;
   if (view.page === 'tv') return view.room ? `#/tv/${enc(view.room)}` : '#/tv';
-  if (view.page === '3d') return view.stageId ? `#/3d/${enc(view.stageId)}` : '#/3d';
+  if (view.page === '3d') return view.route.kind === 'list' ? '#/3d' : `#/3d/${view.route.kind}/${enc(view.route.id)}`;
   return '#/';
 };
 
@@ -148,12 +151,12 @@ export const App = () => {
           onPlayStage={playStage}
           onOpenTraining={() => go({ page: 'training' })}
           onOpenTrace={() => go({ page: 'trace', tab: 'training' })}
-          onOpen3d={() => go({ page: '3d' })}
+          onOpen3d={() => go({ page: '3d', route: { kind: 'list' } })}
         />
       )}
       {view.page === '3d' && (
         <Suspense fallback={null}>
-          <Player3D stageId={view.stageId} onExit={() => go({ page: 'home' })} />
+          <Stage3DRouter route={view.route} go={(r) => go(r === 'home' ? { page: 'home' } : { page: '3d', route: r })} />
         </Suspense>
       )}
       {view.page === 'trace' && <TraceApp tab={view.tab} onTab={(tab) => go({ page: 'trace', tab })} onStageBuilder={() => go({ page: 'home' })} />}

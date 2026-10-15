@@ -16,9 +16,13 @@ export interface StageObject3D {
   type: ObjectType;
   x: number;
   d: number;
-  /** Turn around the vertical axis in degrees; 0 = front faces the start side. */
+  /** Turn around the vertical axis in degrees (clockwise seen from above); 0 = front faces the start side. */
   yaw?: number;
   elevation?: number;
+  /** Size multiplier (1 = true size). */
+  scale?: number;
+  /** Mirror left/right (e.g. a diagonal wall sloping the other way). */
+  flip?: boolean;
 }
 
 export interface ShooterPosition {
@@ -57,7 +61,11 @@ export interface Stage3D {
   legs: Leg[];
   /** Seconds at the last position until the end beep. */
   finalTime: number;
+  meta?: { createdAt?: string; updatedAt?: string; source?: string };
 }
+
+/** The 3D hall (indoor_01): x −8..8 m, d −6..28 m, backstop at the far end. */
+export const HALL = { x0: -8, x1: 8, d0: -6, d1: 28 };
 
 /** Par time = time at every position + every move. */
 export const parTime3D = (s: Stage3D) => +(s.legs.reduce((t, l) => t + l.after + l.duration, 0) + s.finalTime).toFixed(2);

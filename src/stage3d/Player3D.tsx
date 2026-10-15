@@ -10,9 +10,6 @@ import { buildVideoTimeline, frameAt } from './timeline';
 import type { Stage3D } from './types';
 import { parTime3D } from './types';
 
-const BUILT_IN = Object.values(import.meta.glob<Stage3D>('./stages/*.json', { eager: true, import: 'default' }));
-export const stage3dById = (id?: string) => BUILT_IN.find((s) => s.id === id) ?? BUILT_IN[0];
-
 const RESOLUTIONS = { '1080p': [1920, 1080], '1440p': [2560, 1440], '4K': [3840, 2160] } as const;
 type Res = keyof typeof RESOLUTIONS;
 
@@ -23,8 +20,7 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart
  * shooter's eyes, reps with real movement between positions. Plays live with
  * sound, and renders the identical video frame by frame to MP4.
  */
-export const Player3D = ({ stageId, onExit }: { stageId?: string; onExit: () => void }) => {
-  const stage = stage3dById(stageId);
+export const Player3D = ({ stage, onExit }: { stage: Stage3D; onExit: () => void }) => {
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
   const glRef = useRef<HTMLCanvasElement>(null);
@@ -181,7 +177,7 @@ export const Player3D = ({ stageId, onExit }: { stageId?: string; onExit: () => 
     ['Briefing', 0],
     ['Fly-in', tl.briefingEnd],
     ['Rep 1', tl.flyInEnd + (tl.schedule.reps[0]?.standbyStart ?? 0) - 1],
-    ['Move', tl.flyInEnd + (tl.schedule.reps[0]?.startBeep ?? 0) + (stage.legs[0]?.after ?? 0) - 0.5],
+    ...(stage.legs.length ? ([['Move', tl.flyInEnd + (tl.schedule.reps[0]?.startBeep ?? 0) + stage.legs[0].after - 0.5]] as [string, number][]) : []),
   ];
   const eta = progress && progress.done > 0 ? ((performance.now() - progress.started) / progress.done) * (progress.total - progress.done) / 1000 : null;
 

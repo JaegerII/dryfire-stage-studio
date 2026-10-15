@@ -271,7 +271,18 @@ passes with true parallax, see-through).
 * **Stage format** (`src/stage3d/stages/*.json`): objects in meters (`x` right, `d` downrange, `yaw`), shooter
   `positions` (`x`, `d`, `heading`) and `legs` between them (`after` = seconds at the previous position, `duration`,
   `reload`, optional `via` corner points). Par = all waits + moves + `finalTime`.
-* Prototype limits: one environment (`indoor_01`), stages are edited as JSON (no top-view editor yet), no target motion.
+* **Top-view editor** (`#/3d` → Edit / + New 3D stage / *From a 2D stage…*): plan of the hall in meters next to a
+  live 3D view (from the selected shooting box, or the briefing view).
+  * Click or drag targets / walls from the library onto the plan; drag to move, the round handle behind an object turns
+    it (5° steps, Shift = free), Q / E turn by 15°, arrows nudge, Ctrl+D duplicates, Del deletes. Select a box first to
+    put a card / steel on top of it.
+  * **+ Position** (P), then click the floor: the next shooting box (START → P2 → P3 …). Drag the box, drag the handle in
+    front of it to set where the shooter looks; *Stay (s)* = time at that box.
+  * Click a path: *Go after*, *Move takes*, *Reload*. Double-click a path to add a corner point (around a wall end),
+    drag it, double-click it to remove it.
+  * Save keeps the stage in this browser; Export / Import JSON; **▶ Play / Render** plays the stage as it is in the editor.
+  * *From a 2D stage…* turns any classic stage into a 3D stage (objects go to the floor positions the 2D perspective implies).
+* Prototype limits: one environment (`indoor_01`), no target motion in 3D yet.
 
 ## FORTH TRACE · motion tracking (experimental)
 
