@@ -7,7 +7,7 @@ import { ASSETS } from '../assets/registry';
 import type { Stage } from '../types/stage';
 import { toWorld } from '../utils/perspective';
 import { newId } from '../utils/random';
-import { HALL, type Leg, SCHEMA_3D, type ShooterPosition, type Stage3D, type StageObject3D, parTime3D } from './types';
+import { type Leg, SCHEMA_3D, type ShooterPosition, type Stage3D, type StageObject3D, env3dFor, isEnv3D, parTime3D, roomOf } from './types';
 
 const RAW_BUILT_IN = Object.values(import.meta.glob<Stage3D>('./stages/*.json', { eager: true, import: 'default' }));
 // normalised on first use (normalizeStage3D and its helpers are defined further down)
@@ -109,7 +109,7 @@ export function normalizeStage3D(raw: unknown): Stage3D {
     id: typeof r.id === 'string' && r.id ? r.id : newId('stage3d'),
     name: typeof r.name === 'string' && r.name ? r.name : 'New 3D Stage',
     description: typeof r.description === 'string' ? r.description : undefined,
-    environment: 'indoor_01',
+    environment: typeof r.environment === 'string' && isEnv3D(r.environment) ? r.environment : 'indoor_01',
     repetitions: Math.max(1, Math.round(num(r.repetitions, 3))),
     resetTime: Math.max(0, num(r.resetTime, 4)),
     standbyDelay: { min: Math.max(0, num(sd.min, 1)), max: Math.max(num(sd.min, 1), num(sd.max, 2)) },
@@ -145,13 +145,17 @@ export const createStage3D = (): Stage3D => ({
 const PLATE_CAMERA_D = -2.2;
 
 /**
- * A classic 2D stage as a 3D stage: every object goes to the floor position the
- * 2D perspective implies (same maths as the 2D editor's "move in meters"), the
- * start box becomes the start position. Motion is not carried over (yet).
+ * A classic 2D stage as a 3D stage, 1:1: same environment (when it exists in 3D),
+ * every object at the floor position the 2D perspective implies (same maths as the
+ * 2D editor's "move in meters"), same turn, height, size, mirroring, groups and
+ * motion (swingers, activators, pop-ups …). The start box becomes the start position.
  */
 export const fromStage2D = (s: Stage): Stage3D => {
   const env = ENVIRONMENTS[s.environment];
-  const clampX = (x: number) => Math.max(HALL.x0 + 0.4, Math.min(HALL.x1 - 0.4, x));
+  const env3d = env3dFor(s.environment);
+  const room = roomOf(env3d);
+  const clampX = (x: number) => Math.max(room.x0 + 0.4, Math.min(room.x1 - 0.4, x));
+  const clampD = (d: number) => Math.min(room.d1 - Math.max(0.6, room.backstop), d);
   const start = s.objects.find((o) => o.type === 'start_box');
   const objects: StageObject3D[] = s.objects
     .filter((o) => o.type !== 'start_box')
@@ -161,11 +165,14 @@ export const fromStage2D = (s: Stage): Stage3D => {
         id: o.id,
         type: o.type,
         x: +clampX(w.X).toFixed(2),
-        d: +Math.min(HALL.d1 - 2.5, w.D + PLATE_CAMERA_D).toFixed(2),
-        ...(o.yaw ? { yaw: o.yaw } : {}),
+        d: +clampD(w.D + PLATE_CAMERA_D).toFixed(2),
+        // 2D yaw turns the right side away from the shooter = counter-clockwise from above
+        ...(o.yaw ? { yaw: -o.yaw } : {}),
         ...(o.elevation ? { elevation: o.elevation } : {}),
         ...(o.scale !== 1 ? { scale: o.scale } : {}),
         ...(o.flip ? { flip: true } : {}),
+        ...(o.group ? { group: o.group } : {}),
+        ...(o.motion && o.motion.kind !== 'static' ? { motion: structuredClone(o.motion) } : {}),
       };
     });
   const sw = start ? toWorld(start.x, start.y, env) : { X: 0, D: 1.5 };
@@ -174,7 +181,7 @@ export const fromStage2D = (s: Stage): Stage3D => {
     id: newId('stage3d'),
     name: s.name,
     description: s.description,
-    environment: 'indoor_01',
+    environment: env3d,
     repetitions: s.repetitions,
     resetTime: s.resetTime,
     standbyDelay: { ...s.standbyDelay },

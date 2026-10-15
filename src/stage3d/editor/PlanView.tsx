@@ -4,8 +4,8 @@ import { useElementSize } from '../../hooks/useElementSize';
 import type { ObjectType } from '../../types/stage';
 import { type Footprint, footprintOf } from '../StageScene3D';
 import { legPath } from '../timeline';
-import { HALL, type Stage3D } from '../types';
-import { type Selection, clampToHall, insertVia, moveVia, patchObjects, patchPosition, removeVia, snapTo } from './ops';
+import { type Room, type Stage3D, roomOf } from '../types';
+import { type Selection, clampToRoom, insertVia, moveVia, patchObjects, patchPosition, removeVia, snapTo, withGroups } from './ops';
 
 export type Tool = 'select' | 'position';
 
@@ -27,7 +27,9 @@ type Drag =
   | { kind: 'position'; index: number; start: { x: number; d: number }; orig: { x: number; d: number }; moved: boolean }
   | { kind: 'heading'; index: number }
   | { kind: 'via'; leg: number; k: number }
-  | { kind: 'pan'; client: { x: number; y: number }; view: View; moved: boolean };
+  | { kind: 'pan'; client: { x: number; y: number }; view: View; moved: boolean }
+  /** rubber-band selection on the empty floor */
+  | { kind: 'box'; start: { x: number; d: number }; additive: boolean; base: string[]; moved: boolean };
 
 interface View {
   cx: number;
@@ -36,7 +38,9 @@ interface View {
   w: number;
 }
 
-const FIT: View = { cx: 0, cy: -(HALL.d0 + HALL.d1) / 2 + 2, w: HALL.x1 - HALL.x0 + 3 };
+const viewOf = (room: Room): View => ({ cx: (room.x0 + room.x1) / 2, cy: -(room.d0 + room.d1) / 2, w: room.x1 - room.x0 + 3 });
+
+const MOTION_BADGE: Record<string, string> = { fall: '▼', swing: '↺', horizontal: '↔', vertical: '↕', popup: '↑', appear: '↑', disappear: '×' };
 const FALLBACK: Record<string, Footprint> = {
   target: { x0: -0.24, x1: 0.24, z0: -0.15, z1: 0.15, height: 1.5 },
   barrier: { x0: -0.95, x1: 0.95, z0: -0.15, z1: 0.15, height: 1.85 },
@@ -61,20 +65,24 @@ const angleTo = (cx: number, cd: number, x: number, d: number) => Math.atan2(x -
 export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool, onPlacePosition, snap, onDropAsset }: Props) => {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [view, setView] = useState<View>(FIT);
-  /** The whole hall, whatever the shape of the plan area. */
+  const room = roomOf(stage.environment);
+  const [view, setView] = useState<View>(() => viewOf(room));
+  /** The whole room, whatever the shape of the plan area. */
   const fit = useCallback(() => {
     if (!size.width || !size.height) return;
-    const hallW = HALL.x1 - HALL.x0 + 1.5;
-    const hallH = HALL.d1 - HALL.d0 + 1.5;
-    setView({ cx: 0, cy: -(HALL.d0 + HALL.d1) / 2, w: Math.max(hallW, (hallH * size.width) / size.height) });
-  }, [size.width, size.height]);
-  const fitted = useRef(false);
+    const r = roomOf(stage.environment);
+    const w = r.x1 - r.x0 + 1.5;
+    const h = r.d1 - r.d0 + 1.5;
+    setView({ ...viewOf(r), w: Math.max(w, (h * size.width) / size.height) });
+  }, [size.width, size.height, stage.environment]);
+  // fit once the size is known, and again when the environment (room) changes
+  const fittedFor = useRef('');
   useEffect(() => {
-    if (fitted.current || !size.width) return;
-    fitted.current = true;
+    if (!size.width || fittedFor.current === stage.environment) return;
+    fittedFor.current = stage.environment;
     fit();
-  }, [size.width, fit]);
+  }, [size.width, fit, stage.environment]);
+  const [band, setBand] = useState<{ x0: number; d0: number; x1: number; d1: number } | null>(null);
   const [prints, setPrints] = useState<Record<string, Footprint>>({});
   const drag = useRef<Drag | null>(null);
   const stageRef = useRef(stage);
@@ -119,6 +127,11 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
         return;
       }
       const p = toFloor(e.clientX, e.clientY);
+      if (g.kind === 'box') {
+        if (Math.hypot(p.x - g.start.x, p.d - g.start.d) > 0.1) g.moved = true;
+        setBand({ x0: g.start.x, d0: g.start.d, x1: p.x, d1: p.d });
+        return;
+      }
       if (g.kind === 'objects') {
         const dx = snapTo(p.x - g.start.x, step);
         const dd = snapTo(p.d - g.start.d, step);
@@ -127,7 +140,7 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
         onUpdate(
           (s) =>
             patchObjects(s, [...g.orig.keys()], (o) => {
-              const q = clampToHall(g.orig.get(o.id)!.x + dx, g.orig.get(o.id)!.d + dd);
+              const q = clampToRoom(roomOf(stageRef.current.environment), g.orig.get(o.id)!.x + dx, g.orig.get(o.id)!.d + dd);
               return { x: +q.x.toFixed(2), d: +q.d.toFixed(2) };
             }),
           { transient: true },
@@ -138,7 +151,7 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
         if (!e.shiftKey) yaw = Math.round(yaw / 5) * 5;
         onUpdate((s) => patchObjects(s, [g.id], () => ({ yaw })), { transient: true });
       } else if (g.kind === 'position') {
-        const q = clampToHall(g.orig.x + snapTo(p.x - g.start.x, step), g.orig.d + snapTo(p.d - g.start.d, step));
+        const q = clampToRoom(roomOf(stageRef.current.environment), g.orig.x + snapTo(p.x - g.start.x, step), g.orig.d + snapTo(p.d - g.start.d, step));
         g.moved = true;
         onUpdate((s) => patchPosition(s, g.index, { x: +q.x.toFixed(2), d: +q.d.toFixed(2) }), { transient: true });
       } else if (g.kind === 'heading') {
@@ -150,10 +163,25 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
         onUpdate((s) => moveVia(s, g.leg, g.k, snapTo(p.x, step), snapTo(p.d, step)), { transient: true });
       }
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
       const g = drag.current;
       drag.current = null;
       if (!g) return;
+      if (g.kind === 'box') {
+        setBand(null);
+        if (!g.moved) {
+          if (!g.additive) onSelect(null);
+          return;
+        }
+        const p = toFloor(e.clientX, e.clientY);
+        const [x0, x1] = [Math.min(g.start.x, p.x), Math.max(g.start.x, p.x)];
+        const [d0, d1] = [Math.min(g.start.d, p.d), Math.max(g.start.d, p.d)];
+        const st = stageRef.current;
+        const hit = st.objects.filter((o) => o.x >= x0 && o.x <= x1 && o.d >= d0 && o.d <= d1).map((o) => o.id);
+        const ids = withGroups(st, [...new Set([...g.base, ...hit])]);
+        onSelect(ids.length ? { kind: 'objects', ids } : null);
+        return;
+      }
       if (g.kind === 'pan') {
         // a click on the empty floor (no pan) clears the selection / places a position
         if (!g.moved) onSelect(null);
@@ -189,41 +217,50 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
 
   const selectedIds = selection?.kind === 'objects' ? selection.ids : [];
 
+  const startPan = (e: React.PointerEvent) => {
+    drag.current = { kind: 'pan', client: { x: e.clientX, y: e.clientY }, view, moved: false };
+  };
+
   const startObjectDrag = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
-    if (e.button !== 0) return;
+    if (e.button !== 0) return startPan(e);
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    // a grouped object brings its whole group along
+    const members = withGroups(stage, [id]);
     let ids = selectedIds;
     if (additive) {
-      onSelect({ kind: 'objects', ids: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id] });
+      onSelect({ kind: 'objects', ids: ids.includes(id) ? ids.filter((x) => !members.includes(x)) : [...new Set([...ids, ...members])] });
       return;
     }
     if (!ids.includes(id)) {
-      ids = [id];
+      ids = members;
       onSelect({ kind: 'objects', ids });
     }
     const orig = new Map(stage.objects.filter((o) => ids.includes(o.id)).map((o) => [o.id, { x: o.x, d: o.d }]));
     drag.current = { kind: 'objects', start: toFloor(e.clientX, e.clientY), orig, moved: false };
   };
 
+  /** Empty floor: left = rubber-band selection (or place a position), right / middle = pan. */
   const onFloorDown = (e: React.PointerEvent) => {
-    if (tool === 'position' && e.button === 0) {
+    if (e.button !== 0) return startPan(e);
+    if (tool === 'position') {
       const p = toFloor(e.clientX, e.clientY);
       onPlacePosition(snapTo(p.x, step), snapTo(p.d, step));
       return;
     }
-    drag.current = { kind: 'pan', client: { x: e.clientX, y: e.clientY }, view, moved: false };
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    drag.current = { kind: 'box', start: toFloor(e.clientX, e.clientY), additive, base: additive ? selectedIds : [], moved: false };
   };
 
   // grid lines (meters)
   const grid: React.ReactNode[] = [];
-  for (let x = Math.ceil(HALL.x0); x <= HALL.x1; x++)
-    grid.push(<line key={`x${x}`} x1={x} y1={-HALL.d1} x2={x} y2={-HALL.d0} className={x % 5 === 0 ? 'g5' : 'g1'} />);
-  for (let d = Math.ceil(HALL.d0); d <= HALL.d1; d++) {
-    grid.push(<line key={`d${d}`} x1={HALL.x0} y1={-d} x2={HALL.x1} y2={-d} className={d % 5 === 0 ? 'g5' : 'g1'} />);
+  for (let x = Math.ceil(room.x0); x <= room.x1; x++)
+    grid.push(<line key={`x${x}`} x1={x} y1={-room.d1} x2={x} y2={-room.d0} className={x % 5 === 0 ? 'g5' : 'g1'} />);
+  for (let d = Math.ceil(room.d0); d <= room.d1; d++) {
+    grid.push(<line key={`d${d}`} x1={room.x0} y1={-d} x2={room.x1} y2={-d} className={d % 5 === 0 ? 'g5' : 'g1'} />);
     if (d % 5 === 0)
       grid.push(
-        <text key={`t${d}`} x={HALL.x0 + 0.25} y={-d - 0.12} className="plan-dist">
+        <text key={`t${d}`} x={room.x0 + 0.25} y={-d - 0.12} className="plan-dist">
           {d} m
         </text>,
       );
@@ -255,12 +292,12 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
           </pattern>
         </defs>
         {/* hall */}
-        <rect x={HALL.x0} y={-HALL.d1} width={HALL.x1 - HALL.x0} height={HALL.d1 - HALL.d0} className="plan-floor" />
+        <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={room.d1 - room.d0} className="plan-floor" />
         {grid}
-        <rect x={HALL.x0} y={-HALL.d1} width={HALL.x1 - HALL.x0} height={2.2} fill="url(#berm)" />
-        <text x={0} y={-HALL.d1 + 1.3} className="plan-note">BACKSTOP</text>
-        <rect x={HALL.x0} y={-HALL.d1} width={HALL.x1 - HALL.x0} height={HALL.d1 - HALL.d0} className="plan-wall" />
-        <text x={0} y={-HALL.d0 - 0.3} className="plan-note">UPRANGE</text>
+        <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={2.2} fill="url(#berm)" />
+        <text x={0} y={-room.d1 + 1.3} className="plan-note">BACKSTOP</text>
+        <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={room.d1 - room.d0} className="plan-wall" />
+        <text x={0} y={-room.d0 - 0.3} className="plan-note">UPRANGE</text>
 
         {/* path */}
         {stage.legs.map((leg, i) => {
@@ -319,9 +356,10 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
           );
         })}
         {objects.map((o) =>
-          short(o.type) ? (
+          short(o.type) || o.motion ? (
             <text key={`l${o.id}`} x={o.x} y={-o.d + 0.55} className="plan-obj-label">
               {short(o.type)}
+              {o.motion && MOTION_BADGE[o.motion.kind] ? ` ${MOTION_BADGE[o.motion.kind]}` : ''}
               {o.elevation ? ` ↑${o.elevation}` : ''}
             </text>
           ) : null,
@@ -350,6 +388,16 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
               </g>
             );
           })()}
+
+        {band && (
+          <rect
+            x={Math.min(band.x0, band.x1)}
+            y={-Math.max(band.d0, band.d1)}
+            width={Math.abs(band.x1 - band.x0)}
+            height={Math.abs(band.d1 - band.d0)}
+            className="plan-band"
+          />
+        )}
 
         {/* shooting positions */}
         {stage.positions.map((p, i) => {
@@ -393,7 +441,7 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
         <button onClick={fit} title="Show the whole hall">
           Fit
         </button>
-        <span className="hint">Wheel: zoom · drag floor: pan · double-click a path: corner point</span>
+        <span className="hint">Drag: select · right-drag: pan · wheel: zoom · double-click a path: corner point</span>
       </div>
     </div>
   );

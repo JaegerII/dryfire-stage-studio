@@ -273,16 +273,25 @@ passes with true parallax, see-through).
   `reload`, optional `via` corner points). Par = all waits + moves + `finalTime`.
 * **Top-view editor** (`#/3d` → Edit / + New 3D stage / *From a 2D stage…*): plan of the hall in meters next to a
   live 3D view (from the selected shooting box, or the briefing view).
+  * **Environment** at the top of the left panel (Indoor Range 01–04; the outdoor ranges follow later). Objects that
+    do not fit the new room are pulled inside.
   * Click or drag targets / walls from the library onto the plan; drag to move, the round handle behind an object turns
     it (5° steps, Shift = free), Q / E turn by 15°, arrows nudge, Ctrl+D duplicates, Del deletes. Select a box first to
     put a card / steel on top of it.
+  * **Drag on the empty floor** to select several objects (Shift adds), **right-drag** pans, the wheel zooms.
+  * **Groups:** Ctrl+G groups the selection, Ctrl+Shift+G ungroups; clicking one member selects the whole group.
+  * **Behaviour** (same as in the 2D editor): falling steel (activators), swingers, slides, bobs, pop-ups, appear /
+    disappear, started by the beep or by an activator. In the video the steel plate tips back on its stand, swingers
+    pivot at the foot; the editor and the briefing show every target at rest (also the hidden ones).
   * **+ Position** (P), then click the floor: the next shooting box (START → P2 → P3 …). Drag the box, drag the handle in
     front of it to set where the shooter looks; *Stay (s)* = time at that box.
   * Click a path: *Go after*, *Move takes*, *Reload*. Double-click a path to add a corner point (around a wall end),
     drag it, double-click it to remove it.
   * Save keeps the stage in this browser; Export / Import JSON; **▶ Play / Render** plays the stage as it is in the editor.
-  * *From a 2D stage…* turns any classic stage into a 3D stage (objects go to the floor positions the 2D perspective implies).
-* Prototype limits: one environment (`indoor_01`), no target motion in 3D yet.
+  * *From a 2D stage…* turns any classic stage into a 3D stage 1:1: same environment, every object at the floor
+    position the 2D perspective implies, same turn / height / size / mirroring, groups and behaviour. Stages in an
+    outdoor range open in Indoor Range 01 until the outdoor ranges exist in 3D.
+* Limits: no outdoor ranges in 3D yet.
 
 ## FORTH TRACE · motion tracking (experimental)
 

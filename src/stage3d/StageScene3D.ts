@@ -12,7 +12,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { CameraPose, FrameState } from './timeline';
 import { legPath, stageBounds } from './timeline';
-import { HALL, type Stage3D } from './types';
+import type { StageObject } from '../types/stage';
+import { fallTimes, motionAt } from '../utils/motion';
+import { type Room, type Stage3D, type StageObject3D, parTime3D, roomOf } from './types';
 
 const DEG = Math.PI / 180;
 const ACCENT = new THREE.Color('#ff3131');
@@ -53,6 +55,47 @@ export const footprintOf = (type: string): Promise<Footprint | null> => {
   return footprints.get(type)!;
 };
 
+interface Mover {
+  o: StageObject3D;
+  node: THREE.Object3D;
+  base: THREE.Vector3;
+  /** Pivots of the parts that fall (steel plates), hinged at their lower edge. */
+  tips: THREE.Object3D[];
+}
+
+const REST = { dx: 0, dy: 0, visible: true, fall: 0, rot: 0 };
+
+/**
+ * A moving object. For falling steel the plate parts (everything but the baked stand,
+ * "<type>_body") are re-hung on a pivot at their lower edge, so only the plate tips over.
+ */
+const makeMover = (o: StageObject3D, node: THREE.Object3D): Mover => {
+  const tips: THREE.Object3D[] = [];
+  if (o.motion?.kind === 'fall') {
+    const parts = node.children.filter((c) => !c.name.endsWith('_body'));
+    if (parts.length) {
+      const box = new THREE.Box3();
+      for (const p of parts) {
+        p.updateMatrix();
+        const m = p as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry.computeBoundingBox();
+          box.union(m.geometry.boundingBox!.clone().applyMatrix4(p.matrix));
+        }
+      }
+      const pivot = new THREE.Group();
+      pivot.position.set((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+      for (const p of parts) {
+        p.position.sub(pivot.position);
+        pivot.add(p);
+      }
+      node.add(pivot);
+      tips.push(pivot);
+    }
+  }
+  return { o, node, base: node.position.clone(), tips };
+};
+
 interface Arrow {
   ribbon: THREE.Mesh;
   head: THREE.Mesh;
@@ -87,17 +130,30 @@ export class StageScene3D {
     await this.setStage(stage);
   }
 
-  private envLoaded = false;
+  private envId: string | null = null;
+  private envGroup = new THREE.Group();
+  private room: Room = roomOf('indoor_01');
+  private lightsReady = false;
   private key: THREE.DirectionalLight | null = null;
   private stageGroup = new THREE.Group();
   private generation = 0;
+  private stage: Stage3D | null = null;
+  private movers: Mover[] = [];
 
-  /** The hall (baked → unlit), the light for the objects and the floor shadow catcher. Once per scene. */
+  /** The hall (baked → unlit) with its outer shell and floor shadow catcher; the light for the objects. Swaps when the environment changes. */
   async loadEnvironment(environment: Stage3D['environment']) {
-    if (this.envLoaded) return;
+    if (this.envId === environment) return;
     const env = await loadGlb(assetUrl(`env_${environment}.glb`));
-    if (this.disposed || this.envLoaded) return;
-    this.envLoaded = true;
+    if (this.disposed || this.envId === environment) return;
+    this.envId = environment;
+    const room = (this.room = roomOf(environment));
+    this.scene.remove(this.envGroup);
+    this.envGroup.traverse((n) => {
+      const m = n as THREE.Mesh;
+      if (m.isMesh && m.userData.own) m.geometry.dispose();
+    });
+    const eg = (this.envGroup = new THREE.Group());
+    this.scene.add(eg);
     const hall = env.clone(true);
     hall.traverse((n) => {
       const m = n as THREE.Mesh;
@@ -108,35 +164,47 @@ export class StageScene3D {
       m.material = new THREE.MeshBasicMaterial({ map: src.map ?? null, color: src.map ? 0xffffff : src.color, toneMapped: false });
       m.userData.ceiling = /ceiling/.test(m.name) || /ceiling/.test(src.name);
     });
-    this.scene.add(hall);
+    eg.add(hall);
 
     // The bake only has the faces seen from inside. Thick walls with tops around it make the
     // hall a closed building from above (briefing, fly-in) instead of paper-thin panels in the void.
     const side = new THREE.MeshBasicMaterial({ color: '#1d1f1e', toneMapped: false });
     const top = new THREE.MeshBasicMaterial({ color: '#4a4d4b', toneMapped: false });
     const T = 0.45;
-    const H = 6.12;
-    const len = HALL.d1 - HALL.d0 + 2 * T;
-    const wid = HALL.x1 - HALL.x0 + 2 * T;
-    const cz = -(HALL.d0 + HALL.d1) / 2;
+    const H = room.height + 0.12;
+    const len = room.d1 - room.d0 + 2 * T;
+    const wid = room.x1 - room.x0 + 2 * T;
+    const cx = (room.x0 + room.x1) / 2;
+    const cz = -(room.d0 + room.d1) / 2;
     for (const [w, d, x, z] of [
-      [T, len, HALL.x0 - T / 2 - 0.01, cz],
-      [T, len, HALL.x1 + T / 2 + 0.01, cz],
-      [wid, T, 0, -(HALL.d1 + T / 2 + 0.01)],
-      [wid, T, 0, -(HALL.d0 - T / 2)],
+      [T, len, room.x0 - T / 2 - 0.01, cz],
+      [T, len, room.x1 + T / 2 + 0.01, cz],
+      [wid, T, cx, -(room.d1 + T / 2 + 0.01)],
+      [wid, T, cx, -(room.d0 - T / 2)],
     ]) {
       // box faces: +x, −x, +y (top), −y, +z, −z
       const wall = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), [side, side, top, side, side, side]);
       wall.position.set(x, H / 2, z);
       wall.userData.own = true;
-      this.scene.add(wall);
+      eg.add(wall);
     }
     // the ground around the building
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 140), new THREE.MeshBasicMaterial({ color: '#0d0e0d', toneMapped: false }));
     ground.rotation.x = -Math.PI / 2;
-    ground.position.set(0, -0.02, cz);
+    ground.position.set(cx, -0.02, cz);
     ground.userData.own = true;
-    this.scene.add(ground);
+    eg.add(ground);
+
+    // shadows of the objects on the (unlit, baked) floor
+    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(room.x1 - room.x0, room.d1 - room.d0), new THREE.ShadowMaterial({ opacity: 0.42 }));
+    catcher.rotation.x = -Math.PI / 2;
+    catcher.position.set(cx, 0.002, cz);
+    catcher.receiveShadow = true;
+    catcher.userData.own = true;
+    eg.add(catcher);
+    this.ceilingHidden = false;
+    if (this.lightsReady) return;
+    this.lightsReady = true;
 
     // light for the objects, matched by eye to the baked high bays (warm-neutral, from above)
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -150,14 +218,7 @@ export class StageScene3D {
     key.shadow.normalBias = 0.02;
     key.shadow.radius = 4;
     this.key = key;
-    this.scene.add(key, key.target);
-
-    // shadows of the objects on the (unlit, baked) floor
-    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(16, 34), new THREE.ShadowMaterial({ opacity: 0.42 }));
-    catcher.rotation.x = -Math.PI / 2;
-    catcher.position.set(0, 0.002, -11);
-    catcher.receiveShadow = true;
-    this.scene.add(catcher, this.stageGroup);
+    this.scene.add(key, key.target, this.stageGroup);
   }
 
   /** Objects, shooting boxes and path arrows of a stage — call again after every edit (the hall stays). */
@@ -167,6 +228,7 @@ export class StageScene3D {
     // a newer edit arrived while the models loaded
     if (this.disposed || gen !== this.generation) return;
     const group = new THREE.Group();
+    const movers: Mover[] = [];
 
     // ---- objects: lit live
     stage.objects.forEach((o, i) => {
@@ -202,6 +264,7 @@ export class StageScene3D {
       });
       g.userData.objectId = o.id;
       group.add(g);
+      if (o.motion && o.motion.kind !== 'static') movers.push(makeMover(o, g));
     });
 
     // ---- shooting boxes: white tape squares at every position
@@ -255,6 +318,8 @@ export class StageScene3D {
     });
     this.stageGroup = group;
     this.scene.add(group);
+    this.stage = stage;
+    this.movers = movers;
   }
 
   /**
@@ -344,8 +409,9 @@ export class StageScene3D {
 
   apply(f: FrameState) {
     this.applyCamera(f.camera);
+    this.applyMotion(f);
     // from above (briefing), the trusses and light fixtures would hang between camera and stage
-    const above = f.camera.y > 5.5;
+    const above = f.camera.y > this.room.height - 0.4;
     if (above !== this.ceilingHidden) {
       this.ceilingHidden = above;
       this.scene.traverse((n) => {
@@ -364,6 +430,31 @@ export class StageScene3D {
       // the head appears when the line arrives
       a.head.visible = p > 0 && drawn >= 0.995;
     });
+  }
+
+  /**
+   * Target motion (same model as the 2D player): during a rep each moving object follows
+   * motionAt(); outside the reps (briefing, editor) everything shows its rest pose, so even
+   * targets that are hidden until activated can be seen and placed.
+   */
+  private applyMotion(f: FrameState) {
+    const stage = this.stage;
+    if (!stage || !this.movers.length) return;
+    const rep = f.segment === 'stage' ? f.rep : null;
+    const par = parTime3D(stage);
+    const active = !!rep && (rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1));
+    const falls = fallTimes(stage.objects as unknown as StageObject[]);
+    for (const mv of this.movers) {
+      const m = rep ? motionAt(mv.o.motion, rep.sinceStart, active, falls) : REST;
+      const yaw = (mv.o.yaw ?? 0) * DEG;
+      // slides run along the object's own face, bobs go up
+      mv.node.position.set(mv.base.x + m.dx * Math.cos(yaw), mv.base.y + m.dy, mv.base.z + m.dx * Math.sin(yaw));
+      mv.node.visible = m.visible;
+      // swing: tilt in the object's own plane around its foot (+ = top to the right)
+      mv.node.rotation.z = -m.rot * DEG;
+      // steel: the plate tips backwards (away from the shooter) around its lower edge
+      for (const p of mv.tips) p.rotation.x = -m.fall * 1.45;
+    }
   }
 
   render() {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ENVIRONMENT_LIST } from '../../assets/environments';
 import { ASSET_LIST } from '../../assets/registry';
 import { BrandMark } from '../../components/BrandMark';
 import { DND_TYPE } from '../../components/editor/AssetLibrary';
@@ -7,8 +8,8 @@ import { newId } from '../../utils/random';
 import { downloadBlob } from '../../utils/recorder';
 import { Player3D } from '../Player3D';
 import { normalizeStage3D, stage3dRepository } from '../repository';
-import type { Stage3D } from '../types';
-import { addObject, addPosition, duplicateObjects, moveObjects, patchObjects, patchPosition, removeObjects, removePosition, type Selection } from './ops';
+import { type Stage3D, isEnv3D } from '../types';
+import { addObject, addPosition, duplicateObjects, groupObjects, moveObjects, patchObjects, patchPosition, removeObjects, removePosition, type Selection, setEnvironment, ungroupObjects } from './ops';
 import { PlanView, type Tool } from './PlanView';
 import { Preview3D, type PreviewMode } from './Preview3D';
 import { Properties3D } from './Properties3D';
@@ -150,6 +151,10 @@ export const Editor3D = ({ initial, onExit }: Props) => {
       } else if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         duplicate();
+      } else if (mod && e.key.toLowerCase() === 'g' && selection?.kind === 'objects') {
+        e.preventDefault();
+        if (e.shiftKey) update((s) => ungroupObjects(s, selection.ids));
+        else update((s) => groupObjects(s, selection.ids));
       } else if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setSelection({ kind: 'objects', ids: stage.objects.map((o) => o.id) });
@@ -237,6 +242,29 @@ export const Editor3D = ({ initial, onExit }: Props) => {
       </header>
 
       <aside className="panel library">
+        <section>
+          <h3>Environment</h3>
+          <div className="env-list">
+            {ENVIRONMENT_LIST.map((env) => {
+              const available = isEnv3D(env.id);
+              return (
+                <button
+                  key={env.id}
+                  className={`env-tile${env.id === stage.environment ? ' active' : ''}`}
+                  disabled={!available}
+                  title={available ? `Stage in ${env.label}` : 'Outdoor ranges are not available in 3D yet'}
+                  onClick={() => available && update((s) => setEnvironment(s, env.id as Stage3D['environment']))}
+                >
+                  <img src={env.src} alt="" />
+                  <span>
+                    {env.label}
+                    {!available && ' · soon'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
         {LIBRARY.map((sec) => (
           <section key={sec.title}>
             <h3>{sec.title}</h3>

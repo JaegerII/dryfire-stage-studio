@@ -22,7 +22,7 @@ export const Preview3D = ({ stage, position, mode, onMode }: { stage: Stage3D; p
   useEffect(() => {
     const s = new StageScene3D(canvas.current!);
     scene.current = s;
-    s.loadEnvironment('indoor_01')
+    s.loadEnvironment(latest.current.stage.environment)
       .then(() => setReady(true))
       .catch((e) => setError(String(e?.message ?? e)));
     return () => {
@@ -63,7 +63,9 @@ export const Preview3D = ({ stage, position, mode, onMode }: { stage: Stage3D; p
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => {
-      void scene.current?.setStage(stage).then(draw);
+      // another environment swaps the hall first (once per change; the same one returns at once)
+      const s = scene.current;
+      if (s) void s.loadEnvironment(stage.environment).then(() => s.setStage(stage)).then(draw);
     }, 120);
     return () => clearTimeout(t);
   }, [stage, ready]); // eslint-disable-line react-hooks/exhaustive-deps

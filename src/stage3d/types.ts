@@ -7,7 +7,7 @@
  *
  * In three.js the world is x right, y up, z = −d.
  */
-import type { ObjectType } from '../types/stage';
+import type { EnvironmentId, Motion, ObjectType } from '../types/stage';
 
 export const SCHEMA_3D = 1;
 
@@ -16,6 +16,13 @@ export interface StageObject3D {
   type: ObjectType;
   x: number;
   d: number;
+  /** Group id: clicking one member selects the whole group (editor only). */
+  group?: string;
+  /**
+   * Same motion model as the 2D stages (swinger, falling steel, activators, pop-up …).
+   * Times count from the start beep; `amplitude` is in meters.
+   */
+  motion?: Motion;
   /** Turn around the vertical axis in degrees (clockwise seen from above); 0 = front faces the start side. */
   yaw?: number;
   elevation?: number;
@@ -50,7 +57,7 @@ export interface Stage3D {
   id: string;
   name: string;
   description?: string;
-  environment: 'indoor_01';
+  environment: Env3D;
   repetitions: number;
   resetTime: number;
   standbyDelay: { min: number; max: number };
@@ -73,8 +80,25 @@ export interface Stage3D {
 export const DEFAULT_SHAKE = 1;
 export const shakeOf = (s: Pick<Stage3D, 'camera'>) => Math.max(0, Math.min(2, s.camera?.shake ?? DEFAULT_SHAKE));
 
-/** The 3D hall (indoor_01): x −8..8 m, d −6..28 m, backstop at the far end. */
-export const HALL = { x0: -8, x1: 8, d0: -6, d1: 28 };
+/**
+ * The environments available in 3D (baked by tools/plate-renderer/blender/export3d.py).
+ * The room bounds must match ROOMS there: x across, d downrange, inside faces of the walls.
+ */
+export const ENV3D = {
+  indoor_01: { label: 'Indoor Range 01', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
+  indoor_02: { label: 'Indoor Range 02', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
+  indoor_03: { label: 'Indoor Range 03 (bright lane)', x0: -4, x1: 4, d0: -4, d1: 34.6, height: 3.6, backstop: 1 },
+  indoor_04: { label: 'Indoor Range 04 (beam ceiling)', x0: -7, x1: 7, d0: -4, d1: 32, height: 4.6, backstop: 0 },
+} as const;
+
+export type Env3D = keyof typeof ENV3D;
+export type Room = (typeof ENV3D)[Env3D];
+
+export const isEnv3D = (e: string): e is Env3D => e in ENV3D;
+export const roomOf = (env: string): Room => (isEnv3D(env) ? ENV3D[env] : ENV3D.indoor_01);
+
+/** Closest 3D environment for a 2D one (the outdoor ranges are not available in 3D yet). */
+export const env3dFor = (env: EnvironmentId): Env3D => (isEnv3D(env) ? env : 'indoor_01');
 
 /** Par time = time at every position + every move. */
 export const parTime3D = (s: Stage3D) => +(s.legs.reduce((t, l) => t + l.after + l.duration, 0) + s.finalTime).toFixed(2);

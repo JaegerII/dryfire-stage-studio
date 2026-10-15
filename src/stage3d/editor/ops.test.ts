@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createStage3D } from '../repository';
-import { HALL } from '../types';
-import { addObject, addPosition, duplicateObjects, insertVia, moveObjects, moveVia, removePosition, removeVia } from './ops';
+import { ENV3D } from '../types';
+import { addObject, addPosition, duplicateObjects, groupObjects, insertVia, moveObjects, moveVia, removePosition, removeVia, ungroupObjects, withGroups } from './ops';
 
 describe('3D editor ops', () => {
   it('adds and moves objects, kept inside the hall', () => {
@@ -9,7 +9,7 @@ describe('3D editor ops', () => {
     expect(stage.objects.find((o) => o.id === id)).toMatchObject({ type: 'mesh_wall', x: 2, d: 6, yaw: 90 });
     const moved = moveObjects(stage, [id], 100, 0.5);
     const o = moved.objects.find((x) => x.id === id)!;
-    expect(o.x).toBeLessThanOrEqual(HALL.x1);
+    expect(o.x).toBeLessThanOrEqual(ENV3D.indoor_01.x1);
     expect(o.d).toBeCloseTo(6.5, 6);
   });
 
@@ -33,6 +33,27 @@ describe('3D editor ops', () => {
     expect(r.legs).toHaveLength(1);
     // the start cannot be removed when it is alone
     expect(removePosition(createStage3D(), 0).positions).toHaveLength(1);
+  });
+
+  it('groups objects; one member selects the group; copies get a new group', () => {
+    const s = createStage3D();
+    const [a, b, c] = s.objects.map((o) => o.id);
+    const g = groupObjects(s, [a, b]);
+    expect(withGroups(g, [a])).toEqual([a, b]);
+    expect(withGroups(g, [c])).toEqual([c]);
+    const dup = duplicateObjects(g, [a, b]);
+    const copies = dup.stage.objects.filter((o) => dup.ids.includes(o.id));
+    expect(new Set(copies.map((o) => o.group)).size).toBe(1);
+    expect(copies[0].group).not.toBe(g.objects[0].group);
+    expect(withGroups(ungroupObjects(g, [a, b]), [a])).toEqual([a]);
+  });
+
+  it('keeps objects inside the room of the chosen environment', () => {
+    const narrow = { ...createStage3D(), environment: 'indoor_03' as const };
+    const { stage, id } = addObject(narrow, 'paper_full', 7, 50);
+    const o = stage.objects.find((x) => x.id === id)!;
+    expect(o.x).toBeLessThanOrEqual(ENV3D.indoor_03.x1);
+    expect(o.d).toBeLessThan(ENV3D.indoor_03.d1);
   });
 
   it('inserts corner points in the closest segment, moves and removes them', () => {

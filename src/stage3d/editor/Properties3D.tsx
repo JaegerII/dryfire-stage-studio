@@ -1,9 +1,10 @@
 import { ASSETS } from '../../assets/registry';
 import { NumberField, Row, SliderField } from '../../components/editor/fields';
+import { MotionFields } from '../../components/editor/MotionFields';
 import { STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
 import { buildVideoTimeline } from '../timeline';
 import { type Stage3D, parTime3D, shakeOf } from '../types';
-import { type Selection, patchLeg, patchObjects, patchPosition } from './ops';
+import { type Selection, groupObjects, patchLeg, patchObjects, patchPosition, ungroupObjects } from './ops';
 
 interface Props {
   stage: Stage3D;
@@ -22,6 +23,8 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
     const o = objs[0];
     if (!o) return null;
     const set = (patch: Partial<typeof o>) => onUpdate((s) => patchObjects(s, selection.ids, () => patch));
+    // the whole selection is exactly one group
+    const grouped = !!o.group && objs.every((x) => x.group === o.group) && stage.objects.filter((x) => x.group === o.group).length === objs.length;
     return (
       <aside className="panel properties p3d-props">
         <div className="panel-head">
@@ -45,7 +48,20 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
           <button onClick={onDuplicate}>Duplicate</button>
           <button className="danger" onClick={onDelete}>Delete</button>
         </div>
-        <p className="hint">Drag to move · round handle behind the object turns it · arrows nudge (Shift: 0.5 m) · Del deletes · Ctrl+D duplicates</p>
+        <div className="actions" style={{ marginTop: 6 }}>
+          {objs.length > 1 && !grouped && (
+            <button onClick={() => onUpdate((s) => groupObjects(s, selection.ids))} title="Ctrl+G — one click then selects all of them">Group</button>
+          )}
+          {objs.some((x) => x.group) && (
+            <button onClick={() => onUpdate((s) => ungroupObjects(s, selection.ids))} title="Ctrl+Shift+G">Ungroup</button>
+          )}
+        </div>
+        {objs.length === 1 && (
+          <MotionFields object={o} objects={stage.objects} parTime={parTime3D(stage)} onMotion={(motion) => set({ motion })} />
+        )}
+        <p className="hint">
+          Drag to move · drag on the floor selects several · round handle turns · Q / E turn · arrows nudge (Shift: 0.5 m) · Ctrl+G group · Del deletes · Ctrl+D duplicates
+        </p>
       </aside>
     );
   }

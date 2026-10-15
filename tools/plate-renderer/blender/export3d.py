@@ -191,9 +191,6 @@ def export(path, selection=None):
 
 # ------------------------------------------------------------------ environment: everything baked, shown unlit
 
-# indoor_hall() geometry (scene.py): room W × D × H, floor centred at y = D/2 − 6
-HALL = dict(W=16.0, D=34.0, H=6.0)
-
 def centre_x(o):
     xs = [v.co.x for v in o.data.vertices]
     return (min(xs) + max(xs)) / 2
@@ -204,16 +201,39 @@ def named(*prefixes, side=0):
     return lambda o: o.name.split('.')[0] in prefixes and (side == 0 or (centre_x(o) > 0) == (side > 0))
 
 
-# part of the hall → (selector, texture size (w, h), uv projection)
-#   top: floor seen from above · yz / xz: a wall seen face-on · smart: many small parts
-ENV_GROUPS = [
-    ('floor', named('floor'), (4096, 8192), 'top'),
-    ('wall_l', named('side_wall', side=-1), (8192, 1536), 'yz'),
-    ('wall_r', named('side_wall', side=1), (8192, 1536), 'yz'),
-    ('wall_back', named('back_wall'), (4096, 1536), 'xz'),
-    ('details', named('column', 'kick', 'berm', 'baffle'), (4096, 4096), 'smart'),
-    ('ceiling', named('ceiling', 'truss', 'housing', 'fixture'), (2048, 2048), 'smart'),
+# Every indoor plate of scene.py as a room for the 3D player:
+#   W, H     room width / height (m) · d0 floor start (y) · back = inner face of the back wall (y)
+#   groups   part → (selector, texture size (w, h), uv projection, clip to the room?)
+#            top: floor seen from above · yz / xz: a wall seen face-on · smart: many small parts
+# The bounds must match ENV3D in src/stage3d/types.ts.
+HALL_GROUPS = [
+    ('floor', named('floor'), (4096, 8192), 'top', True),
+    ('wall_l', named('side_wall', side=-1), (8192, 1536), 'yz', True),
+    ('wall_r', named('side_wall', side=1), (8192, 1536), 'yz', True),
+    ('wall_back', named('back_wall'), (4096, 1536), 'xz', True),
+    ('details', named('column', 'kick', 'berm', 'baffle'), (4096, 4096), 'smart', False),
+    ('ceiling', named('ceiling', 'truss', 'housing', 'fixture'), (2048, 2048), 'smart', True),
 ]
+ROOMS = {
+    'indoor_01': dict(W=16.0, H=6.0, d0=-6.0, back=28.0, groups=HALL_GROUPS),
+    'indoor_02': dict(W=16.0, H=6.0, d0=-6.0, back=28.0, groups=HALL_GROUPS),
+    # long bright lane: white tiles, LED strips, teal / white baffles at the end
+    'indoor_03': dict(W=8.0, H=3.6, d0=-4.0, back=34.6, groups=[
+        ('floor', named('floor'), (2048, 8192), 'top', True),
+        ('wall_l', named('wall', side=-1), (8192, 1024), 'yz', True),
+        ('wall_r', named('wall', side=1), (8192, 1024), 'yz', True),
+        ('backstop', named('backwall', 'baffle', 'trap', 'header'), (2048, 2048), 'smart', False),
+        ('ceiling', named('ceiling', 'strip'), (4096, 4096), 'smart', True),
+    ]),
+    # light concrete floor, dark walls, bright ceiling with beams and spots
+    'indoor_04': dict(W=14.0, H=4.6, d0=-4.0, back=32.0, groups=[
+        ('floor', named('floor'), (4096, 8192), 'top', True),
+        ('wall_l', named('wall', side=-1), (8192, 1536), 'yz', True),
+        ('wall_r', named('wall', side=1), (8192, 1536), 'yz', True),
+        ('wall_back', named('back'), (4096, 1536), 'xz', True),
+        ('ceiling', named('ceiling', 'beam', 'spot'), (4096, 4096), 'smart', True),
+    ]),
+}
 
 
 def keep_inner_faces(ob, centre, half_w):
@@ -231,11 +251,12 @@ def keep_inner_faces(ob, centre, half_w):
     bm.free()
 
 
-def clip_floor(ob, half_w):
-    """The floor plane is twice as wide as the room: pull it in to the walls (materials are
-    object-space projected, so moving vertices does not move the texture)."""
+def clip_to_room(ob, half_w, d0, back):
+    """Floors, walls and ceilings are longer / wider than the room: pull them in to its walls
+    (materials are object-space projected, so moving vertices does not move the texture)."""
     for v in ob.data.vertices:
         v.co.x = max(-half_w, min(half_w, v.co.x))
+        v.co.y = max(d0, min(back, v.co.y))
 
 
 def uv_planar(ob, axes):
@@ -255,6 +276,7 @@ def uv_planar(ob, axes):
 
 
 def export_env(pid):
+    room = ROOMS[pid]
     S.reset()
     S.make_materials()
     S.PLATES[pid]()
@@ -262,17 +284,17 @@ def export_env(pid):
     for o in [o for o in meshes() if o.name.startswith('case')]:
         bpy.data.objects.remove(o)
     apply_all()
-    W, D, H = HALL['W'], HALL['D'], HALL['H']
-    centre = (0.0, D / 2 - 6, H / 2)
+    W, H, d0, back = room['W'], room['H'], room['d0'], room['back']
+    centre = (0.0, (d0 + back) / 2, H / 2)
     parts = []
-    for name, select, size, mode in ENV_GROUPS:
+    for name, select, size, mode, clip in room['groups']:
         objs = [o for o in meshes() if o not in parts and select(o)]
         if not objs:
             continue
         ob = join(objs, name)
         make_single_user(ob)
-        if name in ('floor', 'wall_back'):
-            clip_floor(ob, W / 2)  # both are twice as wide as the room
+        if clip:
+            clip_to_room(ob, W / 2, d0, back)
         if name != 'floor':
             keep_inner_faces(ob, centre, W / 2)
         if mode == 'top':
@@ -290,7 +312,7 @@ def export_env(pid):
     # floor joints: thin lines with a plain colour, not worth a texture
     joints = [o for o in meshes() if o.name.split('.')[0].startswith('joint')]
     for o in joints:
-        clip_floor(o, W / 2)
+        clip_to_room(o, W / 2, d0, back)
     if joints:
         parts.append(join(joints, 'joints'))
     # anything left (lights are not meshes) is dropped

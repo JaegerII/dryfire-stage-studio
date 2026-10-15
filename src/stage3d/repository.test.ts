@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import stage001 from '../data/stages/stage_001.json';
+import stage101 from '../data/stages/stage_101.json';
+import stage203 from '../data/stages/stage_203.json';
 import { normalizeStage } from '../utils/stageIO';
 import { fromStage2D, normalizeStage3D } from './repository';
-import { HALL, parTime3D } from './types';
+import { ENV3D, parTime3D } from './types';
 
 describe('normalizeStage3D', () => {
   it('fills defaults, keeps one leg per position change and drops unknown objects', () => {
@@ -33,9 +35,28 @@ describe('fromStage2D', () => {
     expect(start.d).toBeLessThan(2);
     for (const o of s3.objects) {
       expect(o.d).toBeGreaterThan(start.d);
-      expect(o.x).toBeGreaterThanOrEqual(HALL.x0);
-      expect(o.x).toBeLessThanOrEqual(HALL.x1);
+      expect(o.x).toBeGreaterThanOrEqual(ENV3D.indoor_01.x0);
+      expect(o.x).toBeLessThanOrEqual(ENV3D.indoor_01.x1);
     }
     expect(s3.finalTime).toBe(stage001.parTime);
+  });
+
+  it('keeps the environment, motion and activators 1:1', () => {
+    const s2 = normalizeStage(stage203);
+    const s3 = fromStage2D(s2);
+    expect(s3.environment).toBe('indoor_03');
+    const room = ENV3D.indoor_03;
+    for (const o of s3.objects) expect(o.x).toBeGreaterThanOrEqual(room.x0);
+    const popper = s3.objects.find((o) => o.motion?.kind === 'fall')!;
+    const appear = s3.objects.find((o) => o.motion?.kind === 'appear')!;
+    expect(appear.motion!.trigger).toBe(popper.id);
+  });
+
+  it('turns walls the same way as the 2D picture (2D yaw = counter-clockwise from above)', () => {
+    const s3 = fromStage2D(normalizeStage(stage101));
+    const wall = s3.objects.find((o) => o.type === 'mesh_wall_diagonal')!;
+    expect(wall.yaw).toBe(35);
+    // outdoor ranges are not in 3D yet: the hall stands in
+    expect(s3.environment).toBe('indoor_01');
   });
 });

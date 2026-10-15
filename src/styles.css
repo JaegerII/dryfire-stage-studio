@@ -400,6 +400,8 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .plan-obj.sel .body { stroke: #fff; stroke-width: 0.06; }
 .plan-obj:hover .body { stroke: rgba(255, 255, 255, 0.55); }
 .plan-obj-label { font: 800 0.26px var(--font); fill: var(--sage); text-anchor: middle; pointer-events: none; }
+.plan-band { fill: rgba(255, 49, 49, 0.08); stroke: #ff3131; stroke-width: 0.04; stroke-dasharray: 0.15 0.1; pointer-events: none; }
+.editor3d .env-tile:disabled { opacity: 0.35; cursor: not-allowed; }
 .rot-handle line { stroke: #ff3131; stroke-width: 0.03; stroke-dasharray: 0.08 0.06; pointer-events: none; }
 .rot-handle circle { fill: #ff3131; stroke: #fff; stroke-width: 0.04; cursor: grab; }
 .plan-pos .box { fill: rgba(43, 217, 107, 0.06); stroke: #d9d6cc; stroke-width: 0.07; cursor: move; }

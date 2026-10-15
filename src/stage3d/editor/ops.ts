@@ -3,7 +3,7 @@
  */
 import type { ObjectType } from '../../types/stage';
 import { newId } from '../../utils/random';
-import { HALL, type Leg, type ShooterPosition, type Stage3D, type StageObject3D } from '../types';
+import { type Leg, type Room, type ShooterPosition, type Stage3D, type StageObject3D, roomOf } from '../types';
 
 export type Selection =
   | { kind: 'objects'; ids: string[] }
@@ -14,15 +14,17 @@ export type Selection =
 export const DEFAULT_LEG: Leg = { after: 3, duration: 2.5, reload: false };
 
 const round = (v: number, step = 0.01) => Math.round(v / step) * step;
-export const clampToHall = (x: number, d: number) => ({
-  x: Math.max(HALL.x0 + 0.2, Math.min(HALL.x1 - 0.2, x)),
-  d: Math.max(HALL.d0 + 0.5, Math.min(HALL.d1 - 2, d)),
+/** Keeps a point inside the room (in front of its backstop). */
+export const clampToRoom = (room: Room, x: number, d: number) => ({
+  x: Math.max(room.x0 + 0.2, Math.min(room.x1 - 0.2, x)),
+  d: Math.max(room.d0 + 0.5, Math.min(room.d1 - Math.max(0.6, room.backstop), d)),
 });
+const clampIn = (s: Stage3D, x: number, d: number) => clampToRoom(roomOf(s.environment), x, d);
 
 export const snapTo = (v: number, step: number) => (step ? round(v, step) : round(v));
 
 export const addObject = (s: Stage3D, type: ObjectType, x: number, d: number, extra: Partial<StageObject3D> = {}) => {
-  const p = clampToHall(x, d);
+  const p = clampIn(s, x, d);
   const obj: StageObject3D = { id: newId(type.split('_')[0]), type, x: round(p.x), d: round(p.d), ...extra };
   return { stage: { ...s, objects: [...s.objects, obj] }, id: obj.id };
 };
@@ -38,16 +40,52 @@ export const patchObjects = (s: Stage3D, ids: string[], fn: (o: StageObject3D) =
 
 export const moveObjects = (s: Stage3D, ids: string[], dx: number, dd: number) =>
   patchObjects(s, ids, (o) => {
-    const p = clampToHall(o.x + dx, o.d + dd);
+    const p = clampIn(s, o.x + dx, o.d + dd);
     return { x: round(p.x), d: round(p.d) };
   });
 
 export const removeObjects = (s: Stage3D, ids: string[]): Stage3D => ({ ...s, objects: s.objects.filter((o) => !ids.includes(o.id)) });
 
 export const duplicateObjects = (s: Stage3D, ids: string[]) => {
-  const copies = s.objects.filter((o) => ids.includes(o.id)).map((o) => ({ ...structuredClone(o), id: newId(o.type.split('_')[0]), x: round(o.x + 0.5) }));
+  // copied groups become new groups of their own
+  const groups = new Map<string, string>();
+  const regroup = (g?: string) => (g ? (groups.get(g) ?? groups.set(g, newId('group')).get(g)) : undefined);
+  const copies = s.objects
+    .filter((o) => ids.includes(o.id))
+    .map((o) => ({ ...structuredClone(o), id: newId(o.type.split('_')[0]), x: round(o.x + 0.5), group: regroup(o.group) }));
   return { stage: { ...s, objects: [...s.objects, ...copies] }, ids: copies.map((c) => c.id) };
 };
+
+/** Another environment: everything that no longer fits is pulled inside the new room. */
+export const setEnvironment = (s: Stage3D, environment: Stage3D['environment']): Stage3D => {
+  const next = { ...s, environment };
+  const fit = (p: { x: number; d: number }) => {
+    const q = clampIn(next, p.x, p.d);
+    return { x: round(q.x), d: round(q.d) };
+  };
+  return {
+    ...next,
+    objects: s.objects.map((o) => ({ ...o, ...fit(o) })),
+    positions: s.positions.map((p) => ({ ...p, ...fit(p) })),
+    legs: s.legs.map((l) => (l.via ? { ...l, via: l.via.map(fit) } : l)),
+  };
+};
+
+// ------------------------------------------------------------------ groups
+
+/** The ids plus every other member of their groups (a click on one member selects the group). */
+export const withGroups = (s: Stage3D, ids: string[]) => {
+  const groups = new Set(s.objects.filter((o) => ids.includes(o.id) && o.group).map((o) => o.group));
+  return s.objects.filter((o) => ids.includes(o.id) || (o.group && groups.has(o.group))).map((o) => o.id);
+};
+
+export const groupObjects = (s: Stage3D, ids: string[]): Stage3D => {
+  if (ids.length < 2) return s;
+  const g = newId('group');
+  return patchObjects(s, ids, () => ({ group: g }));
+};
+
+export const ungroupObjects = (s: Stage3D, ids: string[]): Stage3D => patchObjects(s, ids, (o) => (o.group ? { group: undefined } : null));
 
 /** Default labels follow the order (START, P2, P3 …); custom labels are kept. */
 const relabel = (positions: ShooterPosition[]) =>
@@ -55,7 +93,7 @@ const relabel = (positions: ShooterPosition[]) =>
 
 /** New position at the end of the course, with a leg from the previous one. */
 export const addPosition = (s: Stage3D, x: number, d: number, heading = 0) => {
-  const p = clampToHall(x, d);
+  const p = clampIn(s, x, d);
   const pos: ShooterPosition = { id: newId('pos'), x: round(p.x), d: round(p.d), heading };
   return { stage: { ...s, positions: relabel([...s.positions, pos]), legs: [...s.legs, { ...DEFAULT_LEG }] }, index: s.positions.length };
 };
@@ -106,7 +144,7 @@ export const insertVia = (s: Stage3D, i: number, x: number, d: number): Stage3D 
 };
 
 export const moveVia = (s: Stage3D, i: number, k: number, x: number, d: number): Stage3D => {
-  const p = clampToHall(x, d);
+  const p = clampIn(s, x, d);
   return patchLeg(s, i, { via: (s.legs[i].via ?? []).map((v, j) => (j === k ? { x: round(p.x), d: round(p.d) } : v)) });
 };
 
