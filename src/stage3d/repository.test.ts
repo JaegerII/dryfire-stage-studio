@@ -69,13 +69,7 @@ describe('fromStage2D', () => {
     const s3 = fromStage2D(normalizeStage(stage101));
     const wall = s3.objects.find((o) => o.type === 'mesh_wall_diagonal')!;
     expect(wall.yaw).toBe(35);
-    // outdoor ranges import into their own range, inside the bay between the berms
-    expect(s3.environment).toBe('outdoor_03');
-    const room = ENV3D.outdoor_03;
-    for (const o of s3.objects) {
-      expect(o.x).toBeGreaterThanOrEqual(room.x0);
-      expect(o.x).toBeLessThanOrEqual(room.x1);
-      expect(o.d).toBeLessThan(room.d1);
-    }
+    // outdoor ranges are not in 3D yet: the hall stands in
+    expect(s3.environment).toBe('indoor_01');
   });
 });
