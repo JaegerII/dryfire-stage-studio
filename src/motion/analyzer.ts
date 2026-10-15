@@ -1,13 +1,13 @@
 /**
- * Motion analysis of one repetition â€” a state machine fed with body frames:
+ * Motion analysis of one repetition — a state machine fed with body frames:
  *
- *   READY â†’ MOVEMENT â†’ PRESENTATION â†’ STABILIZATION â†’ COMPLETE
+ *   READY → MOVEMENT → PRESENTATION → STABILIZATION → COMPLETE
  *
  *   READY          armed before the start signal; hands are expected to be still
  *   MOVEMENT       first hand movement after the signal was confirmed
  *   PRESENTATION   hands reached the configured presentation zone (still moving)
  *   STABILIZATION  hands in the zone and slow; waiting for the hold time
- *   COMPLETE       held still long enough â€” or the par window ran out
+ *   COMPLETE       held still long enough — or the par window ran out
  *
  * Every transition is decided by explicit, measurable criteria (speeds and
  * positions in torso units, see features.ts). The presentation zone describes
@@ -39,9 +39,9 @@ export interface MotionEvent {
   type: MotionEventType;
   /** Local performance clock, ms. */
   t: number;
-  /** 0..1 â€” tracking quality around the event. */
+  /** 0..1 — tracking quality around the event. */
   confidence: number;
-  /** Â± ms around `t`. */
+  /** ± ms around `t`. */
   uncertaintyMs: number;
   note?: string;
 }
@@ -49,7 +49,7 @@ export interface MotionEvent {
 export interface PresentationZone {
   /** Hands at most this far above the shoulder line (torso units). */
   maxAbove: number;
-  /** â€¦ and at most this far below it. */
+  /** … and at most this far below it. */
   maxBelow: number;
   /** Max sideways distance from the body centre line. */
   maxSide: number;
@@ -79,7 +79,7 @@ export interface AnalyzerConfig {
   positionShift: number;
   /** Speeds are measured over this window, ms. */
   speedWindowMs: number;
-  /** Hand jitter of the still athlete from calibration (torso units / s) â€” thresholds never go below 3Ã— this. */
+  /** Hand jitter of the still athlete from calibration (torso units / s) — thresholds never go below 3× this. */
   noiseFloor?: number;
 }
 
@@ -100,7 +100,7 @@ export interface RepWindow {
   rep: number;
   /** Start signal on the local clock, ms. */
   signalT: number;
-  /** Â± ms of the signal time itself (clock sync + audio latency). */
+  /** ± ms of the signal time itself (clock sync + audio latency). */
   signalUncertaintyMs: number;
   /** Analysis ends here (end of par + grace), ms. */
   endT: number;
@@ -121,15 +121,15 @@ export interface RepResult {
   earlyMovement: boolean;
   events: MotionEvent[];
   metrics: {
-    /** Signal â†’ first movement. */
+    /** Signal → first movement. */
     reaction?: Measured;
-    /** Signal â†’ hands in the presentation zone (NOT the time of a first shot). */
+    /** Signal → hands in the presentation zone (NOT the time of a first shot). */
     presentation?: Measured;
-    /** First movement â†’ presentation zone. */
+    /** First movement → presentation zone. */
     movement?: Measured;
-    /** Presentation zone â†’ hands still. */
+    /** Presentation zone → hands still. */
     stabilization?: Measured;
-    /** Signal â†’ hands still in the zone. */
+    /** Signal → hands still in the zone. */
     total?: Measured;
   };
   framesUsed: number;
@@ -160,7 +160,7 @@ export class RepAnalyzer {
   private hist: Sample[] = [];
   private lastOkT = -Infinity;
   private lostAt: number | null = null;
-  /** Gap (ms) that preceded the current sample â€” feeds the event uncertainty. */
+  /** Gap (ms) that preceded the current sample — feeds the event uncertainty. */
   private gapBefore = 0;
   private restLeft: Vec2 | null = null;
   private restRight: Vec2 | null = null;
@@ -221,7 +221,7 @@ export class RepAnalyzer {
     }
     this.lastOkT = t;
 
-    // active hand: both hands together â†’ their centre, otherwise the one that left its rest position most
+    // active hand: both hands together → their centre, otherwise the one that left its rest position most
     const together = !!(f.left && f.right && len(sub(f.left, f.right)) <= this.cfg.zone.maxGap);
     let hand: Vec2 | null = together ? { x: (f.left!.x + f.right!.x) / 2, y: (f.left!.y + f.right!.y) / 2 } : null;
     if (!hand) {
@@ -285,7 +285,7 @@ export class RepAnalyzer {
     return Math.max(d(s.f.left, this.restLeft), d(s.f.right, this.restRight));
   }
 
-  /** Start of the current run of samples above `speed` â€” where the movement really began. */
+  /** Start of the current run of samples above `speed` — where the movement really began. */
   private runStart(speed: number) {
     let i = this.hist.length - 1;
     while (i > 0 && this.hist[i - 1].speed >= speed) i--;
@@ -327,7 +327,7 @@ export class RepAnalyzer {
           const first = this.hist[this.hist.length - 2];
           const { t: at, unc } = this.bracket(first, this.hist[this.hist.length - 3]);
           if (!this.events.some((e) => e.type === 'presentation_reached'))
-            this.emit('presentation_reached', at, this.confAt(first) * (s.f.extension === null ? 0.7 : 1), unc, s.f.extension === null ? 'no depth estimate â€” zone from 2D position only' : undefined);
+            this.emit('presentation_reached', at, this.confAt(first) * (s.f.extension === null ? 0.7 : 1), unc, s.f.extension === null ? 'no depth estimate — zone from 2D position only' : undefined);
           this.state = 'PRESENTATION';
           this.outRun = 0;
         }

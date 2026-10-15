@@ -71,6 +71,16 @@ describe('movement feel', () => {
     const ys = Array.from({ length: 40 }, (_, k) => povPose(shooterAt(stage, 4.6 + k * 0.03), 0).y);
     expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(0.03);
   });
+
+  it('scales the head movement with the shake setting (0 = steady)', () => {
+    const range = (shake: number) => {
+      const ys = Array.from({ length: 60 }, (_, k) => povPose(shooterAt(stage, 4.2 + k * 0.04), 0, shake));
+      return { y: Math.max(...ys.map((p) => p.y)) - Math.min(...ys.map((p) => p.y)), roll: Math.max(...ys.map((p) => Math.abs(p.roll))) };
+    };
+    expect(range(0)).toEqual({ y: 0, roll: 0 });
+    expect(range(2).y).toBeCloseTo(range(1).y * 2, 6);
+    expect(range(2).roll).toBeGreaterThan(range(1).roll);
+  });
 });
 
 describe('camera', () => {

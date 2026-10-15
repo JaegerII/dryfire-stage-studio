@@ -9,7 +9,7 @@
  */
 import type { Stage } from '../types/stage';
 import { type PlayerSnapshot, type Schedule, buildSchedule, snapshotAt } from '../utils/schedule';
-import { type Stage3D, parTime3D } from './types';
+import { DEFAULT_SHAKE, type Stage3D, parTime3D, shakeOf } from './types';
 
 export const EYE_HEIGHT = 1.6;
 
@@ -227,21 +227,23 @@ const STEP = 0.8;
  * start and nods + sinks slightly while braking into the box. Everything is
  * scaled by the walking speed, so it fades in and out with the move.
  */
-export const povPose = (st: ShooterState, _t: number): CameraPose => {
+export const povPose = (st: ShooterState, _t: number, shake = DEFAULT_SHAKE): CameraPose => {
+  // 'shake' scales every head movement; the walk itself (speed, glide) stays the same
+  const k = shake;
   const v = st.speed;
   const ph = (2 * Math.PI * st.dist) / STEP; // one cycle per step
   const brake = Math.max(0, -st.accel);
   const push = Math.max(0, st.accel);
-  const bob = 0.034 * v * Math.sin(ph) - 0.02 * brake;
-  const sway = 0.022 * v * Math.sin(ph / 2);
+  const bob = k * (0.016 * v * Math.sin(ph) - 0.01 * brake);
+  const sway = k * 0.01 * v * Math.sin(ph / 2);
   const h = (st.heading * Math.PI) / 180;
   return {
     x: st.x + Math.cos(h) * sway,
     y: EYE_HEIGHT + bob,
     z: -st.d + Math.sin(h) * sway,
-    yaw: st.heading + 0.6 * v * Math.sin(ph / 2 + 0.4),
-    pitch: -4 + 0.7 * v * Math.sin(ph + 0.9) - 2.2 * brake - 1.2 * push,
-    roll: 1.3 * v * Math.sin(ph / 2),
+    yaw: st.heading + k * 0.25 * v * Math.sin(ph / 2 + 0.4),
+    pitch: -4 + k * (0.3 * v * Math.sin(ph + 0.9) - 1.1 * brake - 0.6 * push),
+    roll: k * 0.55 * v * Math.sin(ph / 2),
     fov: POV_FOV,
     fade: 0,
   };
@@ -315,10 +317,10 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
   if (segment === 'flyin') {
     const u = (t - tl.briefingEnd) / T.flyIn;
     const arrows = s.legs.map(() => Math.max(0, 1 - u * 2.5)); // the path fades as we descend
-    return { t, segment, camera: mixPose(briefingPose(s, tl.briefingEnd, aspect), povPose(start, t), u), arrows, rep: null, shooter: start };
+    return { t, segment, camera: mixPose(briefingPose(s, tl.briefingEnd, aspect), povPose(start, t, shakeOf(s)), u), arrows, rep: null, shooter: start };
   }
   if (segment === 'outro') {
-    return { t, segment, camera: { ...povPose(start, t), fade: Math.min(0.6, (t - tl.stageEnd) / 1.2) }, arrows: null, rep: null, shooter: start };
+    return { t, segment, camera: { ...povPose(start, t, shakeOf(s)), fade: Math.min(0.6, (t - tl.stageEnd) / 1.2) }, arrows: null, rep: null, shooter: start };
   }
   const local = t - tl.flyInEnd;
   const rep = snapshotAt(tl.schedule, local, tl.asStage);
@@ -326,7 +328,7 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
   // during the par window and the "TIME" second the shooter is on the path; then back to the start
   const onPath = rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1);
   const shooter = onPath ? shooterAt(s, Math.min(rep.sinceStart, par)) : start;
-  const camera = povPose(shooter, t);
+  const camera = povPose(shooter, t, shakeOf(s));
   // walking back to the start between reps happens behind a short black fade
   if (rep.phase === 'reset' && s.positions.length > 1) {
     const back = rep.sinceStart - (par + 1);

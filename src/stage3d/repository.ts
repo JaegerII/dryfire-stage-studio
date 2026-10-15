@@ -1,6 +1,6 @@
 /**
  * 3D stages: built-in JSON files (src/stage3d/stages) plus the ones saved in
- * this browser (localStorage) â€” same model as the 2D stageRepository.
+ * this browser (localStorage) — same model as the 2D stageRepository.
  */
 import { ENVIRONMENTS } from '../assets/environments';
 import { ASSETS } from '../assets/registry';
@@ -117,6 +117,7 @@ export function normalizeStage3D(raw: unknown): Stage3D {
     positions,
     legs,
     finalTime: Math.max(0.5, num(r.finalTime, 5)),
+    ...(r.camera && typeof r.camera === 'object' ? { camera: { shake: num((r.camera as Record<string, unknown>).shake, 1) } } : {}),
     meta: (r.meta as Stage3D['meta']) ?? undefined,
   };
 }
@@ -140,7 +141,7 @@ export const createStage3D = (): Stage3D => ({
   meta: { createdAt: new Date().toISOString() },
 });
 
-/** The 2D plate camera stands 2.2 m in front of d = 0 of the 3D hall (tools/plate-renderer: camera at y = âˆ’2.2). */
+/** The 2D plate camera stands 2.2 m in front of d = 0 of the 3D hall (tools/plate-renderer: camera at y = −2.2). */
 const PLATE_CAMERA_D = -2.2;
 
 /**

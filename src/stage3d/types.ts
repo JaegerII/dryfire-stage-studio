@@ -61,8 +61,17 @@ export interface Stage3D {
   legs: Leg[];
   /** Seconds at the last position until the end beep. */
   finalTime: number;
+  /** Camera feel while moving between positions. */
+  camera?: {
+    /** Head movement while walking: 0 = steady (gimbal), 1 = default, 2 = strong. */
+    shake?: number;
+  };
   meta?: { createdAt?: string; updatedAt?: string; source?: string };
 }
+
+/** Default head movement while walking (see Stage3D.camera.shake). */
+export const DEFAULT_SHAKE = 1;
+export const shakeOf = (s: Pick<Stage3D, 'camera'>) => Math.max(0, Math.min(2, s.camera?.shake ?? DEFAULT_SHAKE));
 
 /** The 3D hall (indoor_01): x −8..8 m, d −6..28 m, backstop at the far end. */
 export const HALL = { x0: -8, x1: 8, d0: -6, d1: 28 };

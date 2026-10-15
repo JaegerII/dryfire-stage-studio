@@ -8,7 +8,7 @@ import { drawHud } from './hud';
 import { StageScene3D } from './StageScene3D';
 import { buildVideoTimeline, frameAt } from './timeline';
 import type { Stage3D } from './types';
-import { parTime3D } from './types';
+import { parTime3D, shakeOf } from './types';
 
 const RESOLUTIONS = { '1080p': [1920, 1080], '1440p': [2560, 1440], '4K': [3840, 2160] } as const;
 type Res = keyof typeof RESOLUTIONS;
@@ -20,7 +20,10 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart
  * shooter's eyes, reps with real movement between positions. Plays live with
  * sound, and renders the identical video frame by frame to MP4.
  */
-export const Player3D = ({ stage, onExit }: { stage: Stage3D; onExit: () => void }) => {
+export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit: () => void }) => {
+  // walking shake: preset by the stage, adjustable here for the preview and the render
+  const [shake, setShake] = useState(() => shakeOf(stageProp));
+  const stage = useMemo(() => ({ ...stageProp, camera: { ...stageProp.camera, shake } }), [stageProp, shake]);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
   const glRef = useRef<HTMLCanvasElement>(null);
@@ -53,7 +56,8 @@ export const Player3D = ({ stage, onExit }: { stage: Stage3D; onExit: () => void
     sceneRef.current = s;
     if (import.meta.env.DEV) Object.assign(window, { __scene3d: s });
     setReady(false);
-    s.load(stage)
+    // the scene only depends on the stage's objects / course, not on camera settings like the shake
+    s.load(stageProp)
       .then(() => document.fonts.load('900 40px Montserrat'))
       .then(() => setReady(true))
       .catch((e) => setError(`3D assets could not be loaded (${e?.message ?? e}). Export them with tools/plate-renderer (npm run blender3d).`));
@@ -61,7 +65,7 @@ export const Player3D = ({ stage, onExit }: { stage: Stage3D; onExit: () => void
       s.dispose();
       sceneRef.current = null;
     };
-  }, [stage]);
+  }, [stageProp]);
 
   const draw = useCallback(
     (time: number) => {
@@ -219,6 +223,9 @@ export const Player3D = ({ stage, onExit }: { stage: Stage3D; onExit: () => void
         <span className="spacer" />
         <label className="p3-opt"><input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} /> Voice</label>
         <label className="p3-opt"><input type="checkbox" checked={showTimer} onChange={(e) => setShowTimer(e.target.checked)} /> Timer</label>
+        <label className="p3-opt p3-shake" title="Head movement while walking: 0 = steady (gimbal), 1 = natural, 2 = strong. Saved with the stage in the editor.">
+          Shake <input type="range" min={0} max={2} step={0.05} value={shake} disabled={!!progress} onChange={(e) => setShake(parseFloat(e.target.value))} /> <b>{shake.toFixed(2)}</b>
+        </label>
         <select value={res} onChange={(e) => setRes(e.target.value as Res)} disabled={!!progress}>
           {Object.keys(RESOLUTIONS).map((r) => (
             <option key={r}>{r}</option>

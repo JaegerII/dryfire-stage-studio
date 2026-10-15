@@ -121,7 +121,7 @@ def bake(ob, size, kind, samples, path):
         bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'})
     else:
         bpy.ops.object.bake(type='COMBINED')
-    # save display-referred (view transform applied) â€” three.js shows it as sRGB as is
+    # save display-referred (view transform applied) — three.js shows it as sRGB as is
     img.filepath_raw = path
     img.file_format = 'JPEG' if path.endswith('.jpg') else 'PNG'
     sc.render.image_settings.file_format = img.file_format
@@ -191,7 +191,7 @@ def export(path, selection=None):
 
 # ------------------------------------------------------------------ environment: everything baked, shown unlit
 
-# indoor_hall() geometry (scene.py): room W Ã— D Ã— H, floor centred at y = D/2 âˆ’ 6
+# indoor_hall() geometry (scene.py): room W × D × H, floor centred at y = D/2 − 6
 HALL = dict(W=16.0, D=34.0, H=6.0)
 
 def centre_x(o):
@@ -200,12 +200,12 @@ def centre_x(o):
 
 
 def named(*prefixes, side=0):
-    """Selector: objects whose base name is one of `prefixes` (side: âˆ’1 left / +1 right of the centre line)."""
+    """Selector: objects whose base name is one of `prefixes` (side: −1 left / +1 right of the centre line)."""
     return lambda o: o.name.split('.')[0] in prefixes and (side == 0 or (centre_x(o) > 0) == (side > 0))
 
 
-# part of the hall â†’ (selector, texture size (w, h), uv projection)
-#   top: floor seen from above Â· yz / xz: a wall seen face-on Â· smart: many small parts
+# part of the hall → (selector, texture size (w, h), uv projection)
+#   top: floor seen from above · yz / xz: a wall seen face-on · smart: many small parts
 ENV_GROUPS = [
     ('floor', named('floor'), (4096, 8192), 'top'),
     ('wall_l', named('side_wall', side=-1), (8192, 1536), 'yz'),
@@ -217,7 +217,7 @@ ENV_GROUPS = [
 
 
 def keep_inner_faces(ob, centre, half_w):
-    """The hall is built from boxes; only faces looking into the room are ever seen â€” drop the rest,
+    """The hall is built from boxes; only faces looking into the room are ever seen — drop the rest,
     so the texture is spent where the camera looks."""
     import bmesh
     from mathutils import Vector
@@ -258,7 +258,7 @@ def export_env(pid):
     S.reset()
     S.make_materials()
     S.PLATES[pid]()
-    # spent brass: thousands of tiny UV islands for nothing â€” the 3D player does not need it
+    # spent brass: thousands of tiny UV islands for nothing — the 3D player does not need it
     for o in [o for o in meshes() if o.name.startswith('case')]:
         bpy.data.objects.remove(o)
     apply_all()
@@ -281,7 +281,7 @@ def export_env(pid):
             uv_planar(ob, mode)
         else:
             uv_unwrap(ob, margin=0.002 if max(size) >= 4096 else 0.004)
-        print(f'baking {pid}/{name} {size[0]}x{size[1]} â€¦', flush=True)
+        print(f'baking {pid}/{name} {size[0]}x{size[1]} …', flush=True)
         img = bake(ob, size, 'COMBINED', ENV_SAMPLES, os.path.join(BAKE_DIR, f'env_{pid}_{name}.jpg'))
         ob.data.materials.clear()
         ob.data.materials.append(baked_material(f'baked_{name}', img, rough=1.0))
