@@ -6,7 +6,7 @@
  */
 import type { FrameState } from './timeline';
 import type { Stage3D } from './types';
-import { legPoints, alongPath } from './timeline';
+import { alongPath, legPath } from './timeline';
 
 const C = {
   text: '#edede6',
@@ -137,7 +137,7 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     s.legs.forEach((leg, i) => {
       const prog = f.arrows?.[i] ?? 0;
       if (prog < 0.45) return;
-      const mid = alongPath(legPoints(s, i), 0.5);
+      const mid = alongPath(legPath(s, i), 0.5);
       const q = project(mid.x, 0.05, mid.d);
       const text = leg.reload ? `MOVE · RELOAD · ${leg.duration} s` : `MOVE · ${leg.duration} s`;
       if (q) pill(ctx, H, text, q.x * W, q.y * H - 4 * u, leg.reload ? C.standby : C.text, Math.min(1, (prog - 0.45) / 0.2) * fadeOut);

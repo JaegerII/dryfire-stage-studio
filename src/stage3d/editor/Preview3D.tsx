@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fit16x9, useElementSize } from '../../hooks/useElementSize';
 import { StageScene3D } from '../StageScene3D';
-import { type FrameState, briefingPose, povPose } from '../timeline';
+import { type FrameState, briefingPose, povPose, standing } from '../timeline';
 import type { Stage3D } from '../types';
 
 export type PreviewMode = 'pov' | 'top';
@@ -44,7 +44,7 @@ export const Preview3D = ({ stage, position, mode, onMode }: { stage: Stage3D; p
     const camera =
       mode === 'top'
         ? { ...briefingPose(stage, 3, box.width / box.height), fade: 0 }
-        : povPose({ x: p.x, d: p.d, heading: p.heading, leg: -1, legProgress: 0, speed: 0, reloading: false }, 0);
+        : povPose(standing(p), 0);
     const f: FrameState = { t: 3, segment: 'briefing', camera, arrows: stage.legs.map(() => 1), rep: null, shooter: null };
     s.apply(f);
     s.render();

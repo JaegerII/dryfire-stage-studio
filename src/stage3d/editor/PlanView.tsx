@@ -3,7 +3,7 @@ import { DND_TYPE } from '../../components/editor/AssetLibrary';
 import { useElementSize } from '../../hooks/useElementSize';
 import type { ObjectType } from '../../types/stage';
 import { type Footprint, footprintOf } from '../StageScene3D';
-import { legPoints } from '../timeline';
+import { legPath } from '../timeline';
 import { HALL, type Stage3D } from '../types';
 import { type Selection, clampToHall, insertVia, moveVia, patchObjects, patchPosition, removeVia, snapTo } from './ops';
 
@@ -264,7 +264,8 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
 
         {/* path */}
         {stage.legs.map((leg, i) => {
-          const pts = legPoints(stage, i);
+          // the line as it will be walked (smooth through the corner points)
+          const pts = legPath(stage, i);
           const sel = selection?.kind === 'leg' && selection.index === i;
           const line = pts.map((p) => `${p.x},${-p.d}`).join(' ');
           const mid = pts[Math.floor(pts.length / 2)];

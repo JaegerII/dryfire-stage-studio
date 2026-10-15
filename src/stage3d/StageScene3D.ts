@@ -11,8 +11,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { CameraPose, FrameState } from './timeline';
-import { legPoints, stageBounds } from './timeline';
-import type { Stage3D } from './types';
+import { legPath, stageBounds } from './timeline';
+import { HALL, type Stage3D } from './types';
 
 const DEG = Math.PI / 180;
 const ACCENT = new THREE.Color('#ff3131');
@@ -110,6 +110,34 @@ export class StageScene3D {
     });
     this.scene.add(hall);
 
+    // The bake only has the faces seen from inside. Thick walls with tops around it make the
+    // hall a closed building from above (briefing, fly-in) instead of paper-thin panels in the void.
+    const side = new THREE.MeshBasicMaterial({ color: '#1d1f1e', toneMapped: false });
+    const top = new THREE.MeshBasicMaterial({ color: '#4a4d4b', toneMapped: false });
+    const T = 0.45;
+    const H = 6.12;
+    const len = HALL.d1 - HALL.d0 + 2 * T;
+    const wid = HALL.x1 - HALL.x0 + 2 * T;
+    const cz = -(HALL.d0 + HALL.d1) / 2;
+    for (const [w, d, x, z] of [
+      [T, len, HALL.x0 - T / 2 - 0.01, cz],
+      [T, len, HALL.x1 + T / 2 + 0.01, cz],
+      [wid, T, 0, -(HALL.d1 + T / 2 + 0.01)],
+      [wid, T, 0, -(HALL.d0 - T / 2)],
+    ]) {
+      // box faces: +x, −x, +y (top), −y, +z, −z
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), [side, side, top, side, side, side]);
+      wall.position.set(x, H / 2, z);
+      wall.userData.own = true;
+      this.scene.add(wall);
+    }
+    // the ground around the building
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 140), new THREE.MeshBasicMaterial({ color: '#0d0e0d', toneMapped: false }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(0, -0.02, cz);
+    ground.userData.own = true;
+    this.scene.add(ground);
+
     // light for the objects, matched by eye to the baked high bays (warm-neutral, from above)
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -198,7 +226,7 @@ export class StageScene3D {
     }
 
     // ---- briefing arrows along the legs
-    this.arrows = stage.legs.map((_, i) => this.makeArrow(legPoints(stage, i), group));
+    this.arrows = stage.legs.map((_, i) => this.makeArrow(legPath(stage, i), group));
 
     // ---- the key light's shadow covers the stage
     if (this.key) {
@@ -229,32 +257,49 @@ export class StageScene3D {
     this.scene.add(group);
   }
 
-  /** Flat ribbon on the floor along the path (revealed with drawRange) + an arrow head at the end. */
-  private makeArrow(pts: { x: number; d: number }[], group: THREE.Group): Arrow {
+  /**
+   * Flat ribbon on the floor along the walked (smoothed) path — revealed with
+   * drawRange — ending in an arrow head inside the target box.
+   */
+  private makeArrow(path: { x: number; d: number }[], group: THREE.Group): Arrow {
     const W = 0.16;
-    const step = 0.05;
+    const HEAD = 0.5;
+    // resample evenly (5 cm) in floor coordinates (three: x, z = −d)
+    const raw = path.map((p) => new THREE.Vector2(p.x, -p.d));
     const dense: THREE.Vector2[] = [];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = new THREE.Vector2(pts[i].x, -pts[i].d);
-      const b = new THREE.Vector2(pts[i + 1].x, -pts[i + 1].d);
-      const n = Math.max(1, Math.ceil(a.distanceTo(b) / step));
-      for (let k = 0; k < n; k++) dense.push(a.clone().lerp(b, k / n));
+    for (let i = 0; i < raw.length - 1; i++) {
+      const n = Math.max(1, Math.ceil(raw[i].distanceTo(raw[i + 1]) / 0.05));
+      for (let k = 0; k < n; k++) dense.push(raw[i].clone().lerp(raw[i + 1], k / n));
     }
-    const last = pts[pts.length - 1];
-    const end = new THREE.Vector2(last.x, -last.d);
-    // stop short of the box centre so the head sits inside the box
-    const dir = end.clone().sub(dense[dense.length - 1]).normalize();
-    const tip = end.clone().sub(dir.clone().multiplyScalar(0.3));
-    dense.push(tip);
+    dense.push(raw[raw.length - 1].clone());
+    // start at the edge of the start box, stop so that the head's tip sits inside the target box
+    const trim = (pts: THREE.Vector2[], len: number) => {
+      let left = len;
+      while (pts.length > 2 && left > 0) {
+        const d = pts[pts.length - 1].distanceTo(pts[pts.length - 2]);
+        if (d > left) {
+          pts[pts.length - 1] = pts[pts.length - 1].clone().lerp(pts[pts.length - 2], left / d);
+          break;
+        }
+        left -= d;
+        pts.pop();
+      }
+      return pts;
+    };
+    trim(dense, 0.25 + HEAD);
+    dense.reverse();
+    trim(dense, 0.35);
+    dense.reverse();
     const pos: number[] = [];
     const idx: number[] = [];
     dense.forEach((p, i) => {
+      // averaged tangent: even width through the curves
       const q = dense[Math.min(i + 1, dense.length - 1)];
       const o = dense[Math.max(i - 1, 0)];
       const t = q.clone().sub(o).normalize();
       const nx = -t.y * (W / 2);
       const nz = t.x * (W / 2);
-      pos.push(p.x + nx, 0.012, p.y + nz, p.x - nx, 0.012, p.y - nz);
+      pos.push(p.x + nx, 0.014, p.y + nz, p.x - nx, 0.014, p.y - nz);
       if (i > 0) {
         const a = (i - 1) * 2;
         idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
@@ -263,21 +308,24 @@ export class StageScene3D {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setIndex(idx);
-    const mat = new THREE.MeshBasicMaterial({ color: ACCENT, toneMapped: false, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    // drawn on the floor: pulled towards the camera in depth, so it never flickers into the floor
+    const mat = new THREE.MeshBasicMaterial({ color: ACCENT, toneMapped: false, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     const ribbon = new THREE.Mesh(geo, mat);
     ribbon.renderOrder = 2;
+    const end = dense[dense.length - 1];
+    const dir = end.clone().sub(dense[Math.max(0, dense.length - 4)]).normalize();
+    // head: base on the ribbon's end, tip HEAD further along the path
     const head = new THREE.Mesh(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.22, 0, 0.12), new THREE.Vector3(0.22, 0, 0.12), new THREE.Vector3(0, 0, -0.32)]),
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.24, 0, 0), new THREE.Vector3(0.24, 0, 0), new THREE.Vector3(0, 0, -HEAD)]),
       mat,
     );
-    head.position.set(tip.x, 0.013, tip.y);
+    head.position.set(end.x, 0.014, end.y);
     head.rotation.y = Math.atan2(-dir.x, -dir.y);
     head.renderOrder = 2;
     ribbon.userData.own = head.userData.own = true;
     group.add(ribbon, head);
     return { ribbon, head, total: idx.length };
   }
-
   setSize(width: number, height: number) {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
@@ -287,7 +335,7 @@ export class StageScene3D {
   private applyCamera(p: CameraPose) {
     const c = this.camera;
     c.position.set(p.x, p.y, p.z);
-    c.rotation.set(p.pitch * DEG, -p.yaw * DEG, 0);
+    c.rotation.set(p.pitch * DEG, -p.yaw * DEG, -(p.roll ?? 0) * DEG);
     if (c.fov !== p.fov) {
       c.fov = p.fov;
       c.updateProjectionMatrix();
@@ -306,13 +354,15 @@ export class StageScene3D {
     }
     this.arrows.forEach((a, i) => {
       const p = f.arrows?.[i] ?? 0;
-      const count = Math.floor((a.total / 6) * p) * 6;
-      a.ribbon.geometry.setDrawRange(0, count);
+      // briefing: the line grows towards the head; fly-in: the finished arrow only fades out
+      const fading = f.segment === 'flyin';
+      const drawn = fading ? 1 : p;
+      a.ribbon.geometry.setDrawRange(0, Math.floor((a.total / 6) * drawn) * 6);
       a.ribbon.visible = p > 0;
       const m = a.ribbon.material as THREE.MeshBasicMaterial;
-      // during the fly-in the arrows fade out instead of un-drawing
-      m.opacity = f.segment === 'flyin' ? p : 0.92;
-      a.head.visible = p >= 0.98 || (f.segment === 'flyin' && p > 0);
+      m.opacity = fading ? 0.92 * p : 0.92;
+      // the head appears when the line arrives
+      a.head.visible = p > 0 && drawn >= 0.995;
     });
   }
 
