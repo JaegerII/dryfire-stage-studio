@@ -351,6 +351,24 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .record-armed em { font-style: normal; font-size: 1.8cqh; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
 @keyframes armed-blink { 50% { opacity: 0.25; } }
 
+/* ================================================================ 3D player (prototype) */
+.player3d { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; }
+.p3-area { flex: 1; min-height: 0; display: grid; place-items: center; }
+.p3-box { position: relative; background: #050605; container-type: size; }
+.p3-gl, .p3-hud { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.p3-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(5, 6, 5, 0.82); font-size: 15px; color: var(--sage); text-align: center; padding: 20px; }
+.p3-msg strong { color: var(--text); font-size: 18px; letter-spacing: 0.06em; }
+.p3-msg.bad { color: var(--accent); }
+.p3-bar { width: min(520px, 70%); height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.p3-bar > div { height: 100%; background: var(--accent); transition: width 0.2s; }
+.p3-controls { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--sunken); border-top: 1px solid var(--line); flex-wrap: wrap; }
+.p3-controls input[type='range'] { flex: 1 1 260px; }
+.p3-controls select { width: auto; }
+.p3-controls .spacer { flex: 0 0 8px; }
+.p3-time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; }
+.p3-opt { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.p3-info { padding: 0 14px 10px; background: var(--sunken); color: var(--faint); font-size: 11.5px; }
+
 /* ================================================================ training programs (PP1 / NPA) */
 .brand-btn { background: none; border: 0; padding: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; color: inherit; text-align: left; }
 .program-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; max-width: 1100px; }

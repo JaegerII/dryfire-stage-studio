@@ -254,6 +254,25 @@ appears with new targets. No beep between areas; the end beep comes after the la
 * Built-in examples: `stage_601`–`stage_603`, played together as *Match 07 – Dynamic Stages*.
 * The TV receiver (`#/tv`) does not show areas yet.
 
+## 3D stages (prototype)
+
+`#/3d` (start page → **3D (beta)**) plays a stage in real 3D: a **briefing from above** with the path drawn as
+red arrows (where to move, how long to wait, where to reload), the camera **flies down into the shooter's eyes** at
+the start box, then every rep runs with **real movement** between the positions (forward / sideways, the barrier mesh
+passes with true parallax, see-through).
+
+* **Render MP4:** frame by frame in the browser (WebCodecs + mediabunny), 1080p / 1440p / 4K, 30 / 60 fps, with the
+  beeps and the spoken "Stand by" mixed in sample-accurately. No screen recording; the result is identical to the preview.
+  A 74 s video at 1080p30 renders in seconds on a desktop GPU.
+* **Look:** the hall is the same Blender scene as the 2D plates, with light, shadows and materials **baked by Cycles**
+  into textures and shown unlit; targets and barriers are the same Blender models, lit live with soft shadows.
+* **Assets:** `public/3d/*.glb`, made by `tools/plate-renderer` → `npm run blender3d` (hall bake ≈ 20 min on an RTX 2060;
+  `npm run blender3d obj:paper_full` for single objects).
+* **Stage format** (`src/stage3d/stages/*.json`): objects in meters (`x` right, `d` downrange, `yaw`), shooter
+  `positions` (`x`, `d`, `heading`) and `legs` between them (`after` = seconds at the previous position, `duration`,
+  `reload`, optional `via` corner points). Par = all waits + moves + `finalTime`.
+* Prototype limits: one environment (`indoor_01`), stages are edited as JSON (no top-view editor yet), no target motion.
+
 ## FORTH TRACE · motion tracking (experimental)
 
 The phone films the athlete, MediaPipe Pose runs on the device, and a state machine measures

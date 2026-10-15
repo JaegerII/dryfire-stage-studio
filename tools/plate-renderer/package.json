@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "textures": "node scripts/fetch-textures.mjs",
     "assets": "node scripts/render-assets.mjs",
-    "blender": "node scripts/render-blender.mjs"
+    "blender": "node scripts/render-blender.mjs",
+    "blender3d": "node scripts/export-3d.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

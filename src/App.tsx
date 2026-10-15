@@ -1,7 +1,7 @@
 import { TrainingHome } from './components/training/TrainingHome';
 import { TrainingRunner } from './components/training/TrainingRunner';
 import { programById } from './training/programs';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { StageEditor } from './components/editor/StageEditor';
 import { HomePage } from './components/home/HomePage';
 import { MatchPage } from './components/match/MatchPage';
@@ -14,6 +14,9 @@ import { createStage } from './utils/stageIO';
 import { matchStages } from './utils/matchUtils';
 import { TRACE_TABS, TraceApp, type TraceTab } from './trace/TraceApp';
 import { TvReceiver } from './trace/tv/TvReceiver';
+
+// three.js + the encoder only load when the 3D player is opened
+const Player3D = lazy(() => import('./stage3d/Player3D').then((m) => ({ default: m.Player3D })));
 
 /**
  * Routes (hash based, so the app works from any static host):
@@ -35,7 +38,8 @@ type View =
   | { page: 'training' }
   | { page: 'program'; programId: string }
   | { page: 'trace'; tab: TraceTab }
-  | { page: 'tv'; room?: string };
+  | { page: 'tv'; room?: string }
+  | { page: '3d'; stageId?: string };
 
 interface Playing {
   stages: Stage[];
@@ -71,6 +75,7 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
     return { view: { page: 'trace', tab }, playing: null };
   }
   if ((m = hash.match(/^#\/tv(?:\/([A-Za-z0-9]{3,8}))?$/))) return { view: { page: 'tv', room: m[1]?.toUpperCase() }, playing: null };
+  if ((m = hash.match(/^#\/3d(?:\/(.+))?$/))) return { view: { page: '3d', stageId: m[1] && dec(m[1]) }, playing: null };
   return { view: { page: 'home' }, playing: null };
 };
 
@@ -83,6 +88,7 @@ const toHash = (view: View, playing: Playing | null) => {
   if (view.page === 'program') return `#/training/${enc(view.programId)}`;
   if (view.page === 'trace') return `#/trace/${view.tab}`;
   if (view.page === 'tv') return view.room ? `#/tv/${enc(view.room)}` : '#/tv';
+  if (view.page === '3d') return view.stageId ? `#/3d/${enc(view.stageId)}` : '#/3d';
   return '#/';
 };
 
@@ -142,7 +148,13 @@ export const App = () => {
           onPlayStage={playStage}
           onOpenTraining={() => go({ page: 'training' })}
           onOpenTrace={() => go({ page: 'trace', tab: 'training' })}
+          onOpen3d={() => go({ page: '3d' })}
         />
+      )}
+      {view.page === '3d' && (
+        <Suspense fallback={null}>
+          <Player3D stageId={view.stageId} onExit={() => go({ page: 'home' })} />
+        </Suspense>
       )}
       {view.page === 'trace' && <TraceApp tab={view.tab} onTab={(tab) => go({ page: 'trace', tab })} onStageBuilder={() => go({ page: 'home' })} />}
       {view.page === 'tv' && <TvReceiver room={view.room} onJoin={(room) => go({ page: 'tv', room })} onExit={() => go({ page: 'home' })} />}

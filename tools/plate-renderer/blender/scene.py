@@ -1507,11 +1507,12 @@ def render_plate(pid):
     bpy.ops.render.render(write_still=True)
 
 
-kind, name = JOB.split(':', 1)
-if kind == 'sprite':
-    render_sprite(name)
-elif kind == 'shadow':
-    render_shadow(*name.split(':'))
-else:
-    render_plate(name)
-print('RENDERED', JOB, '->', OUT)
+if __name__ == '__main__':  # imported by export3d.py for the 3D player
+    kind, name = JOB.split(':', 1)
+    if kind == 'sprite':
+        render_sprite(name)
+    elif kind == 'shadow':
+        render_shadow(*name.split(':'))
+    else:
+        render_plate(name)
+    print('RENDERED', JOB, '->', OUT)
