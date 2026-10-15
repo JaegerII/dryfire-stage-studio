@@ -59,6 +59,8 @@ interface Light {
   fill: number;
   env: number;
   shadow: number;
+  /** Overall brightness of this environment (1 = as baked); every stage can scale it further. */
+  brightness?: number;
 }
 const INDOOR: Light = { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, fill: 0, env: 0.5, shadow: 0.42 };
 const LIGHT: Record<Env3D, Light> = {
@@ -66,8 +68,9 @@ const LIGHT: Record<Env3D, Light> = {
   indoor_02: INDOOR,
   indoor_03: INDOOR,
   indoor_04: INDOOR,
-  indoor_05: INDOOR,
-  indoor_06: INDOOR,
+  // white floors / walls under many lights: a little darker than baked
+  indoor_05: { ...INDOOR, brightness: 0.72 },
+  indoor_06: { ...INDOOR, brightness: 0.72 },
   outdoor_01: { sky: '#d6e2f2', ground: '#8a7f68', hemi: 1.3, sun: '#fff3e0', key: 3.2, fill: 4, env: 0.8, shadow: 0.55 },
   outdoor_02: { sky: '#cdd6e4', ground: '#6f6b4c', hemi: 1.1, sun: '#ffd9ab', key: 2.8, fill: 3.5, env: 0.8, shadow: 0.5 },
   outdoor_03: { sky: '#e6eaee', ground: '#6c7356', hemi: 1.9, sun: '#f4f6f8', key: 0.7, fill: 2.5, env: 0.8, shadow: 0.22 },
@@ -305,6 +308,7 @@ export class StageScene3D {
     });
     const eg = (this.envGroup = new THREE.Group());
     this.scene.add(eg);
+    this.hallMats = [];
     const hall = env.clone(true);
     hall.traverse((n) => {
       const m = n as THREE.Mesh;
@@ -312,7 +316,11 @@ export class StageScene3D {
       const src = m.material as THREE.MeshStandardMaterial;
       // the floor is seen at grazing angles: anisotropic filtering keeps it sharp into the distance
       if (src.map) src.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-      m.material = new THREE.MeshBasicMaterial({ map: src.map ?? null, color: src.map ? 0xffffff : src.color, toneMapped: false });
+      const base = src.map ? new THREE.Color(0xffffff) : src.color.clone();
+      const mat = new THREE.MeshBasicMaterial({ map: src.map ?? null, color: base.clone(), toneMapped: false });
+      mat.userData.base = base;
+      this.hallMats.push(mat);
+      m.material = mat;
       m.userData.ceiling = !outdoor && (/ceiling/.test(m.name) || /ceiling/.test(src.name));
     });
     eg.add(hall);
@@ -366,6 +374,8 @@ export class StageScene3D {
     this.camera.far = outdoor ? 6000 : 300;
     this.camera.updateProjectionMatrix();
     this.scene.background = sky ?? new THREE.Color('#050605');
+    this.envBrightness = light.brightness ?? 1;
+    this.applyBrightness();
     if (!this.lightsReady) {
       this.lightsReady = true;
       const key = new THREE.DirectionalLight();
@@ -409,6 +419,21 @@ export class StageScene3D {
   }
 
   private hemi: THREE.HemisphereLight | null = null;
+  /** Baked environment materials (their base colours are scaled by the brightness). */
+  private hallMats: THREE.MeshBasicMaterial[] = [];
+  private envBrightness = 1;
+  private stageBrightness = 1;
+
+  /**
+   * Brightness = the environment's own × the stage's (Stage3D.brightness): darkens / lightens the baked
+   * environment, the sky and (via the exposure) the live-lit objects alike.
+   */
+  private applyBrightness() {
+    const b = this.envBrightness * this.stageBrightness;
+    for (const m of this.hallMats) m.color.copy(m.userData.base).multiplyScalar(b);
+    this.renderer.toneMappingExposure = b;
+    this.scene.backgroundIntensity = b;
+  }
   private fill: THREE.DirectionalLight | null = null;
   /** Reflections / ambient of the environment map on the objects. */
   private envIntensity = 0.5;
@@ -436,6 +461,8 @@ export class StageScene3D {
   /** Objects, shooting boxes and path arrows of a stage — call again after every edit (the hall stays). */
   async setStage(stage: Stage3D) {
     const gen = ++this.generation;
+    this.stageBrightness = stage.brightness ?? 1;
+    this.applyBrightness();
     const objs = await Promise.all(stage.objects.map((o) => loadGlb(assetUrl(`obj_${o.type}.glb`)).catch(() => null)));
     // a newer edit arrived while the models loaded
     if (this.disposed || gen !== this.generation) return;

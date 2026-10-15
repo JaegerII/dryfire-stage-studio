@@ -71,6 +71,9 @@ Repetitions, reset time and standby delay as before.
     front of it to set where the shooter looks; *Stay (s)* = time at that box.
   * Click a path: *Go after*, *Move takes*, *Reload*. Double-click a path to add a corner point, drag it, double-click
     it to remove it.
+  * **Brightness** (stage properties → Camera): darker / lighter range and targets, saved with the stage and used in
+    the video. Indoor Range 05 / 06 start a little darker than baked.
+  * The *View from …* preview shows the floor as in the run (walkway slats, no path arrows); *Briefing (top)* shows the arrows.
   * **Save** keeps the stage in this browser; Export / Import JSON; **▶ Play / Render** plays it as it is in the editor.
 * **Storage:** stages are saved in the browser (localStorage). Built-in stages live in `src/stage3d/stages/*.json`;
   saving a built-in stage keeps your version under the same id (*Revert* on the start page restores the original).

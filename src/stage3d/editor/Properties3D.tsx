@@ -158,6 +158,9 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
       <Row label="Standby min (s)"><NumberField value={stage.standbyDelay.min} min={0} max={10} step={0.1} digits={1} onChange={(min) => set({ standbyDelay: { min, max: Math.max(min, stage.standbyDelay.max) } })} /></Row>
       <Row label="Standby max (s)"><NumberField value={stage.standbyDelay.max} min={0} max={10} step={0.1} digits={1} onChange={(max) => set({ standbyDelay: { min: Math.min(max, stage.standbyDelay.min), max } })} /></Row>
       <h4>Camera</h4>
+      <Row label="Brightness" hint="Darker / lighter range and targets (1 = as the range is). Saved with the stage, used in the video too.">
+        <SliderField value={stage.brightness ?? 1} min={0.4} max={1.6} step={0.05} digits={2} onChange={(b) => set({ brightness: Math.abs(b - 1) < 0.001 ? undefined : b })} />
+      </Row>
       <Row label="Walking shake" hint="Head movement while moving between positions: 0 = steady like a gimbal, 1 = natural, 2 = strong">
         <SliderField value={shakeOf(stage)} min={0} max={2} step={0.05} digits={2} onChange={(shake) => set({ camera: { ...stage.camera, shake } })} />
       </Row>

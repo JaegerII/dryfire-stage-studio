@@ -74,6 +74,8 @@ export interface Stage3D {
   legs: Leg[];
   /** Seconds at the last position until the end beep. */
   finalTime: number;
+  /** Brightness of the scene: 1 = the environment as it is, < 1 darker, > 1 lighter. */
+  brightness?: number;
   /** Start condition, shown in the briefing and on the title card (e.g. "Pistol unloaded on the table, magazines on the table"). */
   start?: string;
   /** Camera feel while moving between positions. */

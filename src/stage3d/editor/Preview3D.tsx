@@ -45,7 +45,8 @@ export const Preview3D = ({ stage, position, mode, onMode }: { stage: Stage3D; p
       mode === 'top'
         ? { ...briefingPose(stage, 3, box.width / box.height), fade: 0 }
         : povPose(standing(p), 0);
-    const f: FrameState = { t: 3, segment: 'briefing', camera, arrows: stage.legs.map(() => 1), rep: null, shooter: null };
+    // the path arrows belong to the briefing view; the shooter's view shows the floor as in the run
+    const f: FrameState = { t: 3, segment: mode === 'top' ? 'briefing' : 'stage', camera, arrows: mode === 'top' ? stage.legs.map(() => 1) : null, rep: null, shooter: null };
     s.apply(f);
     s.render();
   };
