@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_702",
+  "name": "Table Start – Rubber Stands",
+  "description": "Pick up the pistol, load from the table, engage the cards on the rubber stands. Move left behind the black partition, steel past the drums.",
+  "environment": "indoor_02",
+  "repetitions": 5,
+  "resetTime": 6,
+  "standbyDelay": { "min": 1, "max": 3 },
+  "start": "Pistol unloaded on the table, magazines on the table",
+  "positions": [
+    { "id": "ts_start", "label": "START", "x": 0, "d": 0.2, "heading": 0 },
+    { "id": "ts_p2", "label": "P2", "x": -3.6, "d": 4.2, "heading": -12 }
+  ],
+  "legs": [{ "after": 4.5, "duration": 2.6, "reload": false }],
+  "finalTime": 4,
+  "camera": { "shake": 0.8 },
+  "objects": [
+    { "id": "ts_table", "type": "table_start", "x": 0, "d": 1.05 },
+
+    { "id": "ts_rs1", "type": "rubber_stand", "x": -1.5, "d": 8.5 },
+    { "id": "ts_rs1_card", "type": "paper_card", "x": -1.5, "d": 8.5, "elevation": 0.95 },
+    { "id": "ts_rw", "type": "rubber_wall", "x": 1.2, "d": 9.5 },
+    { "id": "ts_rw_card1", "type": "paper_card", "x": 0.9, "d": 9.5, "elevation": 0.95 },
+    { "id": "ts_rw_ns", "type": "no_shoot_overlay", "x": 1.5, "d": 9.5, "elevation": 0.95 },
+    { "id": "ts_rs2", "type": "rubber_stand", "x": 3.6, "d": 8, "yaw": -15 },
+    { "id": "ts_rs2_card", "type": "paper_hc_half_card", "x": 3.6, "d": 8, "elevation": 0.95, "yaw": -15 },
+
+    { "id": "ts_wall_1", "type": "wall_black", "x": -2.4, "d": 5.4, "yaw": 20 },
+    { "id": "ts_wall_2", "type": "wall_black_window", "x": -4.4, "d": 6.2 },
+    { "id": "ts_net", "type": "mesh_wall_black", "x": 5.2, "d": 5.2, "yaw": -40 },
+
+    { "id": "ts_drum_1", "type": "barrel_steel", "x": -4.8, "d": 9.2 },
+    { "id": "ts_stack", "type": "barrel_stack", "x": -6, "d": 10.5 },
+    { "id": "ts_lying", "type": "barrel_lying", "x": -3.6, "d": 10.6 },
+    { "id": "ts_popper", "type": "steel_popper", "x": -5.4, "d": 13.2 },
+    { "id": "ts_plate", "type": "steel_plate", "x": -3.2, "d": 14 }
+  ]
+}

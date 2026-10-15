@@ -120,17 +120,17 @@ def card_face(name='card_face', white=False, paint=()):
     board.save(os.path.join(OUT, f'{name}.png'))
 
 
-def barrier_mesh(w_cm=60, h_cm=50):
-    """Tileable orange barrier mesh: 60 x 50 cm (10 x 10 cells)."""
+def barrier_mesh(w_cm=60, h_cm=50, name='barrier_mesh', color=(255, 118, 18), streaks=((255, 150, 80, 22), (150, 35, 0, 22))):
+    """Tileable barrier mesh: 60 x 50 cm (10 x 10 cells). Orange, or (barrier_mesh_black) a black net."""
     k = 24
     W, H = round(w_cm * k), round(h_cm * k)
     cell_w, cell_h = 6, 5
-    img = Image.new('RGB', (W, H), (255, 118, 18))
+    img = Image.new('RGB', (W, H), color)
     rnd = random.Random(3)
     d = ImageDraw.Draw(img, 'RGBA')
     for _ in range(140):
         x = rnd.random() * W
-        d.rectangle((x, 0, x + 1 + rnd.random() * 8, H), fill=(255, 150, 80, 22) if rnd.random() > 0.5 else (150, 35, 0, 22))
+        d.rectangle((x, 0, x + 1 + rnd.random() * 8, H), fill=streaks[0] if rnd.random() > 0.5 else streaks[1])
     mask = Image.new('L', (W, H), 255)
     md = ImageDraw.Draw(mask)
     for r in range(h_cm // cell_h):
@@ -142,7 +142,7 @@ def barrier_mesh(w_cm=60, h_cm=50):
             md.ellipse((cx - ow / 2 * k, cy - oh / 2 * k, cx + ow / 2 * k, cy + oh / 2 * k), fill=0)
     img = img.convert('RGBA')
     img.putalpha(mask)
-    img.save(os.path.join(OUT, 'barrier_mesh.png'))
+    img.save(os.path.join(OUT, f'{name}.png'))
 
 
 def popper_paint():
@@ -168,5 +168,6 @@ if __name__ == '__main__':
     for kind, polys in HC.items():
         card_face(f'card_hc_{kind}', paint=polys)
     barrier_mesh()
+    barrier_mesh(name='barrier_mesh_black', color=(30, 31, 32), streaks=((60, 62, 64, 30), (8, 8, 8, 30)))
     popper_paint()
     print('generated textures in', OUT)

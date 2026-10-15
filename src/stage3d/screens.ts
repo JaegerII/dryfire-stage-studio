@@ -153,7 +153,7 @@ const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
   ctx.textBaseline = 'alphabetic';
   const desc = stage.description ? (font(ctx, 500, 2.8 * u), wrap(ctx, stage.description, W * 0.7).slice(0, 3)) : [];
   // block height, centred vertically
-  const h = (matchName ? 5 * u : 0) + 6 * u + 11 * u + desc.length * 4 * u + 20 * u;
+  const h = (matchName ? 5 * u : 0) + 6 * u + 11 * u + desc.length * 4 * u + (stage.start ? 5 * u : 0) + 20 * u;
   let y = (H - h) / 2;
   if (matchName) {
     font(ctx, 700, 2.3 * u);
@@ -178,6 +178,11 @@ const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
   font(ctx, 500, 2.8 * u);
   ctx.fillStyle = C.muted;
   for (const l of desc) ctx.fillText(l, W / 2, (y += 4 * u));
+  if (stage.start) {
+    font(ctx, 700, 2.6 * u);
+    ctx.fillStyle = C.accent;
+    ctx.fillText(`START · ${stage.start}`, W / 2, (y += 5 * u), W * 0.85);
+  }
   // stats under a hairline
   y += 5 * u;
   ctx.fillStyle = C.line;

@@ -401,6 +401,17 @@ def make_materials():
     M.mesh = mesh_material()
     M.drum = pbr('drum', 'Concrete034', tile=0.8, color=False, tint='#1d5ca8', rough=0.4, normal=0.08)
     M.drum_cap = material('drum_cap', '#16467f', rough=0.45)
+    M.mesh_black = mesh_material('barrier_mesh_black')
+    M.wall_black = pbr('wall_black', 'Wood058', tile=1.2, tint='#1a1a1a', rough=0.7, normal=0.25, sat=0.0, value=0.5)
+    M.drum_steel = pbr('drum_steel', 'PaintedMetal004', tile=0.6, color=False, tint='#202326', rough=0.5, normal=0.4, metal=0.5)
+    # rubber granulate panels of indoor target stands
+    M.rubber_panel = pbr('rubber_panel', 'Rubber004', tile=0.5, tint='#2a2a2a', rough=0.9, normal=0.9, sat=0.0)
+    M.tire_small = material('castor', '#151515', rough=0.7)
+    M.table_top = material('table_top', '#b9bab5', rough=0.55)
+    M.mag = material('mag', '#1b1c1e', rough=0.4, metal=0.6)
+    M.mag_base = material('mag_base', '#c23a2a', rough=0.5)
+    M.gun = material('gun_slide', '#2b2d30', rough=0.35, metal=0.8)
+    M.gun_frame = material('gun_frame', '#161718', rough=0.6)
     # worn black tyre rubber: a little grey from dust, not glossy
     M.tire = pbr('tire', 'Rubber001', tile=0.35, tint='#3a3a3a', rough=0.82, normal=0.9, sat=0.0)
     M.faces = {}
@@ -413,14 +424,15 @@ def face(kind):
     return M.faces[kind]
 
 
-def mesh_material():
-    """Orange barrier mesh, tileable 60 × 50 cm, UVs in meters / tile."""
-    m = bpy.data.materials.new('barrier_mesh')
+def mesh_material(name='barrier_mesh'):
+    """Barrier mesh (orange; barrier_mesh_black: black net), tileable 60 × 50 cm, UVs in meters / tile.
+    The 3D player recognises the cut-out by the material name (barrier_mesh*)."""
+    m = bpy.data.materials.new(name)
     m.use_nodes = True
     N, L = m.node_tree.nodes, m.node_tree.links
     b = N['Principled BSDF']
     t = N.new('ShaderNodeTexImage')
-    t.image = _img(os.path.join(GEN, 'barrier_mesh.png'))
+    t.image = _img(os.path.join(GEN, f'{name}.png'))
     t.interpolation = 'Cubic'
     L.new(t.outputs['Color'], b.inputs['Base Color'])
     L.new(t.outputs['Alpha'], b.inputs['Alpha'])
@@ -542,7 +554,7 @@ def plate_rack():
 WALL_H, MESH_B, MESH_T = 185, 10, 180
 
 
-def mesh_panel(name, polys, y=-5):
+def mesh_panel(name, polys, y=-5, mat=None):
     """Flat mesh panel from polygons (cm, x/z) — UVs in tile units so the mesh never stretches."""
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new('UVMap')
@@ -552,7 +564,7 @@ def mesh_panel(name, polys, y=-5):
         for lp in f.loops:
             lp[uv].uv = (lp.vert.co.x / MESH_TILE[0], lp.vert.co.z / MESH_TILE[1])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
-    return mesh_obj(name, bm, [M.mesh])
+    return mesh_obj(name, bm, [mat or M.mesh])
 
 
 def rect(x0, z0, x1, z1):
@@ -563,8 +575,8 @@ def rect_with_hole(x0, z0, x1, z1, hx0, hz0, hx1, hz1):
     return [rect(x0, z0, hx0, z1), rect(hx1, z0, x1, z1), rect(hx0, z0, hx1, hz0), rect(hx0, hz1, hx1, z1)]
 
 
-def post(x, h=WALL_H, y=0.0):
-    box('post', (cm(9), cm(9), cm(h)), (cm(x), y, cm(h / 2)), M.pine, bevel=cm(0.3))
+def post(x, h=WALL_H, y=0.0, mat=None):
+    box('post', (cm(9), cm(9), cm(h)), (cm(x), y, cm(h / 2)), mat or M.pine, bevel=cm(0.3))
 
 
 def wall_foot(x, y=0.0):
@@ -692,6 +704,143 @@ def barrel_barricade():
         drum(x)
 
 
+# ---- more props: black partitions, drums, rubber-covered mobile targets, tables
+
+
+def black_mesh_wall(width):
+    """Black safety-net partition (as in many indoor ranges): black net, black posts."""
+    half = width / 2
+    mesh_panel('mesh', [rect(-half, MESH_B, half, MESH_T)], mat=M.mesh_black)
+    for s in (-1, 1):
+        post(s * half, mat=M.coat)
+        wall_foot(s * half)
+        zipties(s * (half - 4.5))
+
+
+def black_wall(width=120, hole=None):
+    """Solid partition wall: black painted panel in a black frame on two feet.
+    hole = (x, z, w, h) cm: an opening (window) in the panel."""
+    half, top = width / 2, 185
+    z0 = 8
+    if hole:
+        hx, hz, hw, hh = hole
+        parts = [(-half, z0, hx, top), (hx + hw, z0, half, top), (hx, z0, hx + hw, hz), (hx, hz + hh, hx + hw, top)]
+    else:
+        parts = [(-half, z0, half, top)]
+    for x0, a, x1, b in parts:
+        if x1 - x0 > 0.1 and b - a > 0.1:
+            box('panel', (cm(x1 - x0), cm(1.8), cm(b - a)), (cm((x0 + x1) / 2), 0, cm((a + b) / 2)), M.wall_black)
+    for bx, bz, bw, bh in ((-half - 4, top, width + 8, 4), (-half - 4, z0 - 4, width + 8, 4), (-half - 4, z0, 4, top - z0), (half, z0, 4, top - z0)):
+        box('frame', (cm(bw), cm(4), cm(bh)), (cm(bx + bw / 2), 0, cm(bz + bh / 2)), M.coat, bevel=cm(0.3))
+    if hole:
+        hx, hz, hw, hh = hole
+        for bx, bz, bw, bh in ((hx - 3, hz + hh, hw + 6, 3), (hx - 3, hz - 3, hw + 6, 3), (hx - 3, hz, 3, hh), (hx + hw, hz, 3, hh)):
+            box('frame', (cm(bw), cm(3), cm(bh)), (cm(bx + bw / 2), 0, cm(bz + bh / 2)), M.coat, bevel=cm(0.2))
+    for s in (-1, 1):
+        box('foot', (cm(8), cm(60), cm(5)), (cm(s * (half - 2)), 0, cm(2.5)), M.coat, bevel=cm(0.3))
+
+
+def steel_drum(x=0.0, y=0.0, mat=None):
+    """200 l steel drum, Ø 58 cm, 88 cm, two rolling hoops, rims top and bottom, a bung in the lid."""
+    prof = [(0.0, 0.0), (0.27, 0.0), (0.29, 0.006), (0.292, 0.02), (0.284, 0.03), (0.284, 0.285), (0.296, 0.295), (0.296, 0.305),
+            (0.284, 0.315), (0.284, 0.57), (0.296, 0.58), (0.296, 0.59), (0.284, 0.6), (0.284, 0.85), (0.292, 0.86), (0.29, 0.874),
+            (0.27, 0.878), (0.27, 0.868), (0.0, 0.868)]
+    bm = bmesh.new()
+    vs = [bm.verts.new((r, 0, z)) for r, z in prof]
+    es = [bm.edges.new((vs[i], vs[i + 1])) for i in range(len(vs) - 1)]
+    bmesh.ops.spin(bm, geom=vs + es, cent=(0, 0, 0), axis=(0, 0, 1), steps=64, angle=math.tau, use_duplicate=False)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        f.smooth = True
+    ob = mesh_obj('drum', bm, [mat or M.drum_steel])
+    ob.location = (cm(x), y, 0)
+    cylinder('bung', 0.03, 0.014, (cm(x) + 0.17, y + 0.04, 0.875), (0, 0, 0), M.bolt, verts=16)
+    return ob
+
+
+def barrel_steel():
+    steel_drum()
+
+
+def barrel_stack():
+    """Two blue drums, one on top of the other."""
+    drum(0)
+    before = set(bpy.context.scene.objects)
+    drum(0)
+    for ob in set(bpy.context.scene.objects) - before:
+        ob.location.z += 0.905
+
+
+def barrel_lying():
+    """A blue drum lying on its side (axis across the shooter's view), two wooden chocks."""
+    before = set(bpy.context.scene.objects)
+    drum(0)
+    g = bpy.data.objects.new('lying', None)
+    link(g)
+    for ob in set(bpy.context.scene.objects) - before - {g}:
+        ob.parent = g
+    g.rotation_euler = (0, math.pi / 2, 0)
+    g.location = (-0.45, 0, 0.297)
+    for s in (-1, 1):
+        box('chock', (cm(70), cm(8), cm(8)), (0, cm(s * 22), cm(4)), M.pine, bevel=cm(0.5))
+
+
+def rubber_stand(width=60, height=150):
+    """Mobile indoor target stand: a thick panel covered in black rubber (shot / impact absorbing) on a
+    steel base with castors. Cards are fixed to its front (the editor puts them there)."""
+    z0 = 30
+    th = 12
+    box('rubber', (cm(width), cm(th), cm(height)), (0, cm(0.6 + th / 2), cm(z0 + height / 2)), M.rubber_panel, bevel=cm(1.2))
+    for s in (-1, 1):
+        box('upright', (cm(5), cm(5), cm(z0 + 6)), (cm(s * (width / 2 - 8)), cm(0.6 + th / 2), cm((z0 + 6) / 2)), M.coat, bevel=cm(0.3))
+    box('base', (cm(width + 10), cm(50), cm(5)), (0, cm(0.6 + th / 2), cm(8)), M.coat, bevel=cm(0.4))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = cm(sx * (width / 2 + 1)), cm(0.6 + th / 2 + sy * 20)
+            box('castor_fork', (cm(3), cm(5), cm(4)), (x, y, cm(4.5)), M.galv, bevel=cm(0.3))
+            cylinder('castor', cm(3), cm(2.5), (x, y, cm(3)), (0, math.pi / 2, 0), M.tire_small, verts=16)
+
+
+def table(start=False):
+    """Folding table 120 × 60 cm, 75 cm high: light grey top, black steel legs. start=True: a pistol and
+    two magazines lie on it (start position: pick up the gun, load from the table)."""
+    w, d, h = 120, 60, 75
+    box('top', (cm(w), cm(d), cm(3.5)), (0, cm(d / 2 - 10), cm(h - 1.75)), M.table_top, bevel=cm(0.8))
+    for sx in (-1, 1):
+        for sy in (0, 1):
+            leg = box('leg', (cm(3), cm(3), cm(h - 3.5)), (cm(sx * (w / 2 - 8)), cm(-6 + sy * (d - 8)), cm((h - 3.5) / 2)), M.coat, bevel=cm(0.3))
+            leg.rotation_euler = (math.radians(4 if sy else -4), 0, 0)
+    for sx in (-1, 1):
+        box('rail', (cm(3), cm(d - 12), cm(3)), (cm(sx * (w / 2 - 8)), cm(d / 2 - 10), cm(h - 6)), M.coat)
+    if not start:
+        return
+    zt = cm(h)
+    pistol(cm(-12), cm(4), zt)
+    for i, x in enumerate((18, 28)):
+        mag = box('mag', (cm(3.4), cm(13), cm(2.4)), (cm(x), cm(6), zt + cm(1.2)), M.mag)
+        mag.rotation_euler = (0, 0, math.radians(8 - 14 * i))
+        box('mag_base', (cm(3.8), cm(1.2), cm(2.8)), (cm(x) + math.sin(math.radians(8 - 14 * i)) * cm(7), cm(6) - math.cos(math.radians(8 - 14 * i)) * cm(7), zt + cm(1.4)), M.mag_base)
+
+
+def pistol(x, y, z):
+    """Simple pistol lying on its side on a table (≈ 20 cm long), muzzle downrange."""
+    g = bpy.data.objects.new('pistol', None)
+    link(g)
+    before = set(bpy.context.scene.objects)
+    box('slide', (cm(3.0), cm(19), cm(3.2)), (0, cm(9.5), cm(12)), M.gun, bevel=cm(0.3))
+    box('frame', (cm(2.8), cm(15), cm(2.2)), (0, cm(8.5), cm(9.4)), M.gun_frame, bevel=cm(0.3))
+    grip = box('grip', (cm(3.0), cm(5.0), cm(11)), (0, cm(1.2), cm(4.5)), M.gun_frame, bevel=cm(0.4))
+    grip.rotation_euler = (math.radians(-18), 0, 0)
+    box('guard', (cm(1.0), cm(5.5), cm(0.8)), (0, cm(6.2), cm(5.4)), M.gun_frame)
+    box('trigger', (cm(0.7), cm(0.8), cm(2.4)), (0, cm(5.8), cm(7.0)), M.gun)
+    for ob in set(bpy.context.scene.objects) - before:
+        ob.parent = g
+    # lying on its right side on the table
+    g.rotation_euler = (0, math.pi / 2, 0)
+    g.location = (x - cm(1.5), y, z + cm(1.6))
+
+
 def tire(z=0.0, turn=0.0, name='tire'):
     """Old car tyre lying flat (205/55 R16-ish: Ø 63 cm, 20 cm high), tread blocks on the
     running surface, the open inside between the beads dark."""
@@ -784,6 +933,17 @@ BUILDERS = {
     'wood_wall': (wood_wall, True),
     'barrel': (barrel, True),
     'barrel_barricade': (barrel_barricade, True),
+    'mesh_wall_black': (lambda: black_mesh_wall(180), True),
+    'mesh_wall_black_short': (lambda: black_mesh_wall(90), True),
+    'wall_black': (lambda: black_wall(120), True),
+    'wall_black_window': (lambda: black_wall(120, (-30, 95, 60, 50)), True),
+    'barrel_steel': (barrel_steel, True),
+    'barrel_stack': (barrel_stack, True),
+    'barrel_lying': (barrel_lying, True),
+    'rubber_stand': (lambda: rubber_stand(60, 150), True),
+    'rubber_wall': (lambda: rubber_stand(120, 150), True),
+    'table': (lambda: table(False), True),
+    'table_start': (lambda: table(True), True),
     'tire': (tire, True),
     'tire_stack': (tire_stack, True),
     'crate': (lambda: crate(60), True),

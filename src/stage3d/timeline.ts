@@ -309,7 +309,10 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
   if (segment === 'flyin') {
     const u = (t - tl.briefingEnd) / T.flyIn;
     const arrows = s.legs.map(() => Math.max(0, 1 - u * 2.5)); // the path fades as we descend
-    return { t, segment, camera: mixPose(briefingPose(s, tl.briefingEnd, aspect), povPose(start, t, shakeOf(s)), u), arrows, rep: null, shooter: start };
+    const eyes = povPose(start, t, shakeOf(s));
+    const table = startTablePitch(s);
+    if (table !== null) eyes.pitch = table;
+    return { t, segment, camera: mixPose(briefingPose(s, tl.briefingEnd, aspect), eyes, u), arrows, rep: null, shooter: start };
   }
   if (segment === 'outro') {
     return { t, segment, camera: { ...povPose(start, t, shakeOf(s)), fade: Math.min(0.6, (t - tl.stageEnd) / 1.2) }, arrows: null, rep: null, shooter: start };
@@ -334,7 +337,32 @@ export const runFrameAt = (s: Stage3D, schedule: Schedule, local: number, t = lo
     const back = rep.sinceStart - (par + 1);
     camera.fade = back >= -resetFade && back < resetFade ? 1 - Math.abs(back) / resetFade : 0;
   }
+  // table start: eyes on the pistol and the magazines until the beep, then up to the targets
+  const table = startTablePitch(s);
+  if (table !== null && !onPath) camera.pitch = table;
+  else if (table !== null && rep.phase === 'active') camera.pitch = lerp(table, camera.pitch, smooth((rep.sinceStart - 0.25) / 0.6));
   return { t, segment: 'stage', camera, arrows: null, rep, shooter };
+};
+
+/** Things a table start looks down at: a table (with pistol / magazines) right in front of the start box. */
+const TABLES = new Set(['table', 'table_start']);
+
+/** Pitch (deg) to look at the table in front of the start position, or null when there is none. */
+export const startTablePitch = (s: Stage3D): number | null => {
+  const p = s.positions[0];
+  const h = (p.heading * Math.PI) / 180;
+  let best: number | null = null;
+  for (const o of s.objects) {
+    if (!TABLES.has(o.type)) continue;
+    // ahead of the box (along its heading), within 2 m, not far to the side
+    const ahead = (o.x - p.x) * Math.sin(h) + (o.d - p.d) * Math.cos(h);
+    const side = Math.abs((o.x - p.x) * Math.cos(h) - (o.d - p.d) * Math.sin(h));
+    if (ahead < 0.3 || ahead > 2 || side > 1) continue;
+    // a point a little beyond the table: the table sits in the lower half of the view, under the range commands
+    const pitch = -(Math.atan2(EYE_HEIGHT - 0.75, ahead + 1.0) * 180) / Math.PI;
+    best = best === null ? pitch : Math.max(best, pitch);
+  }
+  return best === null ? null : Math.max(-50, best);
 };
 
 /** Standing in the start box, nothing running (TV between runs, editor preview). */

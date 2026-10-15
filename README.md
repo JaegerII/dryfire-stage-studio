@@ -40,7 +40,14 @@ Repetitions, reset time and standby delay as before.
   (limestone hillside like the Slovak Open: bright limestone gravel, earth berms with dry grass, a steep slope with
   bushes, rock outcrops and trees). Built-in stage *Slovak Open – Hillside* (`stage_701`) shows it off.
 * **Objects:** paper targets (full, mini, hard cover, cards, stacks, swinger), no-shoots, steel (popper, plate, rack),
-  mesh / wood walls, barrels, boxes, **car tyres** (single or two stacked — in front of a target as at many matches).
+  orange mesh / black net / solid black partition walls (also with window), wood wall, drums (blue, black steel, two
+  stacked, lying), barrel barricade, boxes, car tyres (single or two stacked), **rubber-covered mobile target stands**
+  (indoor; narrow and wide) and **tables** (plain, or the start table with pistol and magazines).
+  * Select a box, table or drum and add a card / steel: it goes on top. Select a rubber target stand and add a card:
+    it is fixed to the stand's front.
+* **Start condition** (stage properties, presets or own text, e.g. *Pistol unloaded on the table, magazines on the
+  table*): shown in the briefing and on the title card. With a table right in front of the start box the shooter looks
+  down at the table until the beep, then up to the targets. Built-in example: *Table Start – Rubber Stands*.
 * **Top-view editor:** plan of the range in meters next to a live 3D view (from the selected shooting box, or the
   briefing view from above).
   * **Environment** at the top of the left panel. Objects that do not fit the new room are pulled inside; outdoors the

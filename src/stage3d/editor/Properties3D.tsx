@@ -138,6 +138,16 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
       <h3>{stage.name}</h3>
       <Row label="Name"><input value={stage.name} onChange={(e) => set({ name: e.target.value })} /></Row>
       <Row label="Description"><textarea rows={2} value={stage.description ?? ''} onChange={(e) => set({ description: e.target.value })} /></Row>
+      <Row label="Start" hint="Start condition — shown in the briefing and on the title card">
+        <select value={START_PRESETS.includes(stage.start ?? '') ? stage.start : stage.start ? '__custom' : ''} onChange={(e) => e.target.value !== '__custom' && set({ start: e.target.value || undefined })}>
+          <option value="">— none —</option>
+          {START_PRESETS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+          {stage.start && !START_PRESETS.includes(stage.start) && <option value="__custom">{stage.start}</option>}
+        </select>
+      </Row>
+      <Row label="" hint="Your own wording"><input placeholder="…or type a start condition" value={stage.start ?? ''} onChange={(e) => set({ start: e.target.value || undefined })} /></Row>
       <h4>Timing</h4>
       <Row label="Par time (s)" hint="All stays + moves"><b>{par.toFixed(2)}</b></Row>
       {stage.legs.length === 0 && (
@@ -174,3 +184,13 @@ const window_ = (w: { from?: number; until?: number } | undefined, patch: { from
   if (next.until === undefined) delete next.until;
   return Object.keys(next).length ? next : undefined;
 };
+
+/** Common start conditions of practical shooting stages. */
+const START_PRESETS = [
+  'Hands relaxed at the sides, pistol loaded and holstered',
+  'Wrists above the shoulders, pistol loaded and holstered',
+  'Facing uprange, pistol loaded and holstered',
+  'Pistol unloaded on the table, magazines on the table',
+  'Pistol loaded on the table, hands on the marks',
+  'Seated, pistol loaded and holstered',
+];

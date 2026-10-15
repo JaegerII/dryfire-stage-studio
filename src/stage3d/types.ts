@@ -74,6 +74,8 @@ export interface Stage3D {
   legs: Leg[];
   /** Seconds at the last position until the end beep. */
   finalTime: number;
+  /** Start condition, shown in the briefing and on the title card (e.g. "Pistol unloaded on the table, magazines on the table"). */
+  start?: string;
   /** Camera feel while moving between positions. */
   camera?: {
     /** Head movement while walking: 0 = steady (gimbal), 1 = default, 2 = strong. */

@@ -43,6 +43,17 @@ import crate from './realistic/crate.webp';
 import crateWide from './realistic/crate_wide.webp';
 import tire from './realistic/tire.webp';
 import tireStack from './realistic/tire_stack.webp';
+import meshWallBlack from './realistic/mesh_wall_black.webp';
+import meshWallBlackShort from './realistic/mesh_wall_black_short.webp';
+import wallBlack from './realistic/wall_black.webp';
+import wallBlackWindow from './realistic/wall_black_window.webp';
+import barrelSteel from './realistic/barrel_steel.webp';
+import barrelStack from './realistic/barrel_stack.webp';
+import barrelLying from './realistic/barrel_lying.webp';
+import rubberStand from './realistic/rubber_stand.webp';
+import rubberWall from './realistic/rubber_wall.webp';
+import table from './realistic/table.webp';
+import tableStart from './realistic/table_start.webp';
 import startBox from './other/start_box.svg';
 
 export type AssetCategory = 'target' | 'barrier' | 'banner' | 'other';
@@ -67,6 +78,8 @@ export interface AssetDef {
   topHeight?: number;
   /** Advertising banner: hangs on a selected wall when added. */
   banner?: boolean;
+  /** Cards / steel added while this is selected are fixed to its front face, card bottom at `height` (m). */
+  mount?: { height: number };
 }
 
 export const ASSETS: Record<ObjectType, AssetDef> = {
@@ -97,12 +110,23 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   mesh_corner: { type: 'mesh_corner', category: 'barrier', label: 'Corner / Angled Wall', src: meshCorner, viewW: 290, viewH: 189, groundY: 185, scoring: false },
   wood_wall: { type: 'wood_wall', category: 'barrier', label: 'Wooden Wall (3 m)', src: woodWall, viewW: 330, viewH: 204, groundY: 200, scoring: false },
   barrel: { type: 'barrel', category: 'barrier', label: 'Blue Barrel', src: barrel, viewW: 80, viewH: 99, groundY: 95, scoring: false, topHeight: 0.9 },
+  barrel_steel: { type: 'barrel_steel', category: 'barrier', label: 'Steel Drum (black)', src: barrelSteel, viewW: 80, viewH: 97, groundY: 93, scoring: false, topHeight: 0.88 },
+  barrel_stack: { type: 'barrel_stack', category: 'barrier', label: 'Blue Barrels (2 stacked)', src: barrelStack, viewW: 80, viewH: 190, groundY: 186, scoring: false, topHeight: 1.81 },
+  barrel_lying: { type: 'barrel_lying', category: 'barrier', label: 'Blue Barrel (lying)', src: barrelLying, viewW: 110, viewH: 70, groundY: 66, scoring: false },
+  mesh_wall_black: { type: 'mesh_wall_black', category: 'barrier', label: 'Black Net Wall', src: meshWallBlack, viewW: 220, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_black_short: { type: 'mesh_wall_black_short', category: 'barrier', label: 'Short Black Net Wall', src: meshWallBlackShort, viewW: 130, viewH: 189, groundY: 185, scoring: false },
+  wall_black: { type: 'wall_black', category: 'barrier', label: 'Black Partition Wall', src: wallBlack, viewW: 150, viewH: 194, groundY: 190, scoring: false },
+  wall_black_window: { type: 'wall_black_window', category: 'barrier', label: 'Black Partition with Window', src: wallBlackWindow, viewW: 150, viewH: 194, groundY: 190, scoring: false },
   barrel_barricade: { type: 'barrel_barricade', category: 'barrier', label: 'Barrel Barricade', src: barrelBarricade, viewW: 220, viewH: 154, groundY: 150, scoring: false },
   banner_forth_trace_black: { type: 'banner_forth_trace_black', category: 'banner', label: 'Banner FORTH TRACE (black)', src: bannerForthTraceBlack, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   banner_forth_trace_white: { type: 'banner_forth_trace_white', category: 'banner', label: 'Banner FORTH TRACE (white)', src: bannerForthTraceWhite, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   banner_west_arms: { type: 'banner_west_arms', category: 'banner', label: 'Banner West Arms', src: bannerWestArms, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
+  rubber_stand: { type: 'rubber_stand', category: 'other', label: 'Rubber Target Stand (mobile)', src: rubberStand, viewW: 90, viewH: 189, groundY: 185, scoring: false, mount: { height: 0.95 } },
+  rubber_wall: { type: 'rubber_wall', category: 'other', label: 'Rubber Target Wall (mobile, wide)', src: rubberWall, viewW: 150, viewH: 189, groundY: 185, scoring: false, mount: { height: 0.95 } },
+  table: { type: 'table', category: 'other', label: 'Table', src: table, viewW: 140, viewH: 86, groundY: 82, scoring: false, topHeight: 0.75 },
+  table_start: { type: 'table_start', category: 'other', label: 'Start Table (pistol + magazines)', src: tableStart, viewW: 140, viewH: 86, groundY: 82, scoring: false, topHeight: 0.75 },
   tire: { type: 'tire', category: 'other', label: 'Car tyre', src: tire, viewW: 76, viewH: 36, groundY: 32, scoring: false },
   tire_stack: { type: 'tire_stack', category: 'other', label: 'Car tyres (2 stacked)', src: tireStack, viewW: 76, viewH: 56, groundY: 52, scoring: false },
   crate_wide: { type: 'crate_wide', category: 'other', label: 'Box wide (120 cm)', src: crateWide, viewW: 136, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },

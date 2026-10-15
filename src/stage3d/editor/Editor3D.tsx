@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ENVIRONMENT_LIST } from '../../assets/environments';
-import { ASSET_LIST } from '../../assets/registry';
+import { ASSET_LIST, ASSETS } from '../../assets/registry';
 import { BrandMark } from '../../components/BrandMark';
 import type { ObjectType } from '../../types/stage';
 import { newId } from '../../utils/random';
@@ -21,7 +21,6 @@ const LIBRARY = [
 ];
 /** Things that sit on a box when a box is selected (like in the 2D editor). */
 const STACKABLE = (t: ObjectType) => /_card$|^no_shoot_overlay$|^steel_/.test(t);
-const BOX_TOP: Partial<Record<ObjectType, number>> = { crate: 0.6, crate_wide: 0.6 };
 
 const isTyping = (e: KeyboardEvent) => {
   const t = e.target as HTMLElement;
@@ -103,11 +102,14 @@ export const Editor3D = ({ initial, onExit, matchName, stageNav, onDirtyChange }
   };
 
   const add = (type: ObjectType, x?: number, d?: number) => {
-    // a box is selected → cards / steel go on top of it
+    // a box / table / drum is selected → cards / steel go on top of it;
+    // a rubber target stand → they are fixed to its front face
     const sel = selection?.kind === 'objects' && selection.ids.length === 1 ? stage.objects.find((o) => o.id === selection.ids[0]) : undefined;
-    const top = sel && BOX_TOP[sel.type];
+    const top = sel && ASSETS[sel.type].topHeight;
+    const mount = sel && ASSETS[sel.type].mount;
     let r;
-    if (top && STACKABLE(type) && x === undefined) r = addObject(stage, type, sel.x, sel.d, { elevation: top + (sel.elevation ?? 0), yaw: sel.yaw });
+    if (sel && mount && STACKABLE(type) && x === undefined) r = addObject(stage, type, sel.x, sel.d, { elevation: mount.height + (sel.elevation ?? 0), yaw: sel.yaw });
+    else if (sel && top && STACKABLE(type) && x === undefined) r = addObject(stage, type, sel.x, sel.d, { elevation: top + (sel.elevation ?? 0), yaw: sel.yaw });
     else {
       const p = x === undefined || d === undefined ? spawnPoint() : { x, d };
       r = addObject(stage, type, p.x, p.d);

@@ -110,12 +110,12 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     const a = f.segment === 'flyin' ? fadeOut : Math.min(1, f.t / 0.8);
     ctx.save();
     // title block, top left
-    const grad = ctx.createLinearGradient(0, 0, 0, 22 * u);
+    const grad = ctx.createLinearGradient(0, 0, 0, 27 * u);
     grad.addColorStop(0, 'rgba(8,9,9,0.75)');
     grad.addColorStop(1, 'rgba(8,9,9,0)');
     ctx.globalAlpha = a;
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, 22 * u);
+    ctx.fillRect(0, 0, W, 27 * u);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     font(ctx, 700, 2 * u);
@@ -127,6 +127,16 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     font(ctx, 600, 2.1 * u);
     ctx.fillStyle = C.sage;
     ctx.fillText(`Par ${par.toFixed(1)} s · ${s.repetitions} reps · ${s.positions.length} positions`, 4 * u, 17.5 * u);
+    if (s.start) {
+      // start condition: a strip under the title block
+      font(ctx, 700, 1.7 * u);
+      ctx.fillStyle = C.accent;
+      spaced(ctx, 'START', 4 * u, 22 * u, 0.3 * 1.7 * u);
+      const lw = ctx.measureText('START').width + 5 * 0.3 * 1.7 * u;
+      font(ctx, 600, 2.1 * u);
+      ctx.fillStyle = C.text;
+      ctx.fillText(s.start, 4 * u + lw + 1.4 * u, 22 * u, W - 12 * u - lw);
+    }
     ctx.restore();
     // labels on the floor: position names, and what happens on each move
     s.positions.forEach((p, i) => {
