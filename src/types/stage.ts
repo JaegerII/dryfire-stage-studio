@@ -106,6 +106,33 @@ export interface StageObject {
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 export type Discipline = 'handgun' | 'rifle' | 'pcc';
 
+/**
+ * Dynamic stage: after the first area, the stage moves on to further areas
+ * during the par window — a barrier sweeps across the screen (the shooter
+ * "moves" to the next position and reloads), then new targets appear.
+ * Area 1 is the stage itself (environment / objects / view); `areas` holds
+ * area 2, 3, …
+ */
+export interface StageArea {
+  id: string;
+  name?: string;
+  environment: EnvironmentId;
+  objects: StageObject[];
+  view?: { zoom?: number };
+  /** Seconds this area is shown (after its transition). */
+  time: number;
+}
+
+export type TransitionStyle = 'mesh' | 'wood';
+
+export interface AreaTransition {
+  /** Seconds the barrier needs to cross the screen — the reload window. */
+  duration: number;
+  /** ltr = barrier moves from left to right. */
+  direction: 'ltr' | 'rtl';
+  style: TransitionStyle;
+}
+
 export interface Stage {
   schemaVersion: number;
   id: string;
@@ -122,6 +149,11 @@ export interface Stage {
   objects: StageObject[];
   /** Framing: zoom 1 = full plate, up to 2.5 = closer (scaled around the horizon centre). */
   view?: { zoom?: number };
+  /** Dynamic stage: further areas after area 1 (see StageArea). parTime is derived from the area times. */
+  areas?: StageArea[];
+  /** Dynamic stage: seconds area 1 is shown after the start beep. */
+  areaTime?: number;
+  transition?: AreaTransition;
   /** Library metadata — filters, categories, ownership (future platform). */
   meta?: {
     difficulty?: Difficulty;

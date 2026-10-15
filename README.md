@@ -21,6 +21,8 @@ npm run assets     # regenerate target / barrier SVGs and beeps after a design c
 | `#/match/<id>/play` | **Match player**: logo → safety → every stage (one take for OBS) |
 | `#/match/<id>/edit/<stageId>` | **Editor** for a stage of that match (breadcrumb back) |
 | `#/edit/<stageId>` / `#/play/<stageId>` | edit / play a single stage |
+| `#/trace/<tab>` | **FORTH TRACE** on the phone: training, live tracking, analysis, settings (experimental) |
+| `#/tv/<CODE>` | **TV renderer** that joins a phone's training session |
 
 The browser's back button works between pages. Leaving the editor with unsaved changes asks first.
 
@@ -236,6 +238,39 @@ scripts/generate-assets.mjs   the single source of the target / barrier / start-
 * **Moving targets:** `motion` is in the data model, the editor and the player loop.
 * **Random stage generator:** a pure function returning a `Stage`; feed it into `normalizeStage` and open it in the editor.
 * **TV casting / second screen:** the player is a plain route (`#/play/<id>`) with no editor dependencies.
+
+## Dynamic stages (move + reload)
+
+A stage can have several **areas**. After area 1 has been shown for its time, a barrier sweeps across
+the whole screen — the shooter moves to the next position and reloads in that window — and area 2
+appears with new targets. No beep between areas; the end beep comes after the last area.
+
+* **Editor:** the bar above the stage: *+ Area* adds an area, the tabs switch between them. Everything
+  (targets, environment, zoom, motion) is edited per area. Set *Area N shown*, *Move + reload* (barrier time),
+  barrier style (mesh / wood) and direction. The par time is computed: all area times + all moves.
+* **Motion** (falling steel, activators, swingers) runs on each area's own clock: `delay` counts from the
+  moment that area appears.
+* **JSON:** `areaTime` (area 1), `transition: { duration, direction, style }`, `areas: [{ id, name, environment, objects, view, time }]`.
+* Built-in examples: `stage_601`–`stage_603`, played together as *Match 07 – Dynamic Stages*.
+* The TV receiver (`#/tv`) does not show areas yet.
+
+## FORTH TRACE · motion tracking (experimental)
+
+The phone films the athlete, MediaPipe Pose runs on the device, and a state machine measures
+reaction, time to the presentation zone and stabilisation per rep. A TV browser joins the same
+session by room code and shows the stage on the phone's timeline. Architecture, measurement
+criteria, web-vs-native assessment and status: **[docs/TRACE_ARCHITECTURE.md](docs/TRACE_ARCHITECTURE.md)** (German).
+
+```bash
+npm run dev:lan    # HTTPS on the LAN (phones need HTTPS for the camera) + session relay
+npm test           # unit tests (vitest)
+npm run models     # copy the MediaPipe runtime + download the pose models into public/ (automatic in dev/build)
+```
+
+* Phone: `https://<pc-ip>:5180/#/trace` · TV: `https://<pc-ip>:5180/#/tv/<CODE>` (accept the self-signed certificate on both).
+* Everything runs locally: no images or pose data leave the phone; the relay only forwards stage data, timing and result summaries.
+* The static GitHub Pages build has no relay: the TV link then only works between tabs of the same browser.
+* Times are experimental and not validated against a reference yet. There is no hit detection.
 
 ## Training programs (PP1 / NPA)
 

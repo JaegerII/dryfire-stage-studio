@@ -309,7 +309,13 @@ const StageProps = ({ stage, onStage, onSelect, onLayerOf, selectedIds }: Props)
       </Row>
 
       <h4>Timing</h4>
-      <Row label="Par time (s)"><NumberField value={stage.parTime} min={0.5} max={120} step={0.1} digits={2} onChange={(parTime) => onStage({ parTime })} /></Row>
+      {stage.areas?.length ? (
+        <Row label="Par time (s)" hint="Dynamic stage: the sum of all area times and barrier moves (set them in the area bar above the stage).">
+          <b>{stage.parTime.toFixed(2)}</b>
+        </Row>
+      ) : (
+        <Row label="Par time (s)"><NumberField value={stage.parTime} min={0.5} max={120} step={0.1} digits={2} onChange={(parTime) => onStage({ parTime })} /></Row>
+      )}
       <Row label="Repetitions"><NumberField value={stage.repetitions} min={1} max={100} step={1} digits={0} onChange={(r) => onStage({ repetitions: Math.round(r) })} /></Row>
       <Row label="Reset time (s)"><NumberField value={stage.resetTime} min={0} max={60} step={0.5} digits={1} onChange={(resetTime) => onStage({ resetTime })} /></Row>
       <Row label="Standby min (s)">

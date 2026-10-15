@@ -5,20 +5,30 @@
   "type": "module",
   "description": "DRYFIRE STAGE STUDIO — visual stage editor and training player (FORTH TRACE).",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "npm run models && vite",
+    "dev:lan": "npm run models && vite --host --mode lan",
+    "build": "npm run models && tsc --noEmit && vite build",
     "preview": "vite preview",
+    "preview:lan": "vite preview --host --mode lan",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "models": "node scripts/fetch-models.mjs",
     "assets": "node scripts/generate-assets.mjs"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.2",
+    "vitest": "^5.0.4",
+    "ws": "^8.22.0"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
     "konva": "^10.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

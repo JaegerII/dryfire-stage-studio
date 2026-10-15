@@ -7,8 +7,9 @@ import { fit16x9, useElementSize } from '../../hooks/useElementSize';
 import type { Stage } from '../../types/stage';
 import { AudioEngine, STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
 import { type MatchSchedule, buildMatchSchedule, estimateMatchDuration, matchSnapshotAt } from '../../utils/matchSchedule';
-import { fallScale, fallTimes, isMoving, motionAt } from '../../utils/motion';
-import { elevationPx, pxPerMeter } from '../../utils/perspective';
+import { applyStageMotion, stageMotionData } from '../../utils/stageMotion';
+import { areaAt, areaCount, areaStage, areaTimeline, isDynamic, transitionOf } from '../../utils/areas';
+import { WallWipe, type WallWipeHandle } from './WallWipe';
 import { TabRecorder, downloadBlob, recordingSupported, videoFileName } from '../../utils/recorder';
 import { StageCanvas } from '../stage/StageCanvas';
 import { FullscreenButton } from './FullscreenButton';
@@ -92,19 +93,58 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
   const t0 = useRef(0);
   const raf = useRef(0);
   const overlay = useRef<OverlayHandle>(null);
-  const layer = useRef<Konva.Layer | null>(null);
-  const nodes = useRef(new Map<string, Konva.Group>());
+  // one canvas per area (a classic stage has exactly one); nodes / layers / elements per area
+  const layers = useRef<(Konva.Layer | null)[]>([]);
+  const nodes = useRef<Map<string, Konva.Group>[]>([]);
+  const areaEls = useRef<(HTMLDivElement | null)[]>([]);
+  const shownArea = useRef(0);
+  const wipe = useRef<WallWipeHandle>(null);
   const boxRef = useRef(box);
   boxRef.current = box;
-  const motionData = useMemo(
-    () => stages.map((s) => ({ movers: s.objects.filter((o) => isMoving(o.motion)), falls: fallTimes(s.objects) })),
-    [stages],
-  );
+  const motionData = useMemo(() => stages.map((s) => Array.from({ length: areaCount(s) }, (_, k) => stageMotionData(areaStage(s, k)))), [stages]);
+  const timelines = useMemo(() => stages.map(areaTimeline), [stages]);
   const stage = stages[stageIndex];
+  const areaStages = useMemo(() => (stage ? Array.from({ length: areaCount(stage) }, (_, k) => areaStage(stage, k)) : []), [stage]);
+  const registerFor = useMemo(
+    () =>
+      areaStages.map((_, k) => (id: string, node: Konva.Group | null) => {
+        const m = (nodes.current[k] ??= new Map());
+        if (node) m.set(id, node);
+        else m.delete(id);
+      }),
+    [areaStages],
+  );
+  const layerRefs = useMemo(
+    () =>
+      areaStages.map((_, k) => ({
+        get current() {
+          return layers.current[k] ?? null;
+        },
+        set current(l: Konva.Layer | null) {
+          layers.current[k] = l;
+        },
+      })),
+    [areaStages],
+  );
 
-  const registerNode = useCallback((id: string, node: Konva.Group | null) => {
-    if (node) nodes.current.set(id, node);
-    else nodes.current.delete(id);
+  /** Shows area `k` (hides the others) and shifts it during a transition (parallax: the shooter moves). */
+  const showArea = useCallback((k: number, st: Stage, progress: number | null) => {
+    if (shownArea.current !== k) {
+      areaEls.current.forEach((el, i) => {
+        if (!el) return;
+        el.style.visibility = i === k ? 'visible' : 'hidden';
+        el.style.transform = '';
+      });
+      shownArea.current = k;
+    }
+    const el = areaEls.current[k];
+    if (el && isDynamic(st)) {
+      const dir = transitionOf(st).direction === 'ltr' ? 1 : -1;
+      const W = boxRef.current.width;
+      const off = progress === null ? 0 : progress < 0.5 ? dir * 0.12 * W * (progress / 0.5) : -dir * 0.12 * W * (1 - (progress - 0.5) / 0.5);
+      el.style.transform = off ? `translate3d(${off}px,0,0)` : '';
+    }
+    wipe.current?.update(progress);
   }, []);
 
   // ---------------------------------------------------------------- frame loop
@@ -129,32 +169,17 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
       const st = stages[seg.stageIndex];
       const rs = snap.stage;
       overlay.current?.update(rs);
-      const { movers, falls } = motionData[seg.stageIndex];
-      if (movers.length) {
-        const { height } = boxRef.current;
-        const width = boxRef.current.width;
-        const env = ENVIRONMENTS[st.environment];
-        // keep the shot-at state (fallen steel, activated targets) through the "TIME" second, then reset
-        const activeWindow = rs.phase === 'active' || (rs.phase === 'reset' && rs.sinceStart < st.parTime + 1);
-        for (const o of movers) {
-          const node = nodes.current.get(o.id);
-          if (!node) continue;
-          const m = motionAt(o.motion, rs.sinceStart, activeWindow, falls);
-          const ppm = pxPerMeter(o, env, height);
-          // the object and its floor shadow (drawn in the shadow pass) move together
-          for (const n of [node, nodes.current.get(`${o.id}#shadow`)]) {
-            if (!n) continue;
-            n.position({ x: o.x * width + m.dx * ppm, y: o.y * height - elevationPx(o, env, height) - m.dy * ppm });
-            n.visible(m.visible);
-            n.scaleY(fallScale(m.fall));
-            n.findOne('.motion')?.rotation(m.rot); // swing pivots at the object's own foot
-          }
-        }
-        layer.current?.batchDraw();
-      }
+      // dynamic stage: which area is on screen, and is a barrier passing right now?
+      const activeWindow = rs.phase === 'active' || (rs.phase === 'reset' && rs.sinceStart < st.parTime + 1);
+      const av = areaAt(st, timelines[seg.stageIndex], rs.sinceStart, activeWindow);
+      showArea(av.area, st, av.transition);
+      // each area's targets run on that area's own clock (from the moment it appears)
+      const local = { ...rs, sinceStart: rs.sinceStart - av.areaStart };
+      const m = nodes.current[av.area];
+      if (m && applyStageMotion(areaStage(st, av.area), motionData[seg.stageIndex][av.area], local, m, boxRef.current)) layers.current[av.area]?.batchDraw();
     }
     raf.current = requestAnimationFrame(tick);
-  }, [stages, motionData, finishRecording]);
+  }, [stages, motionData, timelines, showArea, finishRecording]);
 
   // ---------------------------------------------------------------- transport
   const start = useCallback(async () => {
@@ -245,11 +270,13 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
     cancelAnimationFrame(raf.current);
     engine.current?.stopAll();
     schedule.current = null;
+    const st = stages[0];
+    if (st) showArea(0, st, null);
     setStatus('setup');
     setScene('stage');
     setStageIndex(0);
     setControlsVisible(true);
-  }, [finishRecording]);
+  }, [finishRecording, stages, showArea]);
 
   const exit = useCallback(() => {
     stop();
@@ -320,7 +347,19 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
       <div className="player-area" ref={areaRef}>
         <div className="player-box" ref={boxEl} style={{ width: box.width, height: box.height }}>
           <div className={canvasClass} key={`layer-${stageIndex}`}>
-            <StageCanvas stage={stage} width={box.width} height={box.height} registerNode={registerNode} layerRef={layer} />
+            {areaStages.map((as, k) => (
+              <div
+                key={k}
+                className="area-layer"
+                ref={(el) => {
+                  areaEls.current[k] = el;
+                }}
+                style={{ visibility: k === 0 ? 'visible' : 'hidden' }}
+              >
+                <StageCanvas stage={as} width={box.width} height={box.height} registerNode={registerFor[k]} layerRef={layerRefs[k]} />
+              </div>
+            ))}
+            {isDynamic(stage) && <WallWipe ref={wipe} transition={transitionOf(stage)} />}
           </div>
           {playing && scene === 'stage' && (
             <PlayerOverlay
@@ -378,6 +417,9 @@ export const TrainingPlayer = ({ stages, matchName, matchSettings, onExit }: Pro
                     <span><b>{stage.repetitions}</b> reps</span>
                     <span><b>{stage.resetTime} s</b> reset</span>
                     <span><b>{stage.standbyDelay.min}–{stage.standbyDelay.max} s</b> delay</span>
+                    {isDynamic(stage) && (
+                      <span><b>{areaCount(stage)}</b> areas · {transitionOf(stage).duration} s reload moves</span>
+                    )}
                   </div>
                 )}
                 <div className="setup-stats">

@@ -12,6 +12,8 @@ import type { MatchSettings } from './types/match';
 import type { Stage } from './types/stage';
 import { createStage } from './utils/stageIO';
 import { matchStages } from './utils/matchUtils';
+import { TRACE_TABS, TraceApp, type TraceTab } from './trace/TraceApp';
+import { TvReceiver } from './trace/tv/TvReceiver';
 
 /**
  * Routes (hash based, so the app works from any static host):
@@ -23,13 +25,17 @@ import { matchStages } from './utils/matchUtils';
  *   #/play/<stage>              play one stage
  *   #/training                  training programs (PP1 / NPA)
  *   #/training/<program>        run a training program
+ *   #/trace[/<tab>]             FORTH TRACE on the phone: training, live tracking, analysis, settings
+ *   #/tv[/<room>]               TV renderer that joins a phone's training session
  */
 type View =
   | { page: 'home' }
   | { page: 'match'; matchId: string }
   | { page: 'edit'; stageId: string; matchId?: string }
   | { page: 'training' }
-  | { page: 'program'; programId: string };
+  | { page: 'program'; programId: string }
+  | { page: 'trace'; tab: TraceTab }
+  | { page: 'tv'; room?: string };
 
 interface Playing {
   stages: Stage[];
@@ -60,6 +66,11 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
   }
   if ((m = hash.match(/^#\/training\/(.+)$/)) && programById(dec(m[1]))) return { view: { page: 'program', programId: dec(m[1]) }, playing: null };
   if (hash === '#/training') return { view: { page: 'training' }, playing: null };
+  if ((m = hash.match(/^#\/trace(?:\/([a-z]+))?$/))) {
+    const tab = (TRACE_TABS as string[]).includes(m[1] ?? '') ? (m[1] as TraceTab) : 'training';
+    return { view: { page: 'trace', tab }, playing: null };
+  }
+  if ((m = hash.match(/^#\/tv(?:\/([A-Za-z0-9]{3,8}))?$/))) return { view: { page: 'tv', room: m[1]?.toUpperCase() }, playing: null };
   return { view: { page: 'home' }, playing: null };
 };
 
@@ -70,6 +81,8 @@ const toHash = (view: View, playing: Playing | null) => {
   if (view.page === 'edit') return view.matchId ? `#/match/${enc(view.matchId)}/edit/${enc(view.stageId)}` : `#/edit/${enc(view.stageId)}`;
   if (view.page === 'training') return '#/training';
   if (view.page === 'program') return `#/training/${enc(view.programId)}`;
+  if (view.page === 'trace') return `#/trace/${view.tab}`;
+  if (view.page === 'tv') return view.room ? `#/tv/${enc(view.room)}` : '#/tv';
   return '#/';
 };
 
@@ -128,8 +141,11 @@ export const App = () => {
           onOpenStage={(id) => go({ page: 'edit', stageId: id })}
           onPlayStage={playStage}
           onOpenTraining={() => go({ page: 'training' })}
+          onOpenTrace={() => go({ page: 'trace', tab: 'training' })}
         />
       )}
+      {view.page === 'trace' && <TraceApp tab={view.tab} onTab={(tab) => go({ page: 'trace', tab })} onStageBuilder={() => go({ page: 'home' })} />}
+      {view.page === 'tv' && <TvReceiver room={view.room} onJoin={(room) => go({ page: 'tv', room })} onExit={() => go({ page: 'home' })} />}
       {view.page === 'training' && <TrainingHome onHome={() => go({ page: 'home' })} onOpen={(id) => go({ page: 'program', programId: id })} />}
       {view.page === 'program' && programById(view.programId) && (
         <TrainingRunner key={`program:${view.programId}`} program={programById(view.programId)!} onExit={() => go({ page: 'training' })} />

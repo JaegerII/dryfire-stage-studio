@@ -1,7 +1,8 @@
 /** Creating, validating, migrating, importing and exporting stage JSON. */
 import { ASSETS } from '../assets/registry';
 import { ENVIRONMENTS } from '../assets/environments';
-import { SCHEMA_VERSION, type ObjectType, type Stage, type StageObject } from '../types/stage';
+import { SCHEMA_VERSION, type ObjectType, type Stage, type StageArea, type StageObject } from '../types/stage';
+import { syncParTime } from './areas';
 import { newId } from './random';
 
 export const createStage = (): Stage => ({
@@ -39,8 +40,37 @@ export const normalizeStage = (raw: unknown): Stage => {
   if (!Array.isArray(r.objects)) throw new StageFormatError('Stage has no "objects" array.');
   const env = typeof r.environment === 'string' && r.environment in ENVIRONMENTS ? (r.environment as Stage['environment']) : 'indoor_01';
   const sd = (r.standbyDelay ?? {}) as Record<string, unknown>;
+  const objects = normalizeObjects(r.objects);
+  // dynamic stage: further areas (malformed ones are dropped)
+  const areas: StageArea[] | undefined = Array.isArray(r.areas)
+    ? (r.areas as Record<string, unknown>[])
+        .filter((a) => a && typeof a === 'object' && Array.isArray(a.objects))
+        .map((a) => ({
+          ...(a as unknown as StageArea),
+          id: typeof a.id === 'string' ? a.id : newId('area'),
+          environment: typeof a.environment === 'string' && a.environment in ENVIRONMENTS ? (a.environment as Stage['environment']) : env,
+          objects: normalizeObjects(a.objects),
+          time: Math.max(0.5, num(a.time, 4)),
+        }))
+    : undefined;
+  return syncParTime({
+    ...(r as unknown as Stage),
+    schemaVersion: SCHEMA_VERSION,
+    id: typeof r.id === 'string' && r.id ? r.id : newId('stage'),
+    name: typeof r.name === 'string' && r.name ? r.name : 'Imported Stage',
+    environment: env,
+    parTime: Math.max(0.5, num(r.parTime, 5)),
+    repetitions: Math.max(1, Math.round(num(r.repetitions, 6))),
+    resetTime: Math.max(0, num(r.resetTime, 3)),
+    standbyDelay: { min: Math.max(0, num(sd.min, 1)), max: Math.max(num(sd.min, 1), num(sd.max, 3)) },
+    objects,
+    areas: areas?.length ? areas : undefined,
+  });
+};
+
+const normalizeObjects = (raw: unknown): StageObject[] => {
   const objects: StageObject[] = [];
-  for (const o of r.objects as Record<string, unknown>[]) {
+  for (const o of raw as Record<string, unknown>[]) {
     if (!o || typeof o.type !== 'string' || !(o.type in ASSETS)) continue; // unknown asset types are skipped
     objects.push({
       ...(o as unknown as StageObject),
@@ -53,18 +83,7 @@ export const normalizeStage = (raw: unknown): Stage => {
       elevation: num(o.elevation, ASSETS[o.type as ObjectType].defaultElevation ?? 0) || undefined,
     });
   }
-  return {
-    ...(r as unknown as Stage),
-    schemaVersion: SCHEMA_VERSION,
-    id: typeof r.id === 'string' && r.id ? r.id : newId('stage'),
-    name: typeof r.name === 'string' && r.name ? r.name : 'Imported Stage',
-    environment: env,
-    parTime: Math.max(0.5, num(r.parTime, 5)),
-    repetitions: Math.max(1, Math.round(num(r.repetitions, 6))),
-    resetTime: Math.max(0, num(r.resetTime, 3)),
-    standbyDelay: { min: Math.max(0, num(sd.min, 1)), max: Math.max(num(sd.min, 1), num(sd.max, 3)) },
-    objects,
-  };
+  return objects;
 };
 
 export const exportStageFile = (stage: Stage) => {

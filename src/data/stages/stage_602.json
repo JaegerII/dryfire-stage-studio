@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_602",
+  "name": "Three Positions",
+  "description": "Ports, a swinger lane and a mixed array — two moves with a reload each.",
+  "environment": "indoor_02",
+  "parTime": 17.4,
+  "repetitions": 5,
+  "resetTime": 4,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "objects": [
+    {
+      "id": "start_box",
+      "type": "start_box",
+      "x": 0.5,
+      "y": 0.97,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_wall_port_1",
+      "type": "mesh_wall_port",
+      "x": 0.3568,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": 0.3325,
+      "y": 0.5909,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "mesh_wall_port_3",
+      "type": "mesh_wall_port",
+      "x": 0.6432,
+      "y": 0.6386,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0,
+      "flip": true
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 0.6675,
+      "y": 0.5909,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "paper_hc_half_5",
+      "type": "paper_hc_half",
+      "x": 0.5,
+      "y": 0.578,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 0.544,
+      "y": 0.5382,
+      "scale": 1,
+      "rotation": 0,
+      "zIndex": 0
+    }
+  ],
+  "view": {
+    "zoom": 1.25
+  },
+  "areaTime": 4,
+  "transition": {
+    "duration": 2.2,
+    "direction": "ltr",
+    "style": "mesh"
+  },
+  "areas": [
+    {
+      "id": "area_2",
+      "name": "Position 2",
+      "environment": "indoor_02",
+      "objects": [
+        {
+          "id": "p2_paper_hc_vertical_1",
+          "type": "paper_hc_vertical",
+          "x": 0.2673,
+          "y": 0.6386,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p2_mesh_wall_2",
+          "type": "mesh_wall",
+          "x": 0.5,
+          "y": 0.6234,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p2_paper_swinger_3",
+          "type": "paper_swinger",
+          "x": 0.5,
+          "y": 0.6143,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0,
+          "motion": {
+            "kind": "swing",
+            "angle": 40,
+            "period": 1.4,
+            "delay": 0
+          }
+        },
+        {
+          "id": "p2_steel_popper_4",
+          "type": "steel_popper",
+          "x": 0.3768,
+          "y": 0.5429,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p2_paper_hc_diagonal_5",
+          "type": "paper_hc_diagonal",
+          "x": 0.7327,
+          "y": 0.6386,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0,
+          "flip": true
+        },
+        {
+          "id": "p2_no_shoot_6",
+          "type": "no_shoot",
+          "x": 0.7687,
+          "y": 0.6471,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        }
+      ],
+      "time": 4,
+      "view": {
+        "zoom": 1.25
+      }
+    },
+    {
+      "id": "area_3",
+      "name": "Position 3",
+      "environment": "indoor_02",
+      "objects": [
+        {
+          "id": "p3_paper_01",
+          "type": "paper_full",
+          "x": 0.2094,
+          "y": 0.65,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0,
+          "yaw": 40
+        },
+        {
+          "id": "p3_steel_02",
+          "type": "steel_popper",
+          "x": 0.3114,
+          "y": 0.5479,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_paper_03",
+          "type": "paper_full",
+          "x": 0.3453,
+          "y": 0.5875,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_paper_04",
+          "type": "paper_full",
+          "x": 0.5,
+          "y": 0.5875,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_paper_05",
+          "type": "paper_mini",
+          "x": 0.6312,
+          "y": 0.5591,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_steel_06",
+          "type": "steel_popper",
+          "x": 0.6664,
+          "y": 0.5479,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_paper_07",
+          "type": "paper_full",
+          "x": 0.7712,
+          "y": 0.6333,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_no_08",
+          "type": "no_shoot",
+          "x": 0.752,
+          "y": 0.64,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_mesh_09",
+          "type": "mesh_wall_window",
+          "x": 0.5,
+          "y": 0.6442,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        },
+        {
+          "id": "p3_mesh_10",
+          "type": "mesh_wall_short",
+          "x": 0.3835,
+          "y": 0.6143,
+          "scale": 1,
+          "rotation": 0,
+          "zIndex": 0
+        }
+      ],
+      "time": 5
+    }
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "discipline": "handgun",
+    "difficulty": "advanced",
+    "tags": [
+      "dynamic",
+      "reload",
+      "ports",
+      "swinger"
+    ]
+  }
+}

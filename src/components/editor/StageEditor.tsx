@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ASSETS } from '../../assets/registry';
 import { stageRepository } from '../../data/stageRepository';
 import { fit16x9, useElementSize } from '../../hooks/useElementSize';
-import type { EnvironmentId, ObjectType, Stage, StageObject } from '../../types/stage';
+import type { AreaTransition, EnvironmentId, ObjectType, Stage, StageObject } from '../../types/stage';
+import { DEFAULT_AREA_TIME, DEFAULT_TRANSITION, areaCount, areaStage, createArea, syncParTime, writeArea } from '../../utils/areas';
+import { AreaBar } from './AreaBar';
 import { newId } from '../../utils/random';
 import { screenToStage } from '../../utils/view';
 import { drawOrder, fromWorld, toWorld } from '../../utils/perspective';
@@ -40,7 +42,25 @@ const isTyping = (e: KeyboardEvent) => {
 };
 
 export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBackToMatch, stageNav, onDirtyChange }: Props) => {
-  const { stage, update, commit, undo, redo, reset, canUndo, canRedo } = useStageHistory(initial);
+  const history = useStageHistory(initial);
+  const { commit, undo, redo, reset, canUndo, canRedo } = history;
+  /** The whole stage incl. every area — what is saved, exported and played. */
+  const full = history.stage;
+  // Dynamic stages: the editor works on one area at a time, presented as a plain stage.
+  // Every edit below goes through `update`, which writes the area back into the full stage.
+  const [areaIdx, setAreaIdx] = useState(0);
+  const k = Math.min(areaIdx, areaCount(full) - 1);
+  const stage = useMemo(() => areaStage(full, k), [full, k]);
+  const updateFull = history.update;
+  const update = useCallback(
+    (fn: (s: Stage) => Stage, opts?: { transient?: boolean }) =>
+      updateFull((s) => {
+        const view = areaStage(s, k);
+        const next = fn(view);
+        return next === view ? s : syncParTime(writeArea(s, k, next));
+      }, opts),
+    [updateFull, k],
+  );
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showGrid, setShowGrid] = useState(false);
@@ -48,7 +68,7 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
   const [toast, setToast] = useState<string | null>(null);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
-  const dirty = JSON.stringify(stage) !== saved;
+  const dirty = JSON.stringify(full) !== saved;
   const selectedObjs = stage.objects.filter((o) => selectedIds.includes(o.id));
   /** The single selected object (properties panel), undefined for none or many. */
   const selected = selectedObjs.length === 1 ? selectedObjs[0] : undefined;
@@ -69,18 +89,48 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
       reset(s);
       setSaved(JSON.stringify(s));
       setSelectedIds([]);
+      setAreaIdx(0);
     },
     [reset],
   );
 
+  // ---------------------------------------------------------------- areas (dynamic stage)
+  const selectArea = useCallback((i: number) => {
+    setAreaIdx(i);
+    setSelectedIds([]);
+  }, []);
+  const addArea = useCallback(() => {
+    const n = areaCount(full);
+    updateFull((s) =>
+      syncParTime({ ...s, areaTime: s.areaTime ?? DEFAULT_AREA_TIME, transition: s.transition ?? { ...DEFAULT_TRANSITION }, areas: [...(s.areas ?? []), createArea(s, n)] }),
+    );
+    selectArea(n);
+  }, [full, updateFull, selectArea]);
+  const removeArea = useCallback(
+    (i: number) => {
+      updateFull((s) => {
+        const areas = (s.areas ?? []).filter((_, j) => j !== i - 1);
+        return syncParTime({ ...s, areas: areas.length ? areas : undefined });
+      });
+      selectArea(Math.max(0, i - 1));
+    },
+    [updateFull, selectArea],
+  );
+  const setAreaTime = useCallback(
+    (i: number, time: number) =>
+      updateFull((s) => syncParTime(i === 0 ? { ...s, areaTime: time } : { ...s, areas: s.areas!.map((a, j) => (j === i - 1 ? { ...a, time } : a)) })),
+    [updateFull],
+  );
+  const setTransition = useCallback((transition: AreaTransition) => updateFull((s) => syncParTime({ ...s, transition })), [updateFull]);
+
   const confirmDiscard = () => !dirty || confirm('Discard unsaved changes?');
 
   const save = useCallback(() => {
-    const s = stageRepository.save(stage);
+    const s = stageRepository.save(full);
     reset(s);
     setSaved(JSON.stringify(s));
     setToast('Stage saved');
-  }, [stage, reset]);
+  }, [full, reset]);
 
   const patchStage = useCallback((patch: Partial<Stage>) => update((s) => ({ ...s, ...patch })), [update]);
 
@@ -341,7 +391,7 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
         stageNav={stageNav}
         onSave={save}
         onDuplicate={() => {
-          const copy: Stage = { ...structuredClone(stage), id: newId('stage'), name: `${stage.name} (copy)` };
+          const copy: Stage = { ...structuredClone(full), id: newId('stage'), name: `${full.name} (copy)` };
           load(copy);
           setSaved('');
           setToast('Duplicated — save to keep it');
@@ -362,23 +412,26 @@ export const StageEditor = ({ initial, hidden, onPlay, matchName, onHome, onBack
             })
             .catch((err) => alert(err instanceof StageFormatError ? err.message : 'Import failed.'))
         }
-        onExport={() => exportStageFile(stage)}
+        onExport={() => exportStageFile(full)}
         onReset={() => confirm('Revert to the last saved version?') && load(saved ? JSON.parse(saved) : createStage())}
         onUndo={undo}
         onRedo={redo}
         onToggleGrid={() => setShowGrid((v) => !v)}
         onToggleSnap={() => setSnap((v) => !v)}
-        onPlay={() => onPlay([stage])}
+        onPlay={() => onPlay([full])}
       />
       <AssetLibrary environment={stage.environment} onAdd={onAdd} onEnvironment={onEnvironment} />
-      <main className="canvas-area" ref={areaRef} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-        <div className="canvas-box" style={{ width: box.width, height: box.height }}>
-          {canvas}
+      <main className="canvas-area with-areas">
+        <AreaBar stage={full} active={k} onSelect={selectArea} onAdd={addArea} onRemove={removeArea} onTime={setAreaTime} onTransition={setTransition} />
+        <div className="canvas-fit" ref={areaRef} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+          <div className="canvas-box" style={{ width: box.width, height: box.height }}>
+            {canvas}
+          </div>
         </div>
         {toast && <div className="toast">{toast}</div>}
       </main>
       <PropertiesPanel
-        stage={stage}
+        stage={{ ...stage, parTime: full.parTime, areas: full.areas }}
         selected={selected}
         selectedIds={selectedIds}
         onStage={patchStage}

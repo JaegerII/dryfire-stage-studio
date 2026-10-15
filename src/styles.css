@@ -130,6 +130,16 @@ textarea { resize: vertical; }
 .env-tile.active img { opacity: 1; }
 
 .canvas-area { grid-area: canvas; display: grid; place-items: center; padding: 18px; background: var(--sunken); position: relative; min-height: 0; }
+.canvas-area.with-areas { display: flex; flex-direction: column; gap: 10px; place-items: stretch; }
+.canvas-fit { flex: 1; min-height: 0; display: grid; place-items: center; }
+.area-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; flex: none; }
+.area-tabs { display: flex; gap: 4px; }
+.area-tabs em { font-style: normal; color: var(--muted); font-size: 11px; margin-left: 6px; font-weight: 600; }
+.area-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; color: var(--muted); }
+.area-opts label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.area-opts input[type='number'] { width: 64px; }
+.area-opts select { width: auto; }
+.area-par { color: var(--text); font-weight: 800; }
 .canvas-box { box-shadow: 0 0 0 1px var(--line), 0 30px 80px -30px #000; }
 .toast { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; font-weight: 600; }
 
@@ -286,6 +296,15 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 /* stage layer: hidden behind intro / title cards, pushes in when the stage starts */
 .player-box > .stage-layer { position: absolute; inset: 0; transform-origin: 50% 40%; }
 .stage-layer.hidden { opacity: 0; }
+/* dynamic stages: one layer per area, a barrier sweeps across on an area change */
+.stage-layer > .area-layer { position: absolute; inset: 0; will-change: transform; }
+.wall-wipe { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+.wall-strip { position: absolute; top: -14%; height: 128%; display: flex; will-change: transform;
+  background: #17110c; box-shadow: 0 0 8cqh 4cqh rgba(0, 0, 0, 0.55); filter: blur(0.35cqh) brightness(0.92); }
+.wall-strip img { height: 100%; width: auto; flex: none; display: block; }
+/* the mesh panel image has empty space beside its posts: overlap the panels into one continuous fence */
+.wall-strip.mesh img + img { margin-left: -23cqh; }
+.wall-strip.mesh { background: linear-gradient(180deg, #1d1610, #0e0a07); }
 .stage-layer.push-in { animation: push-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes push-in {
   from { opacity: 0; transform: scale(0.86); }

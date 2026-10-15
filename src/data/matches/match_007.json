@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "match_007",
+  "name": "Match 07 – Dynamic Stages",
+  "description": "Move and reload: a barrier sweeps across, the next position appears.",
+  "stageIds": [
+    "stage_601",
+    "stage_602",
+    "stage_603"
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "tags": [
+      "dynamic"
+    ]
+  }
+}
