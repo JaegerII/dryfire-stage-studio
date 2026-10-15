@@ -106,6 +106,7 @@ const Stages3DPage = ({ go }: { go: Props['go'] }) => {
                 <strong>{s.name}</strong>
                 <span>
                   par {s.par.toFixed(1)} s · {s.positions} position{s.positions > 1 ? 's' : ''} · {s.objects} objects
+                  {s.source ? ` · from 2D` : ''}
                   {s.builtIn ? ' · built-in' : s.updatedAt ? ` · ${date(s.updatedAt)}` : ''}
                 </span>
               </div>

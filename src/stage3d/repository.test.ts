@@ -3,7 +3,7 @@ import stage001 from '../data/stages/stage_001.json';
 import stage101 from '../data/stages/stage_101.json';
 import stage203 from '../data/stages/stage_203.json';
 import { normalizeStage } from '../utils/stageIO';
-import { fromStage2D, normalizeStage3D } from './repository';
+import { FROM_2D_SUFFIX, fromStage2D, normalizeStage3D, stage3dRepository } from './repository';
 import { ENV3D, parTime3D } from './types';
 
 describe('normalizeStage3D', () => {
@@ -24,6 +24,19 @@ describe('normalizeStage3D', () => {
 
   it('always has a start position', () => {
     expect(normalizeStage3D({}).positions).toHaveLength(1);
+  });
+});
+
+describe('built-in 3D stages', () => {
+  it('include every built-in 2D stage, with a fixed id', () => {
+    const all2d = Object.keys(import.meta.glob('../data/stages/*.json')).map((p) => p.match(/(\w+)\.json$/)![1]);
+    const ids = stage3dRepository.list().map((s) => s.id);
+    for (const id of all2d) expect(ids).toContain(`${id}${FROM_2D_SUFFIX}`);
+    const s = stage3dRepository.get(`stage_203${FROM_2D_SUFFIX}`)!;
+    expect(s.environment).toBe('indoor_03');
+    expect(s.positions[0].id).toBe(`stage_203${FROM_2D_SUFFIX}_start`);
+    // same conversion twice → same stage
+    expect(stage3dRepository.get(`stage_203${FROM_2D_SUFFIX}`)).toEqual(s);
   });
 });
 
@@ -56,7 +69,13 @@ describe('fromStage2D', () => {
     const s3 = fromStage2D(normalizeStage(stage101));
     const wall = s3.objects.find((o) => o.type === 'mesh_wall_diagonal')!;
     expect(wall.yaw).toBe(35);
-    // outdoor ranges are not in 3D yet: the hall stands in
-    expect(s3.environment).toBe('indoor_01');
+    // outdoor ranges import into their own range, inside the bay between the berms
+    expect(s3.environment).toBe('outdoor_03');
+    const room = ENV3D.outdoor_03;
+    for (const o of s3.objects) {
+      expect(o.x).toBeGreaterThanOrEqual(room.x0);
+      expect(o.x).toBeLessThanOrEqual(room.x1);
+      expect(o.d).toBeLessThan(room.d1);
+    }
   });
 });

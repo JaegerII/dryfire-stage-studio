@@ -7,12 +7,21 @@ import { ASSETS } from '../assets/registry';
 import type { Stage } from '../types/stage';
 import { toWorld } from '../utils/perspective';
 import { newId } from '../utils/random';
+import { normalizeStage } from '../utils/stageIO';
 import { type Leg, SCHEMA_3D, type ShooterPosition, type Stage3D, type StageObject3D, env3dFor, isEnv3D, parTime3D, roomOf } from './types';
 
 const RAW_BUILT_IN = Object.values(import.meta.glob<Stage3D>('./stages/*.json', { eager: true, import: 'default' }));
+/**
+ * Every built-in classic stage is also a built-in 3D stage. It is converted on load (not
+ * stored as a copy), so it follows the 2D original and moves into its own environment as
+ * soon as that environment exists in 3D. Editing one saves your version, as usual.
+ */
+const RAW_2D = Object.values(import.meta.glob<Stage>('../data/stages/*.json', { eager: true, import: 'default' }));
+export const FROM_2D_SUFFIX = '_3d';
 // normalised on first use (normalizeStage3D and its helpers are defined further down)
 let builtIn: Stage3D[] | null = null;
-const BUILT_IN = () => (builtIn ??= RAW_BUILT_IN.map((s) => normalizeStage3D(s)));
+const BUILT_IN = () =>
+  (builtIn ??= [...RAW_BUILT_IN.map((s) => normalizeStage3D(s)), ...RAW_2D.map((s) => fromStage2D(normalizeStage(s), { id: `${s.id}${FROM_2D_SUFFIX}` }))]);
 const KEY = 'dryfire-stage-studio.stages3d.v1';
 
 export interface Stage3DSummary {
@@ -24,6 +33,8 @@ export interface Stage3DSummary {
   builtIn: boolean;
   overridesBuiltIn: boolean;
   updatedAt?: string;
+  /** Id of the 2D stage it was made from. */
+  source?: string;
 }
 
 const read = (): Record<string, Stage3D> => {
@@ -44,6 +55,7 @@ const summary = (s: Stage3D, builtIn: boolean, overrides = false): Stage3DSummar
   builtIn,
   overridesBuiltIn: overrides,
   updatedAt: s.meta?.updatedAt,
+  source: s.meta?.source,
 });
 
 export const stage3dRepository = {
@@ -149,8 +161,10 @@ const PLATE_CAMERA_D = -2.2;
  * every object at the floor position the 2D perspective implies (same maths as the
  * 2D editor's "move in meters"), same turn, height, size, mirroring, groups and
  * motion (swingers, activators, pop-ups …). The start box becomes the start position.
+ * Of a dynamic 2D stage (several areas) only area 1 is taken over.
+ * `id`: a fixed id (built-in conversions); a new one otherwise.
  */
-export const fromStage2D = (s: Stage): Stage3D => {
+export const fromStage2D = (s: Stage, opts: { id?: string } = {}): Stage3D => {
   const env = ENVIRONMENTS[s.environment];
   const env3d = env3dFor(s.environment);
   const room = roomOf(env3d);
@@ -176,19 +190,28 @@ export const fromStage2D = (s: Stage): Stage3D => {
       };
     });
   const sw = start ? toWorld(start.x, start.y, env) : { X: 0, D: 1.5 };
+  const dynamic = !!s.areas?.length;
   return {
     schemaVersion: SCHEMA_3D,
-    id: newId('stage3d'),
+    id: opts.id ?? newId('stage3d'),
     name: s.name,
-    description: s.description,
+    description: dynamic ? `${s.description ?? ''} (3D: area 1 of the dynamic stage)`.trim() : s.description,
     environment: env3d,
     repetitions: s.repetitions,
     resetTime: s.resetTime,
     standbyDelay: { ...s.standbyDelay },
-    positions: [{ id: newId('pos'), label: 'START', x: +clampX(sw.X).toFixed(2), d: +Math.max(-4, sw.D + PLATE_CAMERA_D).toFixed(2), heading: 0 }],
+    positions: [
+      {
+        id: opts.id ? `${opts.id}_start` : newId('pos'),
+        label: 'START',
+        x: +clampX(sw.X).toFixed(2),
+        d: +Math.max(room.d0 + 0.6, sw.D + PLATE_CAMERA_D).toFixed(2),
+        heading: 0,
+      },
+    ],
     legs: [],
-    finalTime: s.parTime,
+    finalTime: dynamic ? (s.areaTime ?? 4) : s.parTime,
     objects,
-    meta: { createdAt: new Date().toISOString(), source: s.id },
+    meta: opts.id ? { source: s.id } : { createdAt: new Date().toISOString(), source: s.id },
   };
 };
