@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_501",
+  "name": "Wooden Wall",
+  "description": "Partial target up close, then work around the big wooden wall.",
+  "environment": "indoor_04",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_501_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -2.6,
+      "d": 5.8
+    },
+    {
+      "id": "no_shoot_overlay_2",
+      "type": "no_shoot_overlay",
+      "x": -2.6,
+      "d": 5.75,
+      "elevation": 0.55
+    },
+    {
+      "id": "wood_wall_3",
+      "type": "wood_wall",
+      "x": -1,
+      "d": 9.2
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 0.9,
+      "d": 10
+    },
+    {
+      "id": "paper_full_5",
+      "type": "paper_full",
+      "x": 1.8,
+      "d": 10.2
+    },
+    {
+      "id": "no_shoot_overlay_6",
+      "type": "no_shoot_overlay",
+      "x": 1.8,
+      "d": 10.15,
+      "elevation": 0.55
+    },
+    {
+      "id": "paper_full_7",
+      "type": "paper_full",
+      "x": 2.7,
+      "d": 10
+    },
+    {
+      "id": "steel_popper_8",
+      "type": "steel_popper",
+      "x": 4,
+      "d": 13.5
+    }
+  ]
+}

@@ -2,28 +2,23 @@ import { TrainingHome } from './components/training/TrainingHome';
 import { TrainingRunner } from './components/training/TrainingRunner';
 import { programById } from './training/programs';
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { StageEditor } from './components/editor/StageEditor';
 import { HomePage } from './components/home/HomePage';
 import { MatchPage } from './components/match/MatchPage';
-import { TrainingPlayer } from './components/player/TrainingPlayer';
 import { matchRepository } from './data/matchRepository';
-import { stageRepository } from './data/stageRepository';
-import type { MatchSettings } from './types/match';
-import type { Stage } from './types/stage';
-import { createStage } from './utils/stageIO';
+import { stage3dRepository } from './stage3d/repository';
 import { matchStages } from './utils/matchUtils';
 import { TRACE_TABS, TraceApp, type TraceTab } from './trace/TraceApp';
-import { TvReceiver } from './trace/tv/TvReceiver';
-import type { Route3D } from './stage3d/Stage3DRouter';
 
-// three.js + the encoder only load when a 3D page is opened
-const Stage3DRouter = lazy(() => import('./stage3d/Stage3DRouter'));
+// three.js + the encoder only load when the editor or the player opens
+const Editor3D = lazy(() => import('./stage3d/editor/Editor3D').then((m) => ({ default: m.Editor3D })));
+const Player3D = lazy(() => import('./stage3d/Player3D').then((m) => ({ default: m.Player3D })));
+const TvReceiver = lazy(() => import('./trace/tv/TvReceiver').then((m) => ({ default: m.TvReceiver })));
 
 /**
  * Routes (hash based, so the app works from any static host):
  *   #/                          start page: matches (active / archive) + all stages
  *   #/match/<id>                one match: its stages
- *   #/match/<id>/play           play the whole match (logo → safety → stages) — e.g. for OBS
+ *   #/match/<id>/play           play the whole match (logo → safety → stages) / render it to MP4
  *   #/match/<id>/edit/<stage>   edit a stage of that match (breadcrumb back to the match)
  *   #/edit/<stage>              edit a stage on its own
  *   #/play/<stage>              play one stage
@@ -31,6 +26,7 @@ const Stage3DRouter = lazy(() => import('./stage3d/Stage3DRouter'));
  *   #/training/<program>        run a training program
  *   #/trace[/<tab>]             FORTH TRACE on the phone: training, live tracking, analysis, settings
  *   #/tv[/<room>]               TV renderer that joins a phone's training session
+ * Old links of the 3D beta (#/3d, #/3d/edit/<id>, #/3d/play/<id>) lead to the same pages.
  */
 type View =
   | { page: 'home' }
@@ -39,36 +35,23 @@ type View =
   | { page: 'training' }
   | { page: 'program'; programId: string }
   | { page: 'trace'; tab: TraceTab }
-  | { page: 'tv'; room?: string }
-  | { page: '3d'; route: Route3D };
+  | { page: 'tv'; room?: string };
 
-interface Playing {
-  stages: Stage[];
-  matchName?: string;
-  matchId?: string;
-  settings?: MatchSettings;
-}
+/** What the player shows on top of the page: one stage, or a whole match. */
+type Playing = { kind: 'stage'; id: string } | { kind: 'match'; id: string };
 
 const dec = decodeURIComponent;
 const enc = encodeURIComponent;
+/** Ids of the 3D beta's copies of built-in stages ("stage_001_3d") are the plain ids now. */
+const betaId = (id: string) => (id.endsWith('_3d') && !stage3dRepository.get(id) ? id.slice(0, -3) : id);
 
 const parse = (hash: string): { view: View; playing: Playing | null } => {
   let m: RegExpMatchArray | null;
-  if ((m = hash.match(/^#\/match\/([^/]+)\/play$/))) {
-    const match = matchRepository.get(dec(m[1]));
-    const stages = match ? matchStages(match) : [];
-    return {
-      view: { page: 'match', matchId: dec(m[1]) },
-      playing: match && stages.length ? { stages, matchName: match.name, matchId: match.id, settings: match.settings } : null,
-    };
-  }
+  if ((m = hash.match(/^#\/match\/([^/]+)\/play$/))) return { view: { page: 'match', matchId: dec(m[1]) }, playing: { kind: 'match', id: dec(m[1]) } };
   if ((m = hash.match(/^#\/match\/([^/]+)\/edit\/(.+)$/))) return { view: { page: 'edit', matchId: dec(m[1]), stageId: dec(m[2]) }, playing: null };
   if ((m = hash.match(/^#\/match\/([^/]+)$/))) return { view: { page: 'match', matchId: dec(m[1]) }, playing: null };
-  if ((m = hash.match(/^#\/edit\/(.+)$/))) return { view: { page: 'edit', stageId: dec(m[1]) }, playing: null };
-  if ((m = hash.match(/^#\/play\/(.+)$/))) {
-    const s = stageRepository.get(dec(m[1]));
-    return { view: { page: 'edit', stageId: dec(m[1]) }, playing: s ? { stages: [s] } : null };
-  }
+  if ((m = hash.match(/^#\/(?:3d\/)?edit\/(.+)$/))) return { view: { page: 'edit', stageId: betaId(dec(m[1])) }, playing: null };
+  if ((m = hash.match(/^#\/(?:3d\/)?play\/(.+)$/))) return { view: { page: 'home' }, playing: { kind: 'stage', id: betaId(dec(m[1])) } };
   if ((m = hash.match(/^#\/training\/(.+)$/)) && programById(dec(m[1]))) return { view: { page: 'program', programId: dec(m[1]) }, playing: null };
   if (hash === '#/training') return { view: { page: 'training' }, playing: null };
   if ((m = hash.match(/^#\/trace(?:\/([a-z]+))?$/))) {
@@ -76,24 +59,22 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
     return { view: { page: 'trace', tab }, playing: null };
   }
   if ((m = hash.match(/^#\/tv(?:\/([A-Za-z0-9]{3,8}))?$/))) return { view: { page: 'tv', room: m[1]?.toUpperCase() }, playing: null };
-  if ((m = hash.match(/^#\/3d\/(edit|play)\/(.+)$/))) return { view: { page: '3d', route: { kind: m[1] as 'edit' | 'play', id: dec(m[2]) } }, playing: null };
-  if ((m = hash.match(/^#\/3d\/(.+)$/))) return { view: { page: '3d', route: { kind: 'play', id: dec(m[1]) } }, playing: null };
-  if (hash === '#/3d') return { view: { page: '3d', route: { kind: 'list' } }, playing: null };
   return { view: { page: 'home' }, playing: null };
 };
 
 const toHash = (view: View, playing: Playing | null) => {
-  if (playing?.matchId) return `#/match/${enc(playing.matchId)}/play`;
-  if (playing) return `#/play/${enc(playing.stages[0].id)}`;
+  if (playing?.kind === 'match') return `#/match/${enc(playing.id)}/play`;
+  if (playing) return `#/play/${enc(playing.id)}`;
   if (view.page === 'match') return `#/match/${enc(view.matchId)}`;
   if (view.page === 'edit') return view.matchId ? `#/match/${enc(view.matchId)}/edit/${enc(view.stageId)}` : `#/edit/${enc(view.stageId)}`;
   if (view.page === 'training') return '#/training';
   if (view.page === 'program') return `#/training/${enc(view.programId)}`;
   if (view.page === 'trace') return `#/trace/${view.tab}`;
   if (view.page === 'tv') return view.room ? `#/tv/${enc(view.room)}` : '#/tv';
-  if (view.page === '3d') return view.route.kind === 'list' ? '#/3d' : `#/3d/${view.route.kind}/${enc(view.route.id)}`;
   return '#/';
 };
+
+const Loading = () => <div className="page-loading">Loading…</div>;
 
 export const App = () => {
   const [state, setState] = useState(() => parse(location.hash));
@@ -121,46 +102,44 @@ export const App = () => {
     },
     [view],
   );
-
-  const play = useCallback((p: Playing) => setState((s) => ({ ...s, playing: { ...p, stages: structuredClone(p.stages) } })), []);
-  const playMatch = useCallback(
-    (id: string) => {
-      const m = matchRepository.get(id);
-      const stages = m ? matchStages(m) : [];
-      if (m && stages.length) play({ stages, matchName: m.name, matchId: m.id, settings: m.settings });
-    },
-    [play],
-  );
-  const playStage = useCallback(
-    (id: string) => {
-      const s = stageRepository.get(id);
-      if (s) play({ stages: [s] });
-    },
-    [play],
-  );
+  const play = useCallback((p: Playing) => setState((s) => ({ ...s, playing: p })), []);
+  const onDirty = useCallback((d: boolean) => {
+    editorDirty.current = d;
+  }, []);
 
   const match = (view.page === 'match' || view.page === 'edit') && view.matchId ? matchRepository.get(view.matchId) : undefined;
+
+  // the player: one stage, or a match with its settings (intro, times, values for all stages)
+  let player = null;
+  if (playing) {
+    const exit = () => setState((s) => ({ ...s, playing: null }));
+    const pm = playing.kind === 'match' ? matchRepository.get(playing.id) : undefined;
+    const stages = pm ? matchStages(pm) : playing.kind === 'stage' ? [stage3dRepository.get(playing.id)].filter((s) => !!s) : [];
+    player = stages.length ? (
+      <Suspense fallback={<Loading />}>
+        <Player3D key={`${playing.kind}:${playing.id}`} stages={stages as NonNullable<(typeof stages)[number]>[]} matchName={pm?.name} settings={pm?.settings} onExit={exit} />
+      </Suspense>
+    ) : null;
+  }
 
   return (
     <>
       {view.page === 'home' && (
         <HomePage
           onOpenMatch={(id) => go({ page: 'match', matchId: id })}
-          onPlayMatch={playMatch}
+          onPlayMatch={(id) => play({ kind: 'match', id })}
           onOpenStage={(id) => go({ page: 'edit', stageId: id })}
-          onPlayStage={playStage}
+          onPlayStage={(id) => play({ kind: 'stage', id })}
           onOpenTraining={() => go({ page: 'training' })}
           onOpenTrace={() => go({ page: 'trace', tab: 'training' })}
-          onOpen3d={() => go({ page: '3d', route: { kind: 'list' } })}
         />
       )}
-      {view.page === '3d' && (
-        <Suspense fallback={null}>
-          <Stage3DRouter route={view.route} go={(r) => go(r === 'home' ? { page: 'home' } : { page: '3d', route: r })} />
+      {view.page === 'trace' && <TraceApp tab={view.tab} onTab={(tab) => go({ page: 'trace', tab })} onStageBuilder={() => go({ page: 'home' })} />}
+      {view.page === 'tv' && (
+        <Suspense fallback={<Loading />}>
+          <TvReceiver room={view.room} onJoin={(room) => go({ page: 'tv', room })} onExit={() => go({ page: 'home' })} />
         </Suspense>
       )}
-      {view.page === 'trace' && <TraceApp tab={view.tab} onTab={(tab) => go({ page: 'trace', tab })} onStageBuilder={() => go({ page: 'home' })} />}
-      {view.page === 'tv' && <TvReceiver room={view.room} onJoin={(room) => go({ page: 'tv', room })} onExit={() => go({ page: 'home' })} />}
       {view.page === 'training' && <TrainingHome onHome={() => go({ page: 'home' })} onOpen={(id) => go({ page: 'program', programId: id })} />}
       {view.page === 'program' && programById(view.programId) && (
         <TrainingRunner key={`program:${view.programId}`} program={programById(view.programId)!} onExit={() => go({ page: 'training' })} />
@@ -172,40 +151,39 @@ export const App = () => {
           onHome={() => go({ page: 'home' })}
           onOpenMatch={(id) => go({ page: 'match', matchId: id })}
           onOpenStage={(stageId) => go({ page: 'edit', stageId, matchId: view.matchId })}
-          onPlayStage={playStage}
-          onPlayMatch={playMatch}
+          onPlayStage={(id) => play({ kind: 'stage', id })}
+          onPlayMatch={(id) => play({ kind: 'match', id })}
         />
       )}
       {view.page === 'edit' && (
-        <StageEditor
-          key={`edit:${view.stageId}`}
-          initial={stageRepository.get(view.stageId) ?? { ...createStage(), id: view.stageId }}
-          hidden={!!playing}
-          matchName={match?.name}
-          onHome={() => go({ page: 'home' })}
-          onBackToMatch={match ? () => go({ page: 'match', matchId: match.id }) : undefined}
-          stageNav={(() => {
+        <Suspense fallback={<Loading />}>
+          {(() => {
+            const s = stage3dRepository.get(view.stageId);
+            if (!s)
+              return (
+                <div className="page">
+                  <p className="hint empty">
+                    This stage does not exist (any more). <button onClick={() => go(match ? { page: 'match', matchId: match.id } : { page: 'home' })}>Back</button>
+                  </p>
+                </div>
+              );
             const ids = match?.stageIds ?? [];
             const i = ids.indexOf(view.stageId);
-            if (!match || i < 0 || ids.length < 2) return undefined;
-            const to = (j: number) => () => go({ page: 'edit', stageId: ids[j], matchId: match.id });
-            return { index: i, count: ids.length, onPrev: i > 0 ? to(i - 1) : undefined, onNext: i < ids.length - 1 ? to(i + 1) : undefined };
+            const to = (j: number) => () => go({ page: 'edit', stageId: ids[j], matchId: match!.id });
+            return (
+              <Editor3D
+                key={`edit:${view.stageId}`}
+                initial={s}
+                matchName={match?.name}
+                onExit={() => go(match ? { page: 'match', matchId: match.id } : { page: 'home' })}
+                stageNav={match && i >= 0 && ids.length > 1 ? { index: i, count: ids.length, onPrev: i > 0 ? to(i - 1) : undefined, onNext: i < ids.length - 1 ? to(i + 1) : undefined } : undefined}
+                onDirtyChange={onDirty}
+              />
+            );
           })()}
-          onDirtyChange={(d) => {
-            editorDirty.current = d;
-          }}
-          onPlay={(stages) => play({ stages })}
-        />
+        </Suspense>
       )}
-      {playing && (
-        <TrainingPlayer
-          key={`play:${playing.matchId ?? playing.stages[0].id}`}
-          stages={playing.stages}
-          matchName={playing.matchName}
-          matchSettings={playing.settings}
-          onExit={() => setState((s) => ({ ...s, playing: null }))}
-        />
-      )}
+      {player}
     </>
   );
 };

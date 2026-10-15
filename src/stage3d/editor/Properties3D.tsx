@@ -1,6 +1,6 @@
 import { ASSETS } from '../../assets/registry';
-import { NumberField, Row, SliderField } from '../../components/editor/fields';
-import { MotionFields } from '../../components/editor/MotionFields';
+import { NumberField, Row, SliderField } from '../../components/fields';
+import { MotionFields } from './MotionFields';
 import { STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
 import { buildVideoTimeline } from '../timeline';
 import { type Stage3D, parTime3D, shakeOf } from '../types';
@@ -44,6 +44,14 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
         <Row label="Elevation (m)" hint="Height above the floor — e.g. 0.6 for a card on a box"><NumberField value={o.elevation ?? 0} min={0} max={3} step={0.05} digits={2} onChange={(e) => set({ elevation: e || undefined })} /></Row>
         <Row label="Scale"><NumberField value={o.scale ?? 1} min={0.3} max={3} step={0.05} digits={2} onChange={(sc) => set({ scale: sc === 1 ? undefined : sc })} /></Row>
         <Row label="Mirror"><input type="checkbox" checked={!!o.flip} onChange={(e) => set({ flip: e.target.checked || undefined })} /></Row>
+        <Row label="Up from (s)" hint="Only up during part of the run, seconds after the start beep (e.g. the areas of a dynamic stage). Untick = from the beep.">
+          <input type="checkbox" checked={o.shown?.from !== undefined} onChange={(e) => set({ shown: window_(o.shown, { from: e.target.checked ? 0 : undefined }) })} />
+          {o.shown?.from !== undefined && <NumberField value={o.shown.from} min={0} max={120} step={0.25} digits={2} onChange={(from) => set({ shown: window_(o.shown, { from }) })} />}
+        </Row>
+        <Row label="Down at (s)" hint="Goes down this many seconds after the start beep. Untick = up until the end.">
+          <input type="checkbox" checked={o.shown?.until !== undefined} onChange={(e) => set({ shown: window_(o.shown, { until: e.target.checked ? parTime3D(stage) : undefined }) })} />
+          {o.shown?.until !== undefined && <NumberField value={o.shown.until} min={0} max={120} step={0.25} digits={2} onChange={(until) => set({ shown: window_(o.shown, { until }) })} />}
+        </Row>
         <div className="actions">
           <button onClick={onDuplicate}>Duplicate</button>
           <button className="danger" onClick={onDelete}>Delete</button>
@@ -157,4 +165,12 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
       </ol>
     </aside>
   );
+};
+
+/** The "up from / down at" window with one end changed; empty → no window. */
+const window_ = (w: { from?: number; until?: number } | undefined, patch: { from?: number; until?: number }) => {
+  const next = { ...w, ...patch };
+  if (next.from === undefined) delete next.from;
+  if (next.until === undefined) delete next.until;
+  return Object.keys(next).length ? next : undefined;
 };

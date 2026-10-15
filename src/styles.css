@@ -183,7 +183,7 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
 .crumbs > span { color: var(--faint); }
 .crumbs strong { overflow: hidden; text-overflow: ellipsis; }
-.stage-nav { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; flex: none; }
+.crumbs > .stage-nav { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; flex: none; }
 .crumbs .linkish { max-width: 220px; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 40px; }
 .stage-nav em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; padding: 0 4px; }
 .stage-nav button { padding: 3px 9px; }
@@ -506,3 +506,10 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .ms-field input[type='number'] { width: 76px; }
 .ms-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
 @media (max-width: 900px) { .ms-grid { grid-template-columns: 1fr; } }
+
+/* lazy pages (editor, player, TV) while their code loads */
+.page-loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; }
+/* editor breadcrumb: previous / next stage of the match */
+.crumbs > .stage-nav { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; color: var(--muted); font-size: 12px; }
+.stage-nav button { font-size: 16px; padding: 0 4px; }
+.stage-nav button:disabled { opacity: 0.3; }

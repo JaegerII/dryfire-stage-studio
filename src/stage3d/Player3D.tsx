@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fit16x9, useElementSize } from '../hooks/useElementSize';
+import type { MatchSettings } from '../types/match';
 import { AudioEngine, STANDBY_VOICE_LEAD } from '../utils/audioEngine';
 import { downloadBlob } from '../utils/recorder';
-import { videoCues } from './audio';
 import { RenderAborted, renderMp4 } from './exportVideo';
-import { drawHud } from './hud';
+import { buildProgram, programCues, programFrameAt, stageStarts } from './program';
+import { drawProgramHud, loadScreenAssets, showsScene } from './screens';
 import { StageScene3D } from './StageScene3D';
-import { buildVideoTimeline, frameAt } from './timeline';
 import type { Stage3D } from './types';
 import { parTime3D, shakeOf } from './types';
 
@@ -15,15 +15,26 @@ type Res = keyof typeof RESOLUTIONS;
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 
+interface Props {
+  /** One stage, or the stages of a match in play order. */
+  stages: Stage3D[];
+  /** Set for a match: logo / safety intro (per its settings), title card before every stage. */
+  matchName?: string;
+  settings?: MatchSettings;
+  onExit: () => void;
+}
+
 /**
- * 3D stage player (prototype): briefing from above, camera flight into the
- * shooter's eyes, reps with real movement between positions. Plays live with
- * sound, and renders the identical video frame by frame to MP4.
+ * Plays a stage or a whole match in 3D: (logo → safety →) per stage: title card, briefing
+ * from above, camera flight into the shooter's eyes, reps with real movement between the
+ * positions → COMPLETE. Plays live with sound, and renders the identical video frame by
+ * frame to MP4.
  */
-export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit: () => void }) => {
-  // walking shake: preset by the stage, adjustable here for the preview and the render
-  const [shake, setShake] = useState(() => shakeOf(stageProp));
-  const stage = useMemo(() => ({ ...stageProp, camera: { ...stageProp.camera, shake } }), [stageProp, shake]);
+export const Player3D = ({ stages: stagesProp, matchName, settings, onExit }: Props) => {
+  const isMatch = matchName !== undefined;
+  // walking shake: each stage's own setting; the slider sets it for all stages (preview + render)
+  const [shake, setShake] = useState<number | null>(null);
+  const stages = useMemo(() => (shake === null ? stagesProp : stagesProp.map((s) => ({ ...s, camera: { ...s.camera, shake } }))), [stagesProp, shake]);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
   const glRef = useRef<HTMLCanvasElement>(null);
@@ -33,7 +44,16 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
   const [error, setError] = useState<string | null>(null);
   const [voice, setVoice] = useState(true);
   const [showTimer, setShowTimer] = useState(false);
-  const tl = useMemo(() => buildVideoTimeline(stage, { seed: stage.id, voiceLead: voice ? STANDBY_VOICE_LEAD : 0 }), [stage, voice]);
+  const [intro, setIntro] = useState(settings?.intro ?? true);
+  const program = useMemo(
+    () =>
+      buildProgram(stages, {
+        seed: stages.map((s) => s.id).join('+'),
+        voiceLead: voice ? STANDBY_VOICE_LEAD : 0,
+        ...(isMatch ? { matchName, settings: { ...settings, intro } } : {}),
+      }),
+    [stages, voice, isMatch, matchName, settings, intro],
+  );
 
   // playback clock: audio clock while playing, the scrubber otherwise
   const [t, setT] = useState(0);
@@ -49,37 +69,64 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
   const abort = useRef<AbortController | null>(null);
 
   // ---------------------------------------------------------------- scene
+  /** Index of the stage whose range + objects are in the scene; -1 while one loads. */
+  const loaded = useRef(-1);
+  const loading = useRef<number | null>(null);
   useEffect(() => {
     const canvas = glRef.current;
     if (!canvas) return;
     const s = new StageScene3D(canvas);
     sceneRef.current = s;
+    loaded.current = -1;
     if (import.meta.env.DEV) Object.assign(window, { __scene3d: s });
     setReady(false);
-    // the scene only depends on the stage's objects / course, not on camera settings like the shake
-    s.load(stageProp)
-      .then(() => document.fonts.load('900 40px Montserrat'))
+    // every stage once, so switching stages later only takes cached models; then the first one
+    (async () => {
+      for (const st of stagesProp) await s.load(st);
+      if (stagesProp.length > 1) await s.load(stagesProp[0]);
+      loaded.current = 0;
+      await loadScreenAssets();
+      await document.fonts.load('900 40px Montserrat');
+    })()
       .then(() => setReady(true))
       .catch((e) => setError(`3D assets could not be loaded (${e?.message ?? e}). Export them with tools/plate-renderer (npm run blender3d).`));
     return () => {
       s.dispose();
       sceneRef.current = null;
     };
-  }, [stageProp]);
+  }, [stagesProp]);
 
   const draw = useCallback(
     (time: number) => {
       const s = sceneRef.current;
       const hud = hudRef.current;
       if (!s || !hud || !ready) return;
-      const f = frameAt(stage, tl, time, box.width / Math.max(1, box.height));
-      s.apply(f);
-      s.render();
+      const pf = programFrameAt(program, time, box.width / Math.max(1, box.height));
+      // another stage comes up: swap the scene (cached models, done within a frame or two)
+      if (pf.stageIndex !== loaded.current && loading.current !== pf.stageIndex) {
+        const i = pf.stageIndex;
+        loading.current = i;
+        loaded.current = -1;
+        void s.load(program.stages[i]).then(() => {
+          if (loading.current === i) {
+            loaded.current = i;
+            loading.current = null;
+          }
+        });
+      }
       const ctx = hud.getContext('2d')!;
       ctx.clearRect(0, 0, hud.width, hud.height);
-      drawHud(ctx, hud.width, hud.height, f, stage, s.project.bind(s), { showTimer });
+      if (showsScene(pf) && pf.frame && loaded.current === pf.stageIndex) {
+        s.apply(pf.frame);
+        s.render();
+      } else {
+        // screens and stage changes: nothing of the old range shows through
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, hud.width, hud.height);
+      }
+      drawProgramHud(ctx, hud.width, hud.height, program, pf, s.project.bind(s), { showTimer });
     },
-    [stage, tl, ready, box.width, box.height, showTimer],
+    [program, ready, box.width, box.height, showTimer],
   );
 
   // canvas sizes follow the 16:9 box (device pixels, capped for performance)
@@ -108,11 +155,11 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
     await e.load();
     await e.resume();
     engine.current = e;
-    const from = tRef.current >= tl.end ? 0 : tRef.current;
+    const from = tRef.current >= program.end ? 0 : tRef.current;
     t0.current = e.now + 0.1 - from;
-    for (const c of videoCues(tl, voice)) if (c.t >= from) e.play(c.cue, t0.current + c.t);
+    for (const c of programCues(program, voice)) if (c.t >= from) e.play(c.cue, t0.current + c.t);
     setPlaying(true);
-  }, [tl, voice]);
+  }, [program, voice]);
 
   useEffect(() => {
     if (!playing) return;
@@ -123,9 +170,9 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
       const now = Math.max(0, e.now - t0.current);
       tRef.current = now;
       draw(now);
-      if (now >= tl.end) {
+      if (now >= program.end) {
         stop();
-        setT(tl.end);
+        setT(program.end);
         return;
       }
       setT((p) => (Math.abs(p - now) > 0.1 ? now : p)); // scrubber at ~10 Hz
@@ -133,9 +180,14 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [playing, draw, tl.end, stop]);
+  }, [playing, draw, program.end, stop]);
 
   useEffect(() => () => stop(), [stop]);
+
+  // a changed program (voice, intro, shake) keeps the position but redraws
+  useEffect(() => {
+    if (!playing) draw(tRef.current);
+  }, [draw, playing]);
 
   const seek = (v: number) => {
     if (playing) stop();
@@ -158,6 +210,7 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
   }, [playing, play, stop, onExit, progress]);
 
   // ---------------------------------------------------------------- MP4 render
+  const title = matchName ?? stages[0]?.name ?? 'stage';
   const render = async () => {
     stop();
     const [w, h] = RESOLUTIONS[res];
@@ -166,8 +219,8 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
     const started = performance.now();
     setProgress({ done: 0, total: 1, started });
     try {
-      const r = await renderMp4(stage, tl, { width: w, height: h, fps, voice, showTimer, signal: ac.signal, onProgress: (done, total) => setProgress({ done, total, started }) });
-      downloadBlob(r.blob, `${stage.name.replace(/[^\w-]+/g, '_')}_${res}_${fps}fps.mp4`);
+      const r = await renderMp4(program, { width: w, height: h, fps, voice, showTimer, signal: ac.signal, onProgress: (done, total) => setProgress({ done, total, started }) });
+      downloadBlob(r.blob, `${title.replace(/[^\w-]+/g, '_')}_${res}_${fps}fps.mp4`);
     } catch (e) {
       if (!(e instanceof RenderAborted)) alert(`Render failed: ${(e as Error).message}`);
     } finally {
@@ -177,13 +230,23 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
     }
   };
 
-  const jumps: [string, number][] = [
-    ['Briefing', 0],
-    ['Fly-in', tl.briefingEnd],
-    ['Rep 1', tl.flyInEnd + (tl.schedule.reps[0]?.standbyStart ?? 0) - 1],
-    ...(stage.legs.length ? ([['Move', tl.flyInEnd + (tl.schedule.reps[0]?.startBeep ?? 0) + stage.legs[0].after - 0.5]] as [string, number][]) : []),
-  ];
+  // jump buttons: per stage its briefing and rep 1 (a single stage also its first move)
+  const runs = stageStarts(program);
+  const jumps: [string, number][] = isMatch
+    ? runs.flatMap((r, i) => [[`S${i + 1}`, r.start] as [string, number]])
+    : runs.flatMap((r) => {
+        const st = program.stages[r.stageIndex];
+        const rep1 = r.start + r.tl.flyInEnd + (r.tl.schedule.reps[0]?.standbyStart ?? 0) - 1;
+        return [
+          ['Briefing', r.start],
+          ['Fly-in', r.start + r.tl.briefingEnd],
+          ['Rep 1', rep1],
+          ...(st.legs.length ? [['Move', r.start + r.tl.flyInEnd + (r.tl.schedule.reps[0]?.startBeep ?? 0) + st.legs[0].after - 0.5]] : []),
+        ] as [string, number][];
+      });
   const eta = progress && progress.done > 0 ? ((performance.now() - progress.started) / progress.done) * (progress.total - progress.done) / 1000 : null;
+  const shakeShown = shake ?? shakeOf(stagesProp[0]);
+  const reps = program.stages.reduce((n, s) => n + s.repetitions, 0);
 
   return (
     <div className="player3d">
@@ -191,7 +254,7 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
         <div className="p3-box" style={{ width: box.width, height: box.height }}>
           <canvas ref={glRef} className="p3-gl" />
           <canvas ref={hudRef} className="p3-hud" />
-          {!ready && !error && <div className="p3-msg">Loading 3D stage…</div>}
+          {!ready && !error && <div className="p3-msg">Loading 3D {isMatch ? 'match' : 'stage'}…</div>}
           {error && <div className="p3-msg bad">{error}</div>}
           {progress && (
             <div className="p3-msg">
@@ -211,9 +274,9 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
         <button className="primary" disabled={!ready || !!progress} onClick={() => (playing ? stop() : void play())}>
           {playing ? 'Pause' : '▶ Play'}
         </button>
-        <input type="range" min={0} max={tl.end} step={0.05} value={t} disabled={!ready || !!progress} onChange={(e) => seek(parseFloat(e.target.value))} />
+        <input type="range" min={0} max={program.end} step={0.05} value={Math.min(t, program.end)} disabled={!ready || !!progress} onChange={(e) => seek(parseFloat(e.target.value))} />
         <span className="p3-time">
-          {fmt(t)} / {fmt(tl.end)}
+          {fmt(Math.min(t, program.end))} / {fmt(program.end)}
         </span>
         {jumps.map(([label, at]) => (
           <button key={label} disabled={!ready || !!progress} onClick={() => seek(Math.max(0, at))}>
@@ -221,10 +284,15 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
           </button>
         ))}
         <span className="spacer" />
+        {isMatch && (
+          <label className="p3-opt" title="FORTH TRACE logo and safety screen before the first stage">
+            <input type="checkbox" checked={intro} disabled={!!progress} onChange={(e) => setIntro(e.target.checked)} /> Intro
+          </label>
+        )}
         <label className="p3-opt"><input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} /> Voice</label>
         <label className="p3-opt"><input type="checkbox" checked={showTimer} onChange={(e) => setShowTimer(e.target.checked)} /> Timer</label>
-        <label className="p3-opt p3-shake" title="Head movement while walking: 0 = steady (gimbal), 1 = natural, 2 = strong. Saved with the stage in the editor.">
-          Shake <input type="range" min={0} max={2} step={0.05} value={shake} disabled={!!progress} onChange={(e) => setShake(parseFloat(e.target.value))} /> <b>{shake.toFixed(2)}</b>
+        <label className="p3-opt p3-shake" title="Head movement while walking: 0 = steady (gimbal), 1 = natural, 2 = strong. Each stage keeps its own setting (editor) until you move this.">
+          Shake <input type="range" min={0} max={2} step={0.05} value={shakeShown} disabled={!!progress} onChange={(e) => setShake(parseFloat(e.target.value))} /> <b>{shakeShown.toFixed(2)}</b>
         </label>
         <select value={res} onChange={(e) => setRes(e.target.value as Res)} disabled={!!progress}>
           {Object.keys(RESOLUTIONS).map((r) => (
@@ -243,7 +311,9 @@ export const Player3D = ({ stage: stageProp, onExit }: { stage: Stage3D; onExit:
         </button>
       </div>
       <div className="p3-info">
-        {stage.name} · par {parTime3D(stage).toFixed(1)} s · {stage.repetitions} reps · video {fmt(tl.end)} · prototype (3D)
+        {isMatch
+          ? `${matchName} · ${program.stages.length} stages · ${reps} reps · video ${fmt(program.end)}`
+          : `${stages[0]?.name} · par ${parTime3D(program.stages[0]).toFixed(1)} s · ${program.stages[0].repetitions} reps · video ${fmt(program.end)}`}
       </div>
     </div>
   );

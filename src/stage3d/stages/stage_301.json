@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_301",
+  "name": "El Prez Style",
+  "description": "Three paper side by side, then steel left and right in depth.",
+  "environment": "outdoor_02",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_301_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 5,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -1.2,
+      "d": 9
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": 0,
+      "d": 9
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 1.2,
+      "d": 9
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": -2.8,
+      "d": 12.5
+    },
+    {
+      "id": "steel_plate_5",
+      "type": "steel_plate",
+      "x": 2.8,
+      "d": 12.5
+    }
+  ]
+}

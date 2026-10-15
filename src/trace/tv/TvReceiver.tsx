@@ -1,19 +1,18 @@
-import type Konva from 'konva';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrandMark } from '../../components/BrandMark';
-import { type OverlayHandle, PlayerOverlay } from '../../components/player/PlayerOverlay';
-import { SafetyScreen } from '../../components/player/IntroScreens';
-import { StageCanvas } from '../../components/stage/StageCanvas';
 import { fit16x9, useElementSize } from '../../hooks/useElementSize';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { clockMapping, perfToAudio } from '../../session/audioClock';
 import type { RepSummary, RunPlan, SessionMessage } from '../../session/protocol';
 import { type SessionInfo, SessionClient } from '../../session/SessionClient';
 import { probeRelay } from '../../session/transport';
-import type { Stage } from '../../types/stage';
+import { drawHud } from '../../stage3d/hud';
+import { SAFETY_RULES } from '../../stage3d/screens';
+import { StageScene3D } from '../../stage3d/StageScene3D';
+import { runFrameAt, stageTiming, startFrame } from '../../stage3d/timeline';
+import type { Stage3D } from '../../stage3d/types';
 import { AudioEngine } from '../../utils/audioEngine';
-import { buildSchedule, snapshotAt } from '../../utils/schedule';
-import { applyStageMotion, stageMotionData } from '../../utils/stageMotion';
+import { buildSchedule } from '../../utils/schedule';
 import { secPlain } from '../format';
 import '../trace.css';
 
@@ -24,8 +23,9 @@ interface Props {
 }
 
 /**
- * TV renderer: joins a session by room code, shows the stage the phone
- * selected and plays runs on the phone's timeline (clock-synced). Optionally
+ * TV renderer: joins a session by room code, shows the stage the phone selected in 3D
+ * (the shooter's view from the start box) and plays runs on the phone's timeline
+ * (clock-synced) — moves between positions, target motion and the range commands. Optionally
  * plays the beeps. Shows result summaries the phone sends — the TV measures
  * nothing itself.
  */
@@ -61,12 +61,10 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [areaRef, area] = useElementSize<HTMLDivElement>();
   const box = fit16x9(area.width, area.height);
-  const boxRef = useRef(box);
-  boxRef.current = box;
   const { active: fullscreen, toggle: toggleFullscreen } = useFullscreen(rootRef);
 
   const [info, setInfo] = useState<SessionInfo | null>(null);
-  const [stage, setStage] = useState<Stage | null>(null);
+  const [stage, setStage] = useState<Stage3D | null>(null);
   const [plan, setPlan] = useState<RunPlan | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [countdown, setCountdown] = useState(0);
@@ -76,16 +74,66 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
 
   const client = useRef<SessionClient | null>(null);
   const engine = useRef<AudioEngine | null>(null);
-  const overlay = useRef<OverlayHandle>(null);
-  const layer = useRef<Konva.Layer | null>(null);
-  const nodes = useRef(new Map<string, Konva.Group>());
+  const glRef = useRef<HTMLCanvasElement>(null);
+  const hudRef = useRef<HTMLCanvasElement>(null);
+  const scene = useRef<StageScene3D | null>(null);
+  /** Id of the stage in the 3D scene (null while it loads). */
+  const [loaded, setLoaded] = useState<string | null>(null);
   const raf = useRef(0);
   /** Local performance time of the schedule's t = 0, frozen once (audio and picture must agree). */
   const localStart = useRef<number | null>(null);
 
   const shown = plan?.stage ?? stage;
-  const schedule = useMemo(() => (plan ? buildSchedule(plan.stage, { seed: plan.seed, lead: plan.lead, voiceLead: plan.voiceLead }) : null), [plan]);
-  const motion = useMemo(() => (shown ? stageMotionData(shown) : null), [shown]);
+  const schedule = useMemo(() => (plan ? buildSchedule(stageTiming(plan.stage), { seed: plan.seed, lead: plan.lead, voiceLead: plan.voiceLead }) : null), [plan]);
+
+  // ------------------------------------------------------------ 3D view
+  useEffect(() => {
+    const c = glRef.current;
+    if (!c) return;
+    const s = new StageScene3D(c);
+    scene.current = s;
+    return () => {
+      s.dispose();
+      scene.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    const s = scene.current;
+    if (!s || !shown) return;
+    setLoaded(null);
+    let live = true;
+    void s.load(shown).then(() => live && setLoaded(shown.id));
+    return () => {
+      live = false;
+    };
+  }, [shown]);
+  /** Draws the stage: standing in the start box, or the run at schedule time `t`. */
+  const paint = useCallback(
+    (t: number | null) => {
+      const s = scene.current;
+      const hud = hudRef.current;
+      if (!s || !hud || !shown || loaded !== shown.id) return;
+      const f = t !== null && schedule ? runFrameAt(shown, schedule, t) : startFrame(shown);
+      s.apply(f);
+      s.render();
+      const ctx = hud.getContext('2d')!;
+      ctx.clearRect(0, 0, hud.width, hud.height);
+      if (t !== null) drawHud(ctx, hud.width, hud.height, f, shown, s.project.bind(s), { showTimer: !!plan?.showTimer });
+    },
+    [shown, loaded, schedule, plan?.showTimer],
+  );
+  // canvas sizes follow the 16:9 box
+  useEffect(() => {
+    const s = scene.current;
+    const hud = hudRef.current;
+    if (!s || !hud || !box.width) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    s.renderer.setPixelRatio(dpr);
+    s.setSize(box.width, box.height);
+    hud.width = Math.round(box.width * dpr);
+    hud.height = Math.round(box.height * dpr);
+    paint(null);
+  }, [box.width, box.height, paint]);
 
   // ------------------------------------------------------------ connection
   useEffect(() => {
@@ -180,23 +228,21 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
           return;
         } else {
           setPhase('running');
-          const rs = snapshotAt(schedule, t, plan.stage);
-          overlay.current?.update(rs);
-          if (motion && applyStageMotion(plan.stage, motion, rs, nodes.current, boxRef.current)) layer.current?.batchDraw();
+          paint(t);
         }
       }
       raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf.current);
-  }, [plan, schedule, motion, sound]);
+  }, [plan, schedule, paint, sound]);
 
   useEffect(() => () => void engine.current?.close(), []);
 
-  const registerNode = useCallback((id: string, node: Konva.Group | null) => {
-    if (node) nodes.current.set(id, node);
-    else nodes.current.delete(id);
-  }, []);
+  // between runs: the stage as it stands
+  useEffect(() => {
+    if (phase !== 'running') paint(null);
+  }, [phase, paint]);
 
   const phone = info?.peers.some((p) => p.role === 'controller');
   const lastResult = results.length ? [...results].sort((a, b) => b.rep - a.rep)[0] : null;
@@ -205,14 +251,10 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
     <div className={`tv${phase === 'running' ? ' hide-cursor' : ''}`} ref={rootRef}>
       <div className="player-area" ref={areaRef}>
         <div className="player-box" style={{ width: box.width, height: box.height }}>
-          {shown ? (
-            <div className="stage-layer" key={`${shown.id}:${plan?.runId ?? ''}`}>
-              <StageCanvas stage={shown} width={box.width} height={box.height} registerNode={registerNode} layerRef={layer} />
-            </div>
-          ) : (
-            <SafetyScreen />
-          )}
-          {plan && phase === 'running' && <PlayerOverlay ref={overlay} stage={plan.stage} showTimer={plan.showTimer} signalBorder />}
+          <canvas ref={glRef} className="p3-gl" style={{ visibility: shown ? 'visible' : 'hidden' }} />
+          <canvas ref={hudRef} className="p3-hud" />
+          {shown && loaded !== shown.id && <div className="p3-msg">Loading stage…</div>}
+          {!shown && <SafetyScreen />}
           {phase === 'countdown' && (
             <div className="hud">
               <div className="hud-cmd show ready">
@@ -265,3 +307,23 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
     </div>
   );
 };
+
+/** Shown while no stage is selected: the firearm must be unloaded at all times. */
+const SafetyScreen = () => (
+  <div className="screen safety fade-in">
+    <div className="eyebrow accent">⚠ Safety First</div>
+    <h1>
+      Your firearm must be
+      <br />
+      <em>unloaded</em> at all times.
+    </h1>
+    <ol>
+      {SAFETY_RULES.map((r, i) => (
+        <li key={i}>
+          <span>0{i + 1}</span>
+          {r}
+        </li>
+      ))}
+    </ol>
+  </div>
+);

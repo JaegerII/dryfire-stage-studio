@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_403",
+  "name": "Box Row",
+  "description": "Cards on boxes, a swinger behind the wall, steel to finish.",
+  "environment": "indoor_01",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_403_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 7,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -3.3,
+      "d": 9.5
+    },
+    {
+      "id": "crate_wide_2",
+      "type": "crate_wide",
+      "x": -1.6,
+      "d": 7
+    },
+    {
+      "id": "paper_hc_vertical_card_3",
+      "type": "paper_hc_vertical_card",
+      "x": -1.95,
+      "d": 7,
+      "elevation": 0.6
+    },
+    {
+      "id": "no_shoot_overlay_4",
+      "type": "no_shoot_overlay",
+      "x": -1.35,
+      "d": 7,
+      "elevation": 0.6
+    },
+    {
+      "id": "mesh_wall_5",
+      "type": "mesh_wall",
+      "x": 0.4,
+      "d": 9.6
+    },
+    {
+      "id": "paper_swinger_6",
+      "type": "paper_swinger",
+      "x": 0.4,
+      "d": 10,
+      "motion": {
+        "kind": "swing",
+        "angle": 35,
+        "period": 1.8,
+        "delay": 0
+      }
+    },
+    {
+      "id": "crate_7",
+      "type": "crate",
+      "x": 1.9,
+      "d": 7
+    },
+    {
+      "id": "paper_hc_diagonal_card_8",
+      "type": "paper_hc_diagonal_card",
+      "x": 1.9,
+      "d": 7,
+      "elevation": 0.6
+    },
+    {
+      "id": "steel_popper_9",
+      "type": "steel_popper",
+      "x": 4.4,
+      "d": 12.5
+    }
+  ]
+}

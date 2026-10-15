@@ -153,3 +153,6 @@ export const removeVia = (s: Stage3D, i: number, k: number): Stage3D => {
   const { via: _drop, ...rest } = s.legs[i];
   return { ...s, legs: s.legs.map((l, j) => (j === i ? (via.length ? { ...rest, via } : rest) : l)) };
 };
+
+/** Drag & drop of library items onto the plan. */
+export const DND_TYPE = 'application/x-dryfire-asset';

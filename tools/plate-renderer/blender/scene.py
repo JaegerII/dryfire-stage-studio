@@ -1397,18 +1397,26 @@ def grass_patch(name, area, density, length, colors, patchy=0.0, seed=1, z=0.0, 
     st.kink_amplitude = length * 0.25
     st.kink_frequency = 0.6
     if patchy > 0:
-        # density map: noise in world space, thresholded so grass grows in clumps and patches
-        from mathutils import noise
-        vg = ob.vertex_groups.new(name='density')
-        mw = ob.matrix_world
-        thr = -0.5 + patchy * 0.9
-        for v in ob.data.vertices:
-            w = mw @ v.co
-            n = noise.noise(Vector((w.x * 0.35, w.y * 0.35, seed * 3.1))) + 0.5 * noise.noise(Vector((w.x * 1.3, w.y * 1.3, seed * 7.7)))
-            t = max(0.0, min(1.0, (n - thr) / 0.35))
-            vg.add([v.index], t * t * (3 - 2 * t), 'REPLACE')
+        grass_density(ob, patchy, seed)
         ps.vertex_group_density = 'density'
+    # export3d.py refines the density map for its views from straight above
+    ob['grass_patchy'] = patchy
+    ob['grass_seed'] = seed
     return ob
+
+
+def grass_density(ob, patchy, seed):
+    """Density map: noise in world space, thresholded so grass grows in clumps and patches.
+    (Blender weights the particle count per face: the map is as fine as the emitter's faces.)"""
+    from mathutils import noise
+    vg = ob.vertex_groups.get('density') or ob.vertex_groups.new(name='density')
+    mw = ob.matrix_world
+    thr = -0.5 + patchy * 0.9
+    for v in ob.data.vertices:
+        w = mw @ v.co
+        n = noise.noise(Vector((w.x * 0.35, w.y * 0.35, seed * 3.1))) + 0.5 * noise.noise(Vector((w.x * 1.3, w.y * 1.3, seed * 7.7)))
+        t = max(0.0, min(1.0, (n - thr) / 0.35))
+        vg.add([v.index], t * t * (3 - 2 * t), 'REPLACE')
 
 
 LAWN = ['#557a2e', '#6a8c36', '#86a142', '#9cab55', '#b5b06a']

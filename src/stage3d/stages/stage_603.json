@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_603",
+  "name": "Steel Sweep",
+  "description": "Long steel first, run behind the wooden wall and reload, finish on the activated swinger.",
+  "environment": "outdoor_01",
+  "repetitions": 5,
+  "resetTime": 4,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_603_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    },
+    {
+      "id": "stage_603_p2",
+      "label": "P2",
+      "x": 1.5,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [
+    {
+      "after": 4,
+      "duration": 2.5,
+      "reload": true
+    }
+  ],
+  "finalTime": 4.5,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -1.8,
+      "d": 6.4,
+      "shown": {
+        "until": 5.25
+      }
+    },
+    {
+      "id": "steel_popper_2",
+      "type": "steel_popper",
+      "x": -4.2,
+      "d": 14,
+      "shown": {
+        "until": 5.25
+      }
+    },
+    {
+      "id": "steel_plate_3",
+      "type": "steel_plate",
+      "x": 2.9,
+      "d": 13.5,
+      "shown": {
+        "until": 5.25
+      }
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": 1.6,
+      "d": 14.4,
+      "shown": {
+        "until": 5.25
+      }
+    },
+    {
+      "id": "steel_plate_rack_5",
+      "type": "steel_plate_rack",
+      "x": -0.2,
+      "d": 14.4,
+      "shown": {
+        "until": 5.25
+      }
+    },
+    {
+      "id": "p2_paper_full_2",
+      "type": "paper_full",
+      "x": -1.5,
+      "d": 6.8,
+      "shown": {
+        "from": 5.25
+      }
+    },
+    {
+      "id": "p2_steel_popper_1",
+      "type": "steel_popper",
+      "x": 2,
+      "d": 12,
+      "motion": {
+        "kind": "fall",
+        "delay": 7.7
+      },
+      "shown": {
+        "from": 5.25
+      }
+    },
+    {
+      "id": "p2_paper_swinger_3",
+      "type": "paper_swinger",
+      "x": 0.2,
+      "d": 9.2,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.5,
+        "trigger": "steel_popper_1",
+        "delay": 0
+      },
+      "shown": {
+        "from": 5.25
+      }
+    },
+    {
+      "id": "p2_mesh_wall_short_4",
+      "type": "mesh_wall_short",
+      "x": 0.2,
+      "d": 8.9,
+      "shown": {
+        "from": 5.25
+      }
+    },
+    {
+      "id": "p2_paper_stack_5",
+      "type": "paper_stack",
+      "x": 3.9,
+      "d": 7.6,
+      "shown": {
+        "from": 5.25
+      }
+    },
+    {
+      "id": "p2_steel_plate_6",
+      "type": "steel_plate",
+      "x": 3.1,
+      "d": 12.5,
+      "shown": {
+        "from": 5.25
+      }
+    }
+  ]
+}

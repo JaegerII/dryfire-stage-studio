@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_503",
+  "name": "Overlap",
+  "description": "Close paper with an overlapping no-shoot, then reach out to the far targets.",
+  "environment": "indoor_04",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_503_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6.5,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -2.1,
+      "d": 5.3
+    },
+    {
+      "id": "no_shoot_2",
+      "type": "no_shoot",
+      "x": -2.4,
+      "d": 5
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 2.2,
+      "d": 5.5
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": -0.5,
+      "d": 14
+    },
+    {
+      "id": "steel_plate_5",
+      "type": "steel_plate",
+      "x": 1.2,
+      "d": 15
+    },
+    {
+      "id": "paper_full_6",
+      "type": "paper_full",
+      "x": 4.6,
+      "d": 17.99
+    }
+  ]
+}

@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react';
 import { ENVIRONMENTS } from '../../assets/environments';
 import { createMatch, matchRepository } from '../../data/matchRepository';
-import { stageRepository } from '../../data/stageRepository';
 import type { Match } from '../../types/match';
-import { exportMatchFile, readImportFile, saveImportedMatch } from '../../utils/matchIO';
+import { createStage3D, stage3dRepository } from '../../stage3d/repository';
+import { ImportError, exportMatchFile, readImportFile, saveImportedMatch } from '../../utils/matchIO';
 import { formatLength, matchLength } from '../../utils/matchUtils';
-import { StageFormatError, createStage } from '../../utils/stageIO';
 import { BrandMark } from '../BrandMark';
 
 type Tab = 'active' | 'archived' | 'stages';
@@ -17,19 +16,18 @@ interface Props {
   onPlayStage: (id: string) => void;
   onOpenTraining: () => void;
   onOpenTrace: () => void;
-  onOpen3d: () => void;
 }
 
 const date = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : '');
 
 /** Start page: all matches as cards (active / archived) plus every stage. */
-export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, onOpenTraining, onOpenTrace, onOpen3d }: Props) => {
+export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, onOpenTraining, onOpenTrace }: Props) => {
   const [tab, setTab] = useState<Tab>('active');
   const [, refresh] = useState(0);
   const reload = () => refresh((n) => n + 1);
   const file = useRef<HTMLInputElement>(null);
   const matches = matchRepository.list();
-  const stages = stageRepository.list();
+  const stages = stage3dRepository.list();
   const shown = matches
     .filter((m) => (tab === 'archived' ? m.archived : !m.archived))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -41,12 +39,12 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
         saveImportedMatch(res.match, res.stages);
         setTab(res.match.archived ? 'archived' : 'active');
       } else {
-        stageRepository.save(res.stage);
+        stage3dRepository.save(res.stage);
         setTab('stages');
       }
       reload();
     } catch (err) {
-      alert(err instanceof StageFormatError ? err.message : 'Import failed.');
+      alert(err instanceof ImportError ? err.message : 'Import failed.');
     }
   };
 
@@ -77,7 +75,6 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
           </button>
           <button onClick={onOpenTraining}>Training</button>
           <button onClick={onOpenTrace}>Trace · Tracking</button>
-          <button onClick={onOpen3d}>3D (beta)</button>
         </nav>
         <div className="inline">
           <button onClick={() => file.current?.click()}>Import</button>
@@ -96,7 +93,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
             <button
               className="primary"
               onClick={() => {
-                const s = stageRepository.save(createStage());
+                const s = stage3dRepository.save(createStage3D());
                 onOpenStage(s.id);
               }}
             >
@@ -120,7 +117,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
         {tab !== 'stages' ? (
           <div className="match-grid">
             {shown.map((m) => {
-              const first = stageRepository.get(m.stageIds[0] ?? '');
+              const first = stages.find((s) => s.id === m.stageIds[0]);
               return (
                 <article key={m.id} className={`match-card${m.archived ? ' archived' : ''}`}>
                   <button className="card-main" onClick={() => onOpenMatch(m.id)} title="Open match">
@@ -157,7 +154,8 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
                 <div className="meta">
                   <strong>{s.name}</strong>
                   <span>
-                    {s.id} · par {s.parTime}s · {s.repetitions} reps {s.builtIn ? '· built-in' : ''}
+                    par {s.par.toFixed(1)} s · {s.repetitions} reps · {s.positions} position{s.positions > 1 ? 's' : ''} · {ENVIRONMENTS[s.environment].label}
+                    {s.builtIn ? ' · built-in' : ''}
                     {matches.filter((m) => m.stageIds.includes(s.id)).map((m) => ` · ${m.name}`).join('')}
                   </span>
                 </div>
@@ -169,7 +167,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
                     onClick={() => {
                       const msg = s.overridesBuiltIn ? `Discard your changes to "${s.name}" and restore the built-in version?` : `Delete "${s.name}" from this browser?`;
                       if (confirm(msg)) {
-                        stageRepository.remove(s.id);
+                        stage3dRepository.remove(s.id);
                         reload();
                       }
                     }}

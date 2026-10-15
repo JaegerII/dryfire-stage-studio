@@ -30,11 +30,9 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.1.1",
-    "konva": "^10.7.0",
     "mediabunny": "^1.61.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-konva": "^19.3.0",
     "three": "^0.186.1"
   }
 }

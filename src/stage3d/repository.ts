@@ -1,32 +1,23 @@
 /**
- * 3D stages: built-in JSON files (src/stage3d/stages) plus the ones saved in
- * this browser (localStorage) — same model as the 2D stageRepository.
+ * Stages: built-in JSON files (src/stage3d/stages) plus the ones saved in this
+ * browser (localStorage). Saving a built-in stage keeps your version under the same id.
  */
-import { ENVIRONMENTS } from '../assets/environments';
 import { ASSETS } from '../assets/registry';
-import type { Stage } from '../types/stage';
-import { toWorld } from '../utils/perspective';
 import { newId } from '../utils/random';
-import { normalizeStage } from '../utils/stageIO';
-import { type Leg, SCHEMA_3D, type ShooterPosition, type Stage3D, type StageObject3D, env3dFor, isEnv3D, parTime3D, roomOf } from './types';
+import { fromLegacyStage, isLegacyStage, normalizeLegacyStage } from './legacy';
+import { type Leg, SCHEMA_3D, type ShooterPosition, type Stage3D, type StageObject3D, isEnv3D, parTime3D } from './types';
 
 const RAW_BUILT_IN = Object.values(import.meta.glob<Stage3D>('./stages/*.json', { eager: true, import: 'default' }));
-/**
- * Every built-in classic stage is also a built-in 3D stage. It is converted on load (not
- * stored as a copy), so it follows the 2D original and moves into its own environment as
- * soon as that environment exists in 3D. Editing one saves your version, as usual.
- */
-const RAW_2D = Object.values(import.meta.glob<Stage>('../data/stages/*.json', { eager: true, import: 'default' }));
-export const FROM_2D_SUFFIX = '_3d';
-// normalised on first use (normalizeStage3D and its helpers are defined further down)
+// normalised on first use (normalizeStage3D is defined further down)
 let builtIn: Stage3D[] | null = null;
-const BUILT_IN = () =>
-  (builtIn ??= [...RAW_BUILT_IN.map((s) => normalizeStage3D(s)), ...RAW_2D.map((s) => fromStage2D(normalizeStage(s), { id: `${s.id}${FROM_2D_SUFFIX}` }))]);
+const BUILT_IN = () => (builtIn ??= RAW_BUILT_IN.map((s) => normalizeStage3D(s)).sort((a, b) => a.id.localeCompare(b.id)));
 const KEY = 'dryfire-stage-studio.stages3d.v1';
 
 export interface Stage3DSummary {
   id: string;
   name: string;
+  environment: Stage3D['environment'];
+  repetitions: number;
   par: number;
   positions: number;
   objects: number;
@@ -49,6 +40,8 @@ const write = (all: Record<string, Stage3D>) => localStorage.setItem(KEY, JSON.s
 const summary = (s: Stage3D, builtIn: boolean, overrides = false): Stage3DSummary => ({
   id: s.id,
   name: s.name,
+  environment: s.environment,
+  repetitions: s.repetitions,
   par: parTime3D(s),
   positions: s.positions.length,
   objects: s.objects.length,
@@ -136,8 +129,8 @@ export function normalizeStage3D(raw: unknown): Stage3D {
 
 export const createStage3D = (): Stage3D => ({
   schemaVersion: SCHEMA_3D,
-  id: newId('stage3d'),
-  name: 'New 3D Stage',
+  id: newId('stage'),
+  name: 'New Stage',
   environment: 'indoor_01',
   repetitions: 3,
   resetTime: 4,
@@ -153,65 +146,49 @@ export const createStage3D = (): Stage3D => ({
   meta: { createdAt: new Date().toISOString() },
 });
 
-/** The 2D plate camera stands 2.2 m in front of d = 0 of the 3D hall (tools/plate-renderer: camera at y = −2.2). */
-const PLATE_CAMERA_D = -2.2;
+/** A stage file of either format: a 3D stage, or an old 2.5D stage (converted, same id). */
+export const readStageJson = (raw: unknown): Stage3D => (isLegacyStage(raw) ? fromLegacyStage(normalizeLegacyStage(raw)) : normalizeStage3D(raw));
+
+// ------------------------------------------------------------------ one-time move of the old data
+
+/** Where the 2.5D studio kept the stages saved in this browser (left in place as a backup). */
+const LEGACY_KEY = 'dryfire-stage-studio.stages.v1';
+const MIGRATED_KEY = 'dryfire-stage-studio.migrated-to-3d.v1';
+/** Suffix of the 3D copies the 3D beta made of built-in 2.5D stages ("stage_001_3d"). */
+const BETA_SUFFIX = '_3d';
 
 /**
- * A classic 2D stage as a 3D stage, 1:1: same environment (when it exists in 3D),
- * every object at the floor position the 2D perspective implies (same maths as the
- * 2D editor's "move in meters"), same turn, height, size, mirroring, groups and
- * motion (swingers, activators, pop-ups …). The start box becomes the start position.
- * Of a dynamic 2D stage (several areas) only area 1 is taken over.
- * `id`: a fixed id (built-in conversions); a new one otherwise.
+ * Everything becomes 3D, keeping the ids (matches and the training log refer to them):
+ *  - 3D versions of built-in stages saved by the 3D beta ("stage_001_3d") take the plain id;
+ *  - every 2.5D stage saved in this browser (own stages and edited built-ins) is converted;
+ *    where a 3D version with that id exists too, the more recently saved one is kept.
+ * Runs once per browser; the old 2.5D data stays in localStorage untouched.
  */
-export const fromStage2D = (s: Stage, opts: { id?: string } = {}): Stage3D => {
-  const env = ENVIRONMENTS[s.environment];
-  const env3d = env3dFor(s.environment);
-  const room = roomOf(env3d);
-  const clampX = (x: number) => Math.max(room.x0 + 0.4, Math.min(room.x1 - 0.4, x));
-  const clampD = (d: number) => Math.min(room.d1 - Math.max(0.6, room.backstop), d);
-  const start = s.objects.find((o) => o.type === 'start_box');
-  const objects: StageObject3D[] = s.objects
-    .filter((o) => o.type !== 'start_box')
-    .map((o) => {
-      const w = toWorld(o.x, o.y, env);
-      return {
-        id: o.id,
-        type: o.type,
-        x: +clampX(w.X).toFixed(2),
-        d: +clampD(w.D + PLATE_CAMERA_D).toFixed(2),
-        // 2D yaw turns the right side away from the shooter = counter-clockwise from above
-        ...(o.yaw ? { yaw: -o.yaw } : {}),
-        ...(o.elevation ? { elevation: o.elevation } : {}),
-        ...(o.scale !== 1 ? { scale: o.scale } : {}),
-        ...(o.flip ? { flip: true } : {}),
-        ...(o.group ? { group: o.group } : {}),
-        ...(o.motion && o.motion.kind !== 'static' ? { motion: structuredClone(o.motion) } : {}),
-      };
-    });
-  const sw = start ? toWorld(start.x, start.y, env) : { X: 0, D: 1.5 };
-  const dynamic = !!s.areas?.length;
-  return {
-    schemaVersion: SCHEMA_3D,
-    id: opts.id ?? newId('stage3d'),
-    name: s.name,
-    description: dynamic ? `${s.description ?? ''} (3D: area 1 of the dynamic stage)`.trim() : s.description,
-    environment: env3d,
-    repetitions: s.repetitions,
-    resetTime: s.resetTime,
-    standbyDelay: { ...s.standbyDelay },
-    positions: [
-      {
-        id: opts.id ? `${opts.id}_start` : newId('pos'),
-        label: 'START',
-        x: +clampX(sw.X).toFixed(2),
-        d: +Math.max(room.d0 + 0.6, sw.D + PLATE_CAMERA_D).toFixed(2),
-        heading: 0,
-      },
-    ],
-    legs: [],
-    finalTime: dynamic ? (s.areaTime ?? 4) : s.parTime,
-    objects,
-    meta: opts.id ? { source: s.id } : { createdAt: new Date().toISOString(), source: s.id },
+export const migrateLegacyStages = (storage: Storage = localStorage) => {
+  if (storage.getItem(MIGRATED_KEY)) return;
+  const parse = (k: string): Record<string, unknown> => {
+    try {
+      return JSON.parse(storage.getItem(k) ?? '{}') ?? {};
+    } catch {
+      return {};
+    }
   };
+  const all = parse(KEY) as Record<string, Stage3D>;
+  for (const [id, s] of Object.entries(all)) {
+    if (!id.endsWith(BETA_SUFFIX)) continue;
+    const base = id.slice(0, -BETA_SUFFIX.length);
+    if (!all[base]) all[base] = { ...s, id: base };
+    delete all[id];
+  }
+  for (const raw of Object.values(parse(LEGACY_KEY))) {
+    try {
+      const s = fromLegacyStage(normalizeLegacyStage(raw));
+      const had = all[s.id];
+      if (!had || (s.meta?.updatedAt ?? '') > (had.meta?.updatedAt ?? '')) all[s.id] = { ...s, meta: { ...s.meta, updatedAt: s.meta?.updatedAt ?? new Date().toISOString() } };
+    } catch {
+      // a broken old entry is skipped (it stays in the backup)
+    }
+  }
+  storage.setItem(KEY, JSON.stringify(all));
+  storage.setItem(MIGRATED_KEY, new Date().toISOString());
 };

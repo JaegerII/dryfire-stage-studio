@@ -30,6 +30,12 @@ export interface StageObject3D {
   scale?: number;
   /** Mirror left/right (e.g. a diagonal wall sloping the other way). */
   flip?: boolean;
+  /**
+   * Only up during part of the run (seconds after the start beep), e.g. the areas of a
+   * dynamic stage. Before the beep and between reps it counts as 0; the editor and the
+   * briefing always show it.
+   */
+  shown?: { from?: number; until?: number };
 }
 
 export interface ShooterPosition {
@@ -80,24 +86,51 @@ export interface Stage3D {
 export const DEFAULT_SHAKE = 1;
 export const shakeOf = (s: Pick<Stage3D, 'camera'>) => Math.max(0, Math.min(2, s.camera?.shake ?? DEFAULT_SHAKE));
 
+/** Where a stage can be built: x across, d downrange (meters). */
+export interface Room {
+  label: string;
+  /** indoor: a closed hall (walls, ceiling) · outdoor: open range under a sky panorama (sky_<id>.jpg) */
+  kind: 'indoor' | 'outdoor';
+  x0: number;
+  x1: number;
+  d0: number;
+  d1: number;
+  /** Indoor: ceiling height · outdoor: height of the berms. */
+  height: number;
+  /** Depth of the backstop inside the room (indoor); outdoor rooms end at the foot of the back berm. */
+  backstop: number;
+  /** Outdoor, berms around the bay (drawn in the plan) — not outdoor_04's open field. */
+  berms?: boolean;
+  /**
+   * Outdoor: the sun of the HDRI (SUN in tools/plate-renderer/blender/scene.py), degrees:
+   * azimuth in the ground plane, 0 = to the right (+x), 90 = downrange · elevation above the horizon.
+   * None = overcast.
+   */
+  sun?: { azimuth: number; elevation: number };
+}
+
 /**
  * The environments available in 3D (baked by tools/plate-renderer/blender/export3d.py).
- * The room bounds must match ROOMS there: x across, d downrange, inside faces of the walls.
+ * Indoor: the bounds must match ROOMS there (inside faces of the walls).
+ * Outdoor: the bay between the berms of the scene.py plates (feet of the side and back berms).
  */
 export const ENV3D = {
-  indoor_01: { label: 'Indoor Range 01', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
-  indoor_02: { label: 'Indoor Range 02', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
-  indoor_03: { label: 'Indoor Range 03 (bright lane)', x0: -4, x1: 4, d0: -4, d1: 34.6, height: 3.6, backstop: 1 },
-  indoor_04: { label: 'Indoor Range 04 (beam ceiling)', x0: -7, x1: 7, d0: -4, d1: 32, height: 4.6, backstop: 0 },
-} as const;
+  indoor_01: { label: 'Indoor Range 01', kind: 'indoor', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
+  indoor_02: { label: 'Indoor Range 02', kind: 'indoor', x0: -8, x1: 8, d0: -6, d1: 28, height: 6, backstop: 2.2 },
+  indoor_03: { label: 'Indoor Range 03 (bright lane)', kind: 'indoor', x0: -4, x1: 4, d0: -4, d1: 34.6, height: 3.6, backstop: 1 },
+  indoor_04: { label: 'Indoor Range 04 (beam ceiling)', kind: 'indoor', x0: -7, x1: 7, d0: -4, d1: 32, height: 4.6, backstop: 0 },
+  outdoor_01: { label: 'Outdoor Berm 01 (midday)', kind: 'outdoor', x0: -8.4, x1: 8.4, d0: -6, d1: 15, height: 2.6, backstop: 0, berms: true, sun: { azimuth: -120, elevation: 73.5 } },
+  outdoor_02: { label: 'Outdoor Berm 02 (evening)', kind: 'outdoor', x0: -8.4, x1: 8.4, d0: -6, d1: 15.5, height: 2.4, backstop: 0, berms: true, sun: { azimuth: -125, elevation: 20.7 } },
+  outdoor_03: { label: 'Outdoor Berm 03 (overcast)', kind: 'outdoor', x0: -10.8, x1: 10.8, d0: -6, d1: 17.5, height: 4, backstop: 0, berms: true },
+  outdoor_04: { label: 'Outdoor 04 (sunset, covered bays)', kind: 'outdoor', x0: -15, x1: 15, d0: -6, d1: 26, height: 3.3, backstop: 0, sun: { azimuth: 160, elevation: 3.2 } },
+} satisfies Record<string, Room>;
 
 export type Env3D = keyof typeof ENV3D;
-export type Room = (typeof ENV3D)[Env3D];
 
 export const isEnv3D = (e: string): e is Env3D => e in ENV3D;
 export const roomOf = (env: string): Room => (isEnv3D(env) ? ENV3D[env] : ENV3D.indoor_01);
 
-/** Closest 3D environment for a 2D one (the outdoor ranges are not available in 3D yet). */
+/** The 3D environment of a 2D one (every 2D environment exists in 3D). */
 export const env3dFor = (env: EnvironmentId): Env3D => (isEnv3D(env) ? env : 'indoor_01');
 
 /** Par time = time at every position + every move. */

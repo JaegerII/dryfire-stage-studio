@@ -3,7 +3,7 @@
  * pipeline, the TV session and the current run. React views subscribe via
  * useTrace(); nothing here depends on React.
  */
-import { stageRepository } from '../data/stageRepository';
+import { stage3dRepository } from '../stage3d/repository';
 import type { SessionMessage } from '../session/protocol';
 import { type SessionInfo, SessionClient } from '../session/SessionClient';
 import { newRoomCode, probeRelay } from '../session/transport';
@@ -28,7 +28,7 @@ export class TraceController {
   sessionInfo: SessionInfo | null = null;
   tv: TvStatus | null = null;
   run: TrainingRun | null = null;
-  stageId: string | null = stageRepository.list()[0]?.id ?? null;
+  stageId: string | null = stage3dRepository.list()[0]?.id ?? null;
   error: string | null = null;
   private version = 0;
   private listeners = new Set<() => void>();
@@ -57,7 +57,7 @@ export class TraceController {
   }
 
   get stage() {
-    return this.stageId ? stageRepository.get(this.stageId) : undefined;
+    return this.stageId ? stage3dRepository.get(this.stageId) : undefined;
   }
 
   selectStage(id: string) {

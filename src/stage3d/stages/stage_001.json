@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_001",
+  "name": "Stage 1 – Training",
+  "description": "Basic target transitions — drive the gun, stop, call the shot.",
+  "environment": "indoor_01",
+  "repetitions": 6,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_001_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 5,
+  "objects": [
+    {
+      "id": "paper_01",
+      "type": "paper_full",
+      "x": -2.7,
+      "d": 6.6
+    },
+    {
+      "id": "paper_02",
+      "type": "paper_full",
+      "x": -0.75,
+      "d": 9.6
+    },
+    {
+      "id": "paper_03",
+      "type": "paper_full",
+      "x": 0.75,
+      "d": 9.6
+    },
+    {
+      "id": "paper_04",
+      "type": "paper_full",
+      "x": 2.7,
+      "d": 6.6
+    },
+    {
+      "id": "mesh_05",
+      "type": "mesh_wall",
+      "x": -1.55,
+      "d": 6.4,
+      "yaw": -60
+    },
+    {
+      "id": "mesh_06",
+      "type": "mesh_wall",
+      "x": 1.55,
+      "d": 6.4,
+      "yaw": 60
+    }
+  ]
+}

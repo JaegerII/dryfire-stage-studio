@@ -7,8 +7,7 @@
  *   → reps: MAKE READY / STANDBY / beep / positions + moves / end beep / reset
  *   → TRAINING COMPLETE
  */
-import type { Stage } from '../types/stage';
-import { type PlayerSnapshot, type Schedule, buildSchedule, snapshotAt } from '../utils/schedule';
+import { type PlayerSnapshot, type Schedule, type StageTiming, buildSchedule, snapshotAt } from '../utils/schedule';
 import { DEFAULT_SHAKE, type Stage3D, parTime3D, shakeOf } from './types';
 
 export const EYE_HEIGHT = 1.6;
@@ -42,23 +41,16 @@ export interface VideoTimeline {
   end: number;
   /** Rep schedule, times relative to flyInEnd. */
   schedule: Schedule;
-  /** The 3D stage as the classic rep scheduler sees it (par = all positions + moves). */
-  asStage: Stage;
+  /** The 3D stage as the rep scheduler sees it (par = all positions + moves). */
+  asStage: StageTiming;
 }
+
+/** A 3D stage as the rep scheduler sees it (par = all positions + moves). */
+export const stageTiming = (s: Stage3D): StageTiming => ({ id: s.id, parTime: parTime3D(s), repetitions: s.repetitions, resetTime: s.resetTime, standbyDelay: s.standbyDelay });
 
 export const buildVideoTimeline = (s: Stage3D, opts: { seed: string; voiceLead: number; timing?: Partial<VideoTiming> }): VideoTimeline => {
   const T = { ...VIDEO_TIMING, ...opts.timing };
-  const asStage: Stage = {
-    schemaVersion: 1,
-    id: s.id,
-    name: s.name,
-    environment: 'indoor_01',
-    parTime: parTime3D(s),
-    repetitions: s.repetitions,
-    resetTime: s.resetTime,
-    standbyDelay: s.standbyDelay,
-    objects: [],
-  };
+  const asStage = stageTiming(s);
   const briefingEnd = T.intro + T.perLeg * s.legs.length + T.briefingHold;
   const flyInEnd = briefingEnd + T.flyIn;
   const schedule = buildSchedule(asStage, { seed: opts.seed, lead: T.lead, voiceLead: opts.voiceLead });
@@ -322,18 +314,31 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
   if (segment === 'outro') {
     return { t, segment, camera: { ...povPose(start, t, shakeOf(s)), fade: Math.min(0.6, (t - tl.stageEnd) / 1.2) }, arrows: null, rep: null, shooter: start };
   }
-  const local = t - tl.flyInEnd;
-  const rep = snapshotAt(tl.schedule, local, tl.asStage);
-  const par = tl.asStage.parTime;
+  return runFrameAt(s, tl.schedule, t - tl.flyInEnd, t, T.resetFade);
+};
+
+/**
+ * The shooter's view during the reps: `local` = seconds on the rep schedule (0 = its start),
+ * `t` = the clock for the head movement. Also used by the TV, on the phone's schedule.
+ */
+export const runFrameAt = (s: Stage3D, schedule: Schedule, local: number, t = local, resetFade = VIDEO_TIMING.resetFade): FrameState => {
+  const timing = stageTiming(s);
+  const rep = snapshotAt(schedule, local, timing);
+  const par = timing.parTime;
   // during the par window and the "TIME" second the shooter is on the path; then back to the start
   const onPath = rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1);
-  const shooter = onPath ? shooterAt(s, Math.min(rep.sinceStart, par)) : start;
+  const shooter = onPath ? shooterAt(s, Math.min(rep.sinceStart, par)) : shooterAt(s, 0);
   const camera = povPose(shooter, t, shakeOf(s));
   // walking back to the start between reps happens behind a short black fade
   if (rep.phase === 'reset' && s.positions.length > 1) {
     const back = rep.sinceStart - (par + 1);
-    const f = T.resetFade;
-    camera.fade = back >= -f && back < f ? 1 - Math.abs(back) / f : 0;
+    camera.fade = back >= -resetFade && back < resetFade ? 1 - Math.abs(back) / resetFade : 0;
   }
-  return { t, segment, camera, arrows: null, rep, shooter };
+  return { t, segment: 'stage', camera, arrows: null, rep, shooter };
+};
+
+/** Standing in the start box, nothing running (TV between runs, editor preview). */
+export const startFrame = (s: Stage3D): FrameState => {
+  const shooter = shooterAt(s, 0);
+  return { t: 0, segment: 'stage', camera: povPose(shooter, 0, 0), arrows: null, rep: null, shooter };
 };

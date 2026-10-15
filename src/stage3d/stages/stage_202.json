@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_202",
+  "name": "Window & Port",
+  "description": "One target through the window, one through the port, steel to finish.",
+  "environment": "indoor_01",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_202_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6.5,
+  "objects": [
+    {
+      "id": "paper_stack_1",
+      "type": "paper_stack",
+      "x": -3.1,
+      "d": 7
+    },
+    {
+      "id": "mesh_wall_window_2",
+      "type": "mesh_wall_window",
+      "x": -1,
+      "d": 6.6
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": -1,
+      "d": 8.6
+    },
+    {
+      "id": "mesh_wall_port_4",
+      "type": "mesh_wall_port",
+      "x": 1.9,
+      "d": 6.6
+    },
+    {
+      "id": "paper_full_5",
+      "type": "paper_full",
+      "x": 1.64,
+      "d": 8.4
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 3.3,
+      "d": 12
+    }
+  ]
+}

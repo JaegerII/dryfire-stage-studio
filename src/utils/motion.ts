@@ -7,7 +7,7 @@
  * Any other motion with `trigger: <steelId>` starts counting when that
  * steel falls (shoot the popper → the swinger / pop-up appears).
  */
-import type { Motion, StageObject } from '../types/stage';
+import type { Motion } from '../types/stage';
 
 export interface MotionState {
   dx: number; // meters, + = right
@@ -29,7 +29,7 @@ export const DEFAULT_SWING_ANGLE = 45; // degrees
 
 export const isMoving = (m?: Motion) => !!m && m.kind !== 'static';
 
-export const fallTimes = (objects: StageObject[]): FallTimes =>
+export const fallTimes = (objects: { id: string; motion?: Motion }[]): FallTimes =>
   new Map(objects.filter((o) => o.motion?.kind === 'fall').map((o) => [o.id, o.motion!.delay ?? 1]));
 
 /** Start of a motion in seconds after the beep (Infinity if its trigger never falls). */

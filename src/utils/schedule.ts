@@ -5,11 +5,22 @@
  *   [lead-in, shown as MAKE READY] → per rep: RESET/prep → STAND BY (+voice) +
  *   random delay → start beep → par window → end beep → … → final reset → COMPLETE
  *
- * Times are relative to the start of the stage; matchSchedule.ts places
+ * Times are relative to the start of the stage; stage3d/program.ts places
  * several stages (plus brand / safety / title screens) on one timeline.
  */
-import type { Stage } from '../types/stage';
 import { seededRandom } from './random';
+
+/** What the rep timeline needs from a stage. */
+export interface StageTiming {
+  id: string;
+  /** Seconds between start beep and end beep. */
+  parTime: number;
+  repetitions: number;
+  /** Seconds of reset / preparation before every rep (and after the last). */
+  resetTime: number;
+  /** Random delay after "STAND BY" before the start beep, seconds. */
+  standbyDelay: { min: number; max: number };
+}
 
 export interface RepSchedule {
   index: number; // 1-based
@@ -33,7 +44,7 @@ export interface ScheduleOptions {
   voiceLead: number;
 }
 
-export const buildSchedule = (stage: Stage, opts: ScheduleOptions): Schedule => {
+export const buildSchedule = (stage: StageTiming, opts: ScheduleOptions): Schedule => {
   const rand = seededRandom(`${opts.seed}:${stage.id}`);
   const { min, max } = stage.standbyDelay;
   const reps: RepSchedule[] = [];
@@ -64,7 +75,7 @@ export interface PlayerSnapshot {
   untilStandby: number;
 }
 
-export const snapshotAt = (s: Schedule, t: number, stage: Stage): PlayerSnapshot => {
+export const snapshotAt = (s: Schedule, t: number, stage: StageTiming): PlayerSnapshot => {
   if (t >= s.completeAt) return { phase: 'complete', rep: stage.repetitions, elapsed: stage.parTime, parProgress: 1, sinceStart: Infinity, untilStandby: Infinity };
   // current rep = last rep whose prep has started
   let idx = 0;
@@ -86,7 +97,7 @@ export const snapshotAt = (s: Schedule, t: number, stage: Stage): PlayerSnapshot
 };
 
 /** Stage length in seconds (average standby delay). */
-export const estimateDuration = (stage: Stage, lead: number, voiceLead: number) =>
+export const estimateDuration = (stage: StageTiming, lead: number, voiceLead: number) =>
   lead +
   stage.repetitions * (stage.resetTime + voiceLead + (stage.standbyDelay.min + stage.standbyDelay.max) / 2 + stage.parTime) +
   stage.resetTime;

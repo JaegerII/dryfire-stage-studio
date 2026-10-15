@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_302",
+  "name": "Slider",
+  "description": "A mover slides behind two walls — catch it in the gap.",
+  "environment": "outdoor_03",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_302_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6.5,
+  "objects": [
+    {
+      "id": "crate_1",
+      "type": "crate",
+      "x": -3,
+      "d": 6.8
+    },
+    {
+      "id": "paper_card_2",
+      "type": "paper_card",
+      "x": -3,
+      "d": 6.8,
+      "elevation": 0.6
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 0,
+      "d": 10,
+      "motion": {
+        "kind": "horizontal",
+        "amplitude": 1.3,
+        "period": 3.2,
+        "delay": 0
+      }
+    },
+    {
+      "id": "mesh_wall_short_4",
+      "type": "mesh_wall_short",
+      "x": -1.05,
+      "d": 8.2
+    },
+    {
+      "id": "mesh_wall_short_5",
+      "type": "mesh_wall_short",
+      "x": 1.05,
+      "d": 8.2
+    },
+    {
+      "id": "paper_hc_bottom_6",
+      "type": "paper_hc_bottom",
+      "x": 3,
+      "d": 7
+    },
+    {
+      "id": "steel_popper_7",
+      "type": "steel_popper",
+      "x": 3.2,
+      "d": 14
+    }
+  ]
+}

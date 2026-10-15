@@ -1,12 +1,12 @@
 import type { Match, MatchSettings, MatchStageOverrides } from '../../types/match';
-import type { Stage } from '../../types/stage';
-import { MATCH_TIMING, type MatchTiming } from '../../utils/matchSchedule';
-import { NumberField } from '../editor/fields';
+import type { Stage3D } from '../../stage3d/types';
+import { MATCH_TIMING, type MatchTiming } from '../../stage3d/program';
+import { NumberField } from '../fields';
 
 interface Props {
   match: Match;
   /** The match's stages as stored (for sensible starting values of the overrides). */
-  stages: Stage[];
+  stages: Stage3D[];
   onChange: (settings: MatchSettings) => void;
 }
 
@@ -14,7 +14,7 @@ const TIMES: { key: keyof MatchTiming; label: string; hint: string }[] = [
   { key: 'brand', label: 'Logo screen', hint: 'FORTH TRACE logo at the start (0 = skip)' },
   { key: 'safety', label: 'Safety screen', hint: 'Safety instructions after the logo (0 = skip)' },
   { key: 'title', label: 'Stage title card', hint: '"Stage 2 / 3" card before every stage — the break between two stages (0 = none)' },
-  { key: 'lead', label: 'Make Ready lead-in', hint: 'Camera push-in into the stage before the first standby' },
+  { key: 'lead', label: 'Make Ready lead-in', hint: 'MAKE READY at the start box (after the camera flight) before the first standby' },
 ];
 
 /**

@@ -1,4 +1,4 @@
-import { stageRepository } from '../../data/stageRepository';
+import { stage3dRepository } from '../../stage3d/repository';
 import { CAMERA_ERROR_TEXT, cameraSupport } from '../../capture/camera';
 import { STATE_TEXT, STATUS_TEXT, sec } from '../format';
 import { useTicker, useTrace } from '../useTrace';
@@ -11,7 +11,7 @@ export const TrainingTab = ({ onGoLive }: { onGoLive: () => void }) => {
   const run = c.run;
   const view = run?.view();
   useTicker(100, view?.status === 'running' || view?.status === 'countdown');
-  const stages = stageRepository.list();
+  const stages = stage3dRepository.list();
   const snap = c.pipeline.snap;
   const support = cameraSupport();
   const busy = view && (view.status === 'running' || view.status === 'countdown');
@@ -25,7 +25,7 @@ export const TrainingTab = ({ onGoLive }: { onGoLive: () => void }) => {
         <select value={c.stageId ?? ''} disabled={!!busy} onChange={(e) => c.selectStage(e.target.value)}>
           {stages.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} — par {s.parTime}s · {s.repetitions} reps
+              {s.name} — par {s.par.toFixed(1)}s · {s.repetitions} reps
             </option>
           ))}
         </select>

@@ -1,29 +1,22 @@
 /** Small helpers around matches. */
-import { stageRepository } from '../data/stageRepository';
-import type { Match, MatchStageOverrides } from '../types/match';
-import type { Stage } from '../types/stage';
+import { buildProgram } from '../stage3d/program';
+import { stage3dRepository } from '../stage3d/repository';
+import type { Stage3D } from '../stage3d/types';
+import type { Match } from '../types/match';
 import { STANDBY_VOICE_LEAD } from './audioEngine';
-import { estimateMatchDuration } from './matchSchedule';
 
-/** Stages of a match in play order — with the match's "values for all stages" applied. */
-export const matchStages = (m: Match) =>
-  m.stageIds
-    .map((id) => stageRepository.get(id))
-    .filter((s): s is Stage => !!s)
-    .map((s) => applyOverrides(s, m.settings?.overrides));
-
-export const applyOverrides = (s: Stage, o?: MatchStageOverrides): Stage =>
-  !o
-    ? s
-    : {
-        ...s,
-        ...(o.resetTime !== undefined ? { resetTime: o.resetTime } : {}),
-        ...(o.repetitions !== undefined ? { repetitions: o.repetitions } : {}),
-        ...(o.standbyDelay ? { standbyDelay: { ...o.standbyDelay } } : {}),
-      };
+/** Stages of a match in play order, as stored (the player applies the match's "values for all stages"). */
+export const matchStages = (m: Match) => m.stageIds.map((id) => stage3dRepository.get(id)).filter((s): s is Stage3D => !!s);
 
 export const matchIntro = (m: Match) => m.settings?.intro ?? true;
 
-export const matchLength = (m: Match) => estimateMatchDuration(matchStages(m), matchIntro(m), STANDBY_VOICE_LEAD, m.settings?.timing);
+/** Length of the match video in seconds. */
+export const matchLength = (m: Match) => {
+  const stages = matchStages(m);
+  return stages.length ? buildProgram(stages, { seed: m.id, voiceLead: STANDBY_VOICE_LEAD, matchName: m.name, settings: m.settings }).end : 0;
+};
 
-export const formatLength = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+export const formatLength = (s: number) => {
+  const r = Math.round(s);
+  return `${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`;
+};

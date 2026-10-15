@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ENVIRONMENT_LIST } from '../../assets/environments';
 import { ASSET_LIST } from '../../assets/registry';
 import { BrandMark } from '../../components/BrandMark';
-import { DND_TYPE } from '../../components/editor/AssetLibrary';
 import type { ObjectType } from '../../types/stage';
 import { newId } from '../../utils/random';
 import { downloadBlob } from '../../utils/recorder';
 import { Player3D } from '../Player3D';
-import { normalizeStage3D, stage3dRepository } from '../repository';
+import { readStageJson, stage3dRepository } from '../repository';
 import { type Stage3D, isEnv3D } from '../types';
-import { addObject, addPosition, duplicateObjects, groupObjects, moveObjects, patchObjects, patchPosition, removeObjects, removePosition, type Selection, setEnvironment, ungroupObjects } from './ops';
+import { DND_TYPE, addObject, addPosition, duplicateObjects, groupObjects, moveObjects, patchObjects, patchPosition, removeObjects, removePosition, type Selection, setEnvironment, ungroupObjects } from './ops';
 import { PlanView, type Tool } from './PlanView';
 import { Preview3D, type PreviewMode } from './Preview3D';
 import { Properties3D } from './Properties3D';
@@ -31,7 +30,14 @@ const isTyping = (e: KeyboardEvent) => {
 
 interface Props {
   initial: Stage3D;
+  /** Back to where the editor was opened from (the studio or a match). */
   onExit: () => void;
+  /** Set when the stage is edited as part of a match: shown in the breadcrumb. */
+  matchName?: string;
+  /** Previous / next stage of that match. */
+  stageNav?: { index: number; count: number; onPrev?: () => void; onNext?: () => void };
+  /** Unsaved changes (the app asks before leaving). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -39,7 +45,7 @@ interface Props {
  * the right, exact values in the panel. Saves to this browser; JSON export
  * for the archive / for shipping a stage with the app.
  */
-export const Editor3D = ({ initial, onExit }: Props) => {
+export const Editor3D = ({ initial, onExit, matchName, stageNav, onDirtyChange }: Props) => {
   const { doc: stage, update, commit, undo, redo, reset, canUndo, canRedo } = useHistory<Stage3D>(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
   const [selection, setSelection] = useState<Selection>(null);
@@ -51,6 +57,7 @@ export const Editor3D = ({ initial, onExit }: Props) => {
   const [toast, setToast] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(stage) !== saved;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   useEffect(() => {
     if (!toast) return;
@@ -79,10 +86,12 @@ export const Editor3D = ({ initial, onExit }: Props) => {
     setToast('Stage saved');
   }, [stage, reset]);
 
-  const exit = () => {
+  const leave = (to: () => void) => () => {
     if (dirty && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
-    onExit();
+    onDirtyChange?.(false);
+    to();
   };
+  const exit = leave(onExit);
 
   // ---------------------------------------------------------------- adding
   /** Where a clicked library item lands: ~7 m in front of the position in view. */
@@ -183,35 +192,42 @@ export const Editor3D = ({ initial, onExit }: Props) => {
   // ---------------------------------------------------------------- import / export
   const importFile = async (f: File) => {
     try {
-      const s = normalizeStage3D(JSON.parse(await f.text()));
+      const s = readStageJson(JSON.parse(await f.text()));
       if (dirty && !confirm('Discard unsaved changes?')) return;
       reset(s);
       setSaved('');
       setSelection(null);
       setToast(`Imported "${s.name}" — save to keep it`);
     } catch {
-      alert('This file is not a 3D stage (JSON).');
+      alert('This file is not a stage (JSON).');
     }
   };
 
   return (
     <div className="editor3d">
       <header className="toolbar">
-        <button className="brand linkish" onClick={exit} title="Back to the 3D stages">
+        <button className="brand linkish" onClick={exit} title={matchName ? 'Back to the match' : 'Back to the studio'}>
           <BrandMark height={24} />
         </button>
         <div className="crumbs">
-          <button className="linkish" onClick={exit}>3D stages</button>
+          <button className="linkish" onClick={exit}>{matchName ?? 'Stages'}</button>
           <span>/</span>
           <strong>{stage.name}</strong>
           {dirty && <span className="dirty">● unsaved</span>}
+          {stageNav && (
+            <span className="stage-nav">
+              <button className="linkish" disabled={!stageNav.onPrev} onClick={stageNav.onPrev && leave(stageNav.onPrev)} title="Previous stage of the match">‹</button>
+              Stage {stageNav.index + 1} / {stageNav.count}
+              <button className="linkish" disabled={!stageNav.onNext} onClick={stageNav.onNext && leave(stageNav.onNext)} title="Next stage of the match">›</button>
+            </span>
+          )}
         </div>
         <nav>
           <div className="group">
             <button className="primary" onClick={save} title="Ctrl+S">Save</button>
             <button
               onClick={() => {
-                const copy = { ...structuredClone(stage), id: newId('stage3d'), name: `${stage.name} (copy)` };
+                const copy = { ...structuredClone(stage), id: newId('stage'), name: `${stage.name} (copy)` };
                 reset(copy);
                 setSaved('');
                 setToast('Duplicated — save to keep it');
@@ -252,7 +268,7 @@ export const Editor3D = ({ initial, onExit }: Props) => {
                   key={env.id}
                   className={`env-tile${env.id === stage.environment ? ' active' : ''}`}
                   disabled={!available}
-                  title={available ? `Stage in ${env.label}` : 'Outdoor ranges are not available in 3D yet'}
+                  title={available ? `Stage in ${env.label}` : 'Not available in 3D yet'}
                   onClick={() => available && update((s) => setEnvironment(s, env.id as Stage3D['environment']))}
                 >
                   <img src={env.src} alt="" />
@@ -311,7 +327,7 @@ export const Editor3D = ({ initial, onExit }: Props) => {
 
       <Properties3D stage={stage} selection={selection} onUpdate={(fn) => update(fn)} onDelete={remove} onDuplicate={duplicate} />
 
-      {playing && <Player3D stage={stage} onExit={() => setPlaying(false)} />}
+      {playing && <Player3D stages={[stage]} onExit={() => setPlaying(false)} />}
     </div>
   );
 };

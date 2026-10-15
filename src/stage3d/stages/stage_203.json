@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_203",
+  "name": "Pop-up Finale",
+  "description": "Hit the popper — a target appears behind the diagonal wall.",
+  "environment": "indoor_03",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_203_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 7,
+  "objects": [
+    {
+      "id": "paper_hc_vertical_2",
+      "type": "paper_hc_vertical",
+      "x": -2.5,
+      "d": 7
+    },
+    {
+      "id": "paper_mini_3",
+      "type": "paper_mini",
+      "x": -1,
+      "d": 10
+    },
+    {
+      "id": "steel_popper_1",
+      "type": "steel_popper",
+      "x": 0,
+      "d": 12.5,
+      "motion": {
+        "kind": "fall",
+        "delay": 1.4
+      }
+    },
+    {
+      "id": "mesh_wall_diagonal_4",
+      "type": "mesh_wall_diagonal",
+      "x": 2.2,
+      "d": 7.6,
+      "flip": true
+    },
+    {
+      "id": "paper_full_5",
+      "type": "paper_full",
+      "x": 2.3,
+      "d": 9.4,
+      "motion": {
+        "kind": "appear",
+        "trigger": "steel_popper_1",
+        "delay": 0.3
+      }
+    },
+    {
+      "id": "crate_6",
+      "type": "crate",
+      "x": 0.9,
+      "d": 6.4
+    },
+    {
+      "id": "paper_hc_half_card_7",
+      "type": "paper_hc_half_card",
+      "x": 0.9,
+      "d": 6.4,
+      "elevation": 0.6,
+      "flip": true
+    }
+  ]
+}

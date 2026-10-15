@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_602",
+  "name": "Three Positions",
+  "description": "Ports, a swinger lane and a mixed array — two moves with a reload each.",
+  "environment": "indoor_02",
+  "repetitions": 5,
+  "resetTime": 4,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_602_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    },
+    {
+      "id": "stage_602_p2",
+      "label": "P2",
+      "x": 1.5,
+      "d": 1.48,
+      "heading": 0
+    },
+    {
+      "id": "stage_602_p3",
+      "label": "P3",
+      "x": 3,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [
+    {
+      "after": 4,
+      "duration": 2.2,
+      "reload": true
+    },
+    {
+      "after": 4,
+      "duration": 2.2,
+      "reload": true
+    }
+  ],
+  "finalTime": 5,
+  "objects": [
+    {
+      "id": "mesh_wall_port_1",
+      "type": "mesh_wall_port",
+      "x": -1.6,
+      "d": 6.6,
+      "shown": {
+        "until": 5.1
+      }
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": -2.34,
+      "d": 8.8,
+      "shown": {
+        "until": 5.1
+      }
+    },
+    {
+      "id": "mesh_wall_port_3",
+      "type": "mesh_wall_port",
+      "x": 1.6,
+      "d": 6.6,
+      "flip": true,
+      "shown": {
+        "until": 5.1
+      }
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 2.34,
+      "d": 8.8,
+      "shown": {
+        "until": 5.1
+      }
+    },
+    {
+      "id": "paper_hc_half_5",
+      "type": "paper_hc_half",
+      "x": 0,
+      "d": 9.6,
+      "shown": {
+        "until": 5.1
+      }
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 0.85,
+      "d": 13,
+      "shown": {
+        "until": 5.1
+      }
+    },
+    {
+      "id": "p2_paper_hc_vertical_1",
+      "type": "paper_hc_vertical",
+      "x": -1.1,
+      "d": 6.6,
+      "shown": {
+        "from": 5.1,
+        "until": 11.3
+      }
+    },
+    {
+      "id": "p2_mesh_wall_2",
+      "type": "mesh_wall",
+      "x": 1.5,
+      "d": 7.2,
+      "shown": {
+        "from": 5.1,
+        "until": 11.3
+      }
+    },
+    {
+      "id": "p2_paper_swinger_3",
+      "type": "paper_swinger",
+      "x": 1.5,
+      "d": 7.6,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.4,
+        "delay": 6.2
+      },
+      "shown": {
+        "from": 5.1,
+        "until": 11.3
+      }
+    },
+    {
+      "id": "p2_steel_popper_4",
+      "type": "steel_popper",
+      "x": -0.8,
+      "d": 12.5,
+      "shown": {
+        "from": 5.1,
+        "until": 11.3
+      }
+    },
+    {
+      "id": "p2_paper_hc_diagonal_5",
+      "type": "paper_hc_diagonal",
+      "x": 4.1,
+      "d": 6.6,
+      "flip": true,
+      "shown": {
+        "from": 5.1,
+        "until": 11.3
+      }
+    },
+    {
+      "id": "p2_no_shoot_6",
+      "type": "no_shoot",
+      "x": 4.4,
+      "d": 6.3,
+      "shown": {
+        "from": 5.1,
+        "until": 11.3
+      }
+    },
+    {
+      "id": "p3_paper_01",
+      "type": "paper_full",
+      "x": -0.1,
+      "d": 6.2,
+      "yaw": -40,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_steel_02",
+      "type": "steel_popper",
+      "x": -0.4,
+      "d": 12,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_paper_03",
+      "type": "paper_full",
+      "x": 0.8,
+      "d": 9,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_paper_04",
+      "type": "paper_full",
+      "x": 3,
+      "d": 9,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_paper_05",
+      "type": "paper_mini",
+      "x": 5.2,
+      "d": 11,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_steel_06",
+      "type": "steel_popper",
+      "x": 6,
+      "d": 12,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_paper_07",
+      "type": "paper_full",
+      "x": 6.1,
+      "d": 6.8,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_no_08",
+      "type": "no_shoot",
+      "x": 5.8,
+      "d": 6.55,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_mesh_09",
+      "type": "mesh_wall_window",
+      "x": 3,
+      "d": 6.4,
+      "shown": {
+        "from": 11.3
+      }
+    },
+    {
+      "id": "p3_mesh_10",
+      "type": "mesh_wall_short",
+      "x": 1.55,
+      "d": 7.6,
+      "shown": {
+        "from": 11.3
+      }
+    }
+  ]
+}

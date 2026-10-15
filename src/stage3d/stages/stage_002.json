@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_002",
+  "name": "Stage 2 – Mixed",
+  "description": "Paper-to-steel transitions — one tight cluster, one wide swing.",
+  "environment": "outdoor_01",
+  "repetitions": 6,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_002_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6,
+  "objects": [
+    {
+      "id": "paper_01",
+      "type": "paper_full",
+      "x": -2.9,
+      "d": 6.4
+    },
+    {
+      "id": "paper_02",
+      "type": "paper_full",
+      "x": -2.3,
+      "d": 7.3
+    },
+    {
+      "id": "steel_03",
+      "type": "steel_popper",
+      "x": -0.35,
+      "d": 12.5
+    },
+    {
+      "id": "steel_04",
+      "type": "steel_popper",
+      "x": 0.35,
+      "d": 12.5
+    },
+    {
+      "id": "paper_05",
+      "type": "paper_full",
+      "x": 2.6,
+      "d": 9.2
+    },
+    {
+      "id": "paper_06",
+      "type": "paper_full",
+      "x": 3.2,
+      "d": 6.4
+    },
+    {
+      "id": "no_07",
+      "type": "no_shoot",
+      "x": 2.92,
+      "d": 6.15
+    },
+    {
+      "id": "mesh_08",
+      "type": "mesh_wall",
+      "x": -1.3,
+      "d": 7,
+      "yaw": -55
+    },
+    {
+      "id": "mesh_09",
+      "type": "mesh_wall",
+      "x": 1.6,
+      "d": 7.6,
+      "yaw": 50
+    }
+  ]
+}

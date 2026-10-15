@@ -12,9 +12,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { CameraPose, FrameState } from './timeline';
 import { legPath, stageBounds } from './timeline';
-import type { StageObject } from '../types/stage';
 import { fallTimes, motionAt } from '../utils/motion';
-import { type Room, type Stage3D, type StageObject3D, parTime3D, roomOf } from './types';
+import { type Env3D, type Room, type Stage3D, type StageObject3D, parTime3D, roomOf } from './types';
 
 const DEG = Math.PI / 180;
 const ACCENT = new THREE.Color('#ff3131');
@@ -28,6 +27,38 @@ const loadGlb = (url: string) => {
 };
 
 export const assetUrl = (file: string) => new URL(`3d/${file}`, document.baseURI).href;
+
+/** Outdoor sky: the HDRI as a tone-mapped equirect JPG, already turned to three.js' convention (centre = +x). */
+const skies = new Map<string, Promise<THREE.Texture>>();
+const loadSky = (env: string) => {
+  if (!skies.has(env))
+    skies.set(
+      env,
+      new THREE.TextureLoader().loadAsync(assetUrl(`sky_${env}.jpg`)).then((t) => {
+        t.mapping = THREE.EquirectangularReflectionMapping;
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }),
+    );
+  return skies.get(env)!;
+};
+
+/**
+ * Live light for the objects, matched by eye to each environment's bake / plates:
+ * hemisphere (sky / ground colour) + key (the HDRI sun outdoors), opacity of the floor shadows.
+ */
+const LIGHT: Record<Env3D, { sky: string; ground: string; hemi: number; sun: string; key: number; shadow: number }> = {
+  indoor_01: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
+  indoor_02: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
+  indoor_03: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
+  indoor_04: { sky: '#efede6', ground: '#3d3b37', hemi: 1.15, sun: '#fff7ec', key: 2.1, shadow: 0.42 },
+  outdoor_01: { sky: '#d6e2f2', ground: '#8a7f68', hemi: 1.3, sun: '#fff3e0', key: 3.2, shadow: 0.55 },
+  outdoor_02: { sky: '#cdd6e4', ground: '#6f6b4c', hemi: 1.1, sun: '#ffd9ab', key: 2.8, shadow: 0.5 },
+  outdoor_03: { sky: '#e6eaee', ground: '#6c7356', hemi: 1.9, sun: '#f4f6f8', key: 0.7, shadow: 0.22 },
+  outdoor_04: { sky: '#c4c8d8', ground: '#5f5640', hemi: 1.0, sun: '#ffb46e', key: 2.4, shadow: 0.45 },
+};
+/** A sun just above the horizon (outdoor_04) would smear the shadow map across the whole bay. */
+const MIN_SUN_ELEVATION = 12;
 
 export interface Footprint {
   /** Bounds seen from above in the object's own frame, meters (z: + = front, towards the shooter). */
@@ -140,13 +171,19 @@ export class StageScene3D {
   private stage: Stage3D | null = null;
   private movers: Mover[] = [];
 
-  /** The hall (baked → unlit) with its outer shell and floor shadow catcher; the light for the objects. Swaps when the environment changes. */
+  /**
+   * The environment (baked → unlit) and the light for the objects. Swaps when the environment changes.
+   *   indoor   the hall with its outer shell, ceiling hidden from above
+   *   outdoor  ground + berms rendered from above in Blender, the HDRI sky as a panorama, the HDRI's sun
+   */
   async loadEnvironment(environment: Stage3D['environment']) {
     if (this.envId === environment) return;
-    const env = await loadGlb(assetUrl(`env_${environment}.glb`));
+    const room = roomOf(environment);
+    const outdoor = room.kind === 'outdoor';
+    const [env, sky] = await Promise.all([loadGlb(assetUrl(`env_${environment}.glb`)), outdoor ? loadSky(environment) : null]);
     if (this.disposed || this.envId === environment) return;
     this.envId = environment;
-    const room = (this.room = roomOf(environment));
+    this.room = room;
     this.scene.remove(this.envGroup);
     this.envGroup.traverse((n) => {
       const m = n as THREE.Mesh;
@@ -162,63 +199,111 @@ export class StageScene3D {
       // the floor is seen at grazing angles: anisotropic filtering keeps it sharp into the distance
       if (src.map) src.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
       m.material = new THREE.MeshBasicMaterial({ map: src.map ?? null, color: src.map ? 0xffffff : src.color, toneMapped: false });
-      m.userData.ceiling = /ceiling/.test(m.name) || /ceiling/.test(src.name);
+      m.userData.ceiling = !outdoor && (/ceiling/.test(m.name) || /ceiling/.test(src.name));
     });
     eg.add(hall);
 
-    // The bake only has the faces seen from inside. Thick walls with tops around it make the
-    // hall a closed building from above (briefing, fly-in) instead of paper-thin panels in the void.
-    const side = new THREE.MeshBasicMaterial({ color: '#1d1f1e', toneMapped: false });
-    const top = new THREE.MeshBasicMaterial({ color: '#4a4d4b', toneMapped: false });
-    const T = 0.45;
-    const H = room.height + 0.12;
-    const len = room.d1 - room.d0 + 2 * T;
-    const wid = room.x1 - room.x0 + 2 * T;
     const cx = (room.x0 + room.x1) / 2;
     const cz = -(room.d0 + room.d1) / 2;
-    for (const [w, d, x, z] of [
-      [T, len, room.x0 - T / 2 - 0.01, cz],
-      [T, len, room.x1 + T / 2 + 0.01, cz],
-      [wid, T, cx, -(room.d1 + T / 2 + 0.01)],
-      [wid, T, cx, -(room.d0 - T / 2)],
-    ]) {
-      // box faces: +x, −x, +y (top), −y, +z, −z
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), [side, side, top, side, side, side]);
-      wall.position.set(x, H / 2, z);
-      wall.userData.own = true;
-      eg.add(wall);
+    if (!outdoor) {
+      // The bake only has the faces seen from inside. Thick walls with tops around it make the
+      // hall a closed building from above (briefing, fly-in) instead of paper-thin panels in the void.
+      const side = new THREE.MeshBasicMaterial({ color: '#1d1f1e', toneMapped: false });
+      const top = new THREE.MeshBasicMaterial({ color: '#4a4d4b', toneMapped: false });
+      const T = 0.45;
+      const H = room.height + 0.12;
+      const len = room.d1 - room.d0 + 2 * T;
+      const wid = room.x1 - room.x0 + 2 * T;
+      for (const [w, d, x, z] of [
+        [T, len, room.x0 - T / 2 - 0.01, cz],
+        [T, len, room.x1 + T / 2 + 0.01, cz],
+        [wid, T, cx, -(room.d1 + T / 2 + 0.01)],
+        [wid, T, cx, -(room.d0 - T / 2)],
+      ]) {
+        // box faces: +x, −x, +y (top), −y, +z, −z
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), [side, side, top, side, side, side]);
+        wall.position.set(x, H / 2, z);
+        wall.userData.own = true;
+        eg.add(wall);
+      }
+      // the ground around the building
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 140), new THREE.MeshBasicMaterial({ color: '#0d0e0d', toneMapped: false }));
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(cx, -0.02, cz);
+      ground.userData.own = true;
+      eg.add(ground);
     }
-    // the ground around the building
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 140), new THREE.MeshBasicMaterial({ color: '#0d0e0d', toneMapped: false }));
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set(cx, -0.02, cz);
-    ground.userData.own = true;
-    eg.add(ground);
 
-    // shadows of the objects on the (unlit, baked) floor
-    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(room.x1 - room.x0, room.d1 - room.d0), new THREE.ShadowMaterial({ opacity: 0.42 }));
+    // shadows of the objects on the (unlit, baked) floor; outdoors they may fall past the bay
+    const light = LIGHT[environment];
+    const margin = outdoor ? 12 : 0;
+    const catcher = new THREE.Mesh(
+      new THREE.PlaneGeometry(room.x1 - room.x0 + 2 * margin, room.d1 - room.d0 + 2 * margin),
+      new THREE.ShadowMaterial({ opacity: light.shadow }),
+    );
     catcher.rotation.x = -Math.PI / 2;
     catcher.position.set(cx, 0.002, cz);
     catcher.receiveShadow = true;
     catcher.userData.own = true;
     eg.add(catcher);
     this.ceilingHidden = false;
-    if (this.lightsReady) return;
-    this.lightsReady = true;
 
-    // light for the objects, matched by eye to the baked high bays (warm-neutral, from above)
+    // the ground reaches the horizon (~4 km) outdoors
+    this.camera.far = outdoor ? 6000 : 300;
+    this.camera.updateProjectionMatrix();
+    this.scene.background = sky ?? new THREE.Color('#050605');
+    if (!this.lightsReady) {
+      this.lightsReady = true;
+      const key = new THREE.DirectionalLight();
+      key.castShadow = true;
+      key.shadow.mapSize.set(4096, 4096);
+      key.shadow.bias = -0.0004;
+      key.shadow.normalBias = 0.02;
+      key.shadow.radius = 4;
+      this.key = key;
+      this.hemi = new THREE.HemisphereLight();
+      this.scene.add(this.hemi, key, key.target, this.stageGroup);
+    }
+    // reflections / ambient: the sky outdoors, a neutral room indoors
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const old = this.scene.environment;
+    this.scene.environment = (sky ? pmrem.fromEquirectangular(sky) : pmrem.fromScene(new RoomEnvironment(), 0.04)).texture;
+    old?.dispose();
     pmrem.dispose();
-    this.scene.add(new THREE.HemisphereLight('#efede6', '#3d3b37', 1.15));
-    const key = new THREE.DirectionalLight('#fff7ec', 2.1);
-    key.castShadow = true;
-    key.shadow.mapSize.set(4096, 4096);
-    key.shadow.bias = -0.0004;
-    key.shadow.normalBias = 0.02;
-    key.shadow.radius = 4;
-    this.key = key;
-    this.scene.add(key, key.target, this.stageGroup);
+    this.hemi!.color.set(light.sky);
+    this.hemi!.groundColor.set(light.ground);
+    this.hemi!.intensity = light.hemi;
+    this.key!.color.set(light.sun);
+    this.key!.intensity = light.key;
+    // the sun's direction (towards the sun); indoors and overcast: from above, slightly from behind-left
+    const s = room.sun;
+    const el = Math.max(MIN_SUN_ELEVATION, s?.elevation ?? 0) * DEG;
+    this.sunDir = s
+      ? new THREE.Vector3(Math.cos(s.azimuth * DEG) * Math.cos(el), Math.sin(el), -Math.sin(s.azimuth * DEG) * Math.cos(el))
+      : new THREE.Vector3(-2, 12, 5).normalize();
+    if (this.stage) this.aimKey(this.stage);
+  }
+
+  private hemi: THREE.HemisphereLight | null = null;
+  private sunDir = new THREE.Vector3(-2, 12, 5).normalize();
+
+  /** The key light's shadow covers the stage. */
+  private aimKey(stage: Stage3D) {
+    if (!this.key) return;
+    const b = stageBounds(stage);
+    const cx = (b.x0 + b.x1) / 2;
+    const cd = (b.d0 + b.d1) / 2;
+    this.key.target.position.set(cx, 0, -cd);
+    this.key.position.copy(this.key.target.position).addScaledVector(this.sunDir, 30);
+    const sc = this.key.shadow.camera;
+    const half = Math.max(b.x1 - b.x0, b.d1 - b.d0) / 2 + 3;
+    sc.left = -half;
+    sc.right = half;
+    sc.top = half;
+    sc.bottom = -half;
+    sc.near = 1;
+    sc.far = 30 + half * 2;
+    sc.updateProjectionMatrix();
   }
 
   /** Objects, shooting boxes and path arrows of a stage — call again after every edit (the hall stays). */
@@ -264,7 +349,7 @@ export class StageScene3D {
       });
       g.userData.objectId = o.id;
       group.add(g);
-      if (o.motion && o.motion.kind !== 'static') movers.push(makeMover(o, g));
+      if ((o.motion && o.motion.kind !== 'static') || o.shown) movers.push(makeMover(o, g));
     });
 
     // ---- shooting boxes: white tape squares at every position
@@ -291,23 +376,7 @@ export class StageScene3D {
     // ---- briefing arrows along the legs
     this.arrows = stage.legs.map((_, i) => this.makeArrow(legPath(stage, i), group));
 
-    // ---- the key light's shadow covers the stage
-    if (this.key) {
-      const b = stageBounds(stage);
-      const cx = (b.x0 + b.x1) / 2;
-      const cd = (b.d0 + b.d1) / 2;
-      this.key.position.set(cx - 2, 12, -(cd - 5));
-      this.key.target.position.set(cx, 0, -cd);
-      const sc = this.key.shadow.camera;
-      const half = Math.max(b.x1 - b.x0, b.d1 - b.d0) / 2 + 3;
-      sc.left = -half;
-      sc.right = half;
-      sc.top = half;
-      sc.bottom = -half;
-      sc.near = 1;
-      sc.far = 40;
-      sc.updateProjectionMatrix();
-    }
+    this.aimKey(stage);
 
     // swap in one step: no half-built frame is ever rendered
     this.scene.remove(this.stageGroup);
@@ -411,7 +480,7 @@ export class StageScene3D {
     this.applyCamera(f.camera);
     this.applyMotion(f);
     // from above (briefing), the trusses and light fixtures would hang between camera and stage
-    const above = f.camera.y > this.room.height - 0.4;
+    const above = this.room.kind === 'indoor' && f.camera.y > this.room.height - 0.4;
     if (above !== this.ceilingHidden) {
       this.ceilingHidden = above;
       this.scene.traverse((n) => {
@@ -443,13 +512,17 @@ export class StageScene3D {
     const rep = f.segment === 'stage' ? f.rep : null;
     const par = parTime3D(stage);
     const active = !!rep && (rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1));
-    const falls = fallTimes(stage.objects as unknown as StageObject[]);
+    const falls = fallTimes(stage.objects);
     for (const mv of this.movers) {
       const m = rep ? motionAt(mv.o.motion, rep.sinceStart, active, falls) : REST;
       const yaw = (mv.o.yaw ?? 0) * DEG;
       // slides run along the object's own face, bobs go up
       mv.node.position.set(mv.base.x + m.dx * Math.cos(yaw), mv.base.y + m.dy, mv.base.z + m.dx * Math.sin(yaw));
-      mv.node.visible = m.visible;
+      // only up during part of the run (areas of a dynamic stage): between reps the clock is 0
+      const sw = mv.o.shown;
+      const clock = active ? rep!.sinceStart : 0;
+      const inWindow = !rep || !sw || (clock >= (sw.from ?? -Infinity) && clock < (sw.until ?? Infinity));
+      mv.node.visible = m.visible && inWindow;
       // swing: tilt in the object's own plane around its foot (+ = top to the right)
       mv.node.rotation.z = -m.rot * DEG;
       // steel: the plate tips backwards (away from the shooter) around its lower edge

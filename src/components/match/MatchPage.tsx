@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { ENVIRONMENTS } from '../../assets/environments';
 import { matchRepository } from '../../data/matchRepository';
-import { stageRepository } from '../../data/stageRepository';
 import type { Match } from '../../types/match';
 import { exportMatchFile } from '../../utils/matchIO';
 import { formatLength, matchIntro, matchLength } from '../../utils/matchUtils';
 import { MatchSettingsPanel } from './MatchSettingsPanel';
 import { newId } from '../../utils/random';
-import { createStage } from '../../utils/stageIO';
+import { createStage3D, stage3dRepository } from '../../stage3d/repository';
+import { matchStages } from '../../utils/matchUtils';
 import { BrandMark } from '../BrandMark';
 
 interface Props {
@@ -25,7 +25,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
   const reload = () => refresh((n) => n + 1);
   const match = matchRepository.get(matchId);
   const listed = matchRepository.list().find((m) => m.id === matchId);
-  const stages = stageRepository.list();
+  const stages = stage3dRepository.list();
 
   if (!match) {
     return (
@@ -96,7 +96,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
 
           <MatchSettingsPanel
             match={match}
-            stages={match.stageIds.map((id) => stageRepository.get(id)).filter((x): x is NonNullable<typeof x> => !!x)}
+            stages={matchStages(match)}
             onChange={(settings) => save({ ...match, settings: Object.keys(settings).length ? settings : undefined })}
           />
 
@@ -116,7 +116,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
                   {s ? <img src={ENVIRONMENTS[s.environment].src} alt="" /> : <span className="missing-thumb" />}
                   <button className="meta linkish" disabled={!s} onClick={() => onOpenStage(id)} title="Edit stage">
                     <strong>{s?.name ?? id}</strong>
-                    <span>{s ? `par ${s.parTime}s · ${s.repetitions} reps · ${ENVIRONMENTS[s.environment].label}` : 'Stage not found'}</span>
+                    <span>{s ? `par ${s.par.toFixed(1)} s · ${s.repetitions} reps · ${s.positions} position${s.positions > 1 ? 's' : ''} · ${ENVIRONMENTS[s.environment].label}` : 'Stage not found'}</span>
                   </button>
                   <button disabled={i === 0} onClick={() => move(-1)} title="Move up">↑</button>
                   <button disabled={i === match.stageIds.length - 1} onClick={() => move(1)} title="Move down">↓</button>
@@ -135,7 +135,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
             <button
               className="primary"
               onClick={() => {
-                const s = stageRepository.save({ ...createStage(), name: `Stage ${match.stageIds.length + 1}` });
+                const s = stage3dRepository.save({ ...createStage3D(), name: `Stage ${match.stageIds.length + 1}` });
                 matchRepository.save({ ...match, stageIds: [...match.stageIds, s.id] });
                 onOpenStage(s.id);
               }}
@@ -146,7 +146,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
               <option value="">+ Add existing stage…</option>
               {stages.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.id})
+                  {s.name}
                 </option>
               ))}
             </select>

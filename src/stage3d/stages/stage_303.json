@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_303",
+  "name": "Long Steel",
+  "description": "One close paper, then steel at distance — plate rack to finish.",
+  "environment": "outdoor_01",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_303_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 7,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -1.8,
+      "d": 6.4
+    },
+    {
+      "id": "steel_popper_2",
+      "type": "steel_popper",
+      "x": -4.2,
+      "d": 14
+    },
+    {
+      "id": "steel_plate_3",
+      "type": "steel_plate",
+      "x": 2.9,
+      "d": 13.5
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": 1.6,
+      "d": 14.4
+    },
+    {
+      "id": "steel_plate_rack_5",
+      "type": "steel_plate_rack",
+      "x": -0.2,
+      "d": 14.4
+    }
+  ]
+}

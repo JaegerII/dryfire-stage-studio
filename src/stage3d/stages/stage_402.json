@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_402",
+  "name": "Twin Ports",
+  "description": "Two ports, one target behind each, hard cover and steel in the middle.",
+  "environment": "indoor_02",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_402_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6.5,
+  "objects": [
+    {
+      "id": "mesh_wall_port_1",
+      "type": "mesh_wall_port",
+      "x": -1.6,
+      "d": 6.6
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": -2.34,
+      "d": 8.8
+    },
+    {
+      "id": "mesh_wall_port_3",
+      "type": "mesh_wall_port",
+      "x": 1.6,
+      "d": 6.6,
+      "flip": true
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 2.34,
+      "d": 8.8
+    },
+    {
+      "id": "paper_hc_half_5",
+      "type": "paper_hc_half",
+      "x": 0,
+      "d": 9.6
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 0.85,
+      "d": 13
+    }
+  ]
+}

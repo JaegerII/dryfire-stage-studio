@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_102",
+  "name": "Activator",
+  "description": "Hit the popper — the swinger behind the wall starts rocking.",
+  "environment": "outdoor_01",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_102_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6.5,
+  "objects": [
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": -3,
+      "d": 6.8
+    },
+    {
+      "id": "steel_popper_1",
+      "type": "steel_popper",
+      "x": 0.5,
+      "d": 12,
+      "motion": {
+        "kind": "fall",
+        "delay": 1.2
+      }
+    },
+    {
+      "id": "paper_swinger_3",
+      "type": "paper_swinger",
+      "x": -1.3,
+      "d": 9.2,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.5,
+        "trigger": "steel_popper_1",
+        "delay": 0
+      }
+    },
+    {
+      "id": "mesh_wall_short_4",
+      "type": "mesh_wall_short",
+      "x": -1.3,
+      "d": 8.9
+    },
+    {
+      "id": "paper_stack_5",
+      "type": "paper_stack",
+      "x": 2.4,
+      "d": 7.6
+    },
+    {
+      "id": "steel_plate_6",
+      "type": "steel_plate",
+      "x": 1.6,
+      "d": 12.5
+    }
+  ]
+}

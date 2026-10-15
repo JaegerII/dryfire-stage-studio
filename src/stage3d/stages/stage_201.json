@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_201",
+  "name": "Swinger Lane",
+  "description": "A swinger rocks behind the wall from the start beep — time your shots.",
+  "environment": "indoor_02",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_201_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6,
+  "objects": [
+    {
+      "id": "paper_hc_vertical_1",
+      "type": "paper_hc_vertical",
+      "x": -2.6,
+      "d": 6.6
+    },
+    {
+      "id": "mesh_wall_2",
+      "type": "mesh_wall",
+      "x": 0,
+      "d": 7.2
+    },
+    {
+      "id": "paper_swinger_3",
+      "type": "paper_swinger",
+      "x": 0,
+      "d": 7.6,
+      "motion": {
+        "kind": "swing",
+        "angle": 40,
+        "period": 1.4,
+        "delay": 0
+      }
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": -2.3,
+      "d": 12.5
+    },
+    {
+      "id": "paper_hc_diagonal_5",
+      "type": "paper_hc_diagonal",
+      "x": 2.6,
+      "d": 6.6,
+      "flip": true
+    },
+    {
+      "id": "no_shoot_6",
+      "type": "no_shoot",
+      "x": 2.9,
+      "d": 6.3
+    }
+  ]
+}

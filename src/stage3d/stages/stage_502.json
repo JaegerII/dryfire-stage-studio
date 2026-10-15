@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_502",
+  "name": "Barrel Barricade",
+  "description": "Sunset bay: shoot over and around the barrel barricade.",
+  "environment": "outdoor_04",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_502_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -2.7,
+      "d": 6.6
+    },
+    {
+      "id": "barrel_barricade_2",
+      "type": "barrel_barricade",
+      "x": -0.1,
+      "d": 7
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": -0.3,
+      "d": 10.5,
+      "elevation": 0.55
+    },
+    {
+      "id": "steel_popper_4",
+      "type": "steel_popper",
+      "x": -1.9,
+      "d": 13.5
+    },
+    {
+      "id": "paper_full_5",
+      "type": "paper_full",
+      "x": 1.7,
+      "d": 9.6
+    },
+    {
+      "id": "paper_full_6",
+      "type": "paper_full",
+      "x": 2.7,
+      "d": 6.8
+    },
+    {
+      "id": "mesh_wall_7",
+      "type": "mesh_wall",
+      "x": 3.9,
+      "d": 6.4,
+      "yaw": 50
+    }
+  ]
+}

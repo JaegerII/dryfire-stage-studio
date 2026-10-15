@@ -15,9 +15,10 @@ import type { QualityReport } from '../pose/quality';
 import { clockMapping, perfToAudio } from '../session/audioClock';
 import type { RepSummary, RunPlan } from '../session/protocol';
 import type { SessionClient } from '../session/SessionClient';
-import type { Stage } from '../types/stage';
+import { MATCH_TIMING } from '../stage3d/program';
+import { stageTiming } from '../stage3d/timeline';
+import type { Stage3D } from '../stage3d/types';
 import { AudioEngine, STANDBY_VOICE_LEAD } from '../utils/audioEngine';
-import { MATCH_TIMING } from '../utils/matchSchedule';
 import { newId } from '../utils/random';
 import { type PlayerSnapshot, type Schedule, buildSchedule, snapshotAt } from '../utils/schedule';
 import type { TraceSettings } from './settings';
@@ -68,7 +69,7 @@ export class TrainingRun {
   onChange?: () => void;
 
   constructor(
-    readonly stage: Stage,
+    readonly stage: Stage3D,
     private settings: TraceSettings,
     private pipeline: TrackingPipeline,
     private session: SessionClient | null,
@@ -78,7 +79,7 @@ export class TrainingRun {
     const seed = Math.random().toString(36).slice(2, 10);
     const voiceLead = settings.voice ? STANDBY_VOICE_LEAD : 0;
     const lead = MATCH_TIMING.lead;
-    this.schedule = buildSchedule(stage, { seed, lead, voiceLead });
+    this.schedule = buildSchedule(stageTiming(stage), { seed, lead, voiceLead });
     this.cfg = analyzerConfig(settings);
     this.plan = { runId: this.id, stage, seed, lead, voiceLead, startAt: 0, audio: settings.audio, voice: settings.voice, showTimer: settings.showTimerOnTv };
   }
@@ -193,7 +194,7 @@ export class TrainingRun {
       createdAt: new Date().toISOString(),
       stageId: this.stage.id,
       stageName: this.stage.name,
-      parTime: this.stage.parTime,
+      parTime: stageTiming(this.stage).parTime,
       reps: [...this.results].sort((a, b) => a.rep - b.rep),
       analyzerVersion: ANALYZER_VERSION,
       config: this.cfg,
@@ -218,7 +219,7 @@ export class TrainingRun {
     const current = [...this.analyzers.values()].find((a) => !a.finished && !this.results.some((r) => r.rep === a.window.rep));
     return {
       status: this.status,
-      snapshot: this.plan.startAt && t >= 0 ? snapshotAt(this.schedule, t, this.stage) : null,
+      snapshot: this.plan.startAt && t >= 0 ? snapshotAt(this.schedule, t, stageTiming(this.stage)) : null,
       untilStart: Math.max(0, this.plan.startAt - now),
       analyzerState: current?.state ?? null,
       results: this.results,

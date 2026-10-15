@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_004",
+  "name": "Stage 4 – Activator",
+  "description": "Hit the popper — the swinger behind the wall starts rocking ±45°. Target + no-shoot on a wide box, one more steel.",
+  "environment": "outdoor_02",
+  "repetitions": 6,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_004_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 6,
+  "objects": [
+    {
+      "id": "popper_act",
+      "type": "steel_popper",
+      "x": 1.33,
+      "d": 8.3,
+      "motion": {
+        "kind": "fall",
+        "delay": 1
+      }
+    },
+    {
+      "id": "swinger",
+      "type": "paper_swinger",
+      "x": -0.82,
+      "d": 5.88,
+      "motion": {
+        "kind": "swing",
+        "angle": 45,
+        "period": 1.6,
+        "trigger": "popper_act",
+        "delay": 0
+      }
+    },
+    {
+      "id": "wall_swinger",
+      "type": "mesh_wall_short",
+      "x": -0.81,
+      "d": 5.72
+    },
+    {
+      "id": "box_left",
+      "type": "crate_wide",
+      "x": -2.5,
+      "d": 4.36
+    },
+    {
+      "id": "card_left",
+      "type": "paper_card",
+      "x": -2.65,
+      "d": 4.36,
+      "elevation": 0.6
+    },
+    {
+      "id": "noshoot_left",
+      "type": "no_shoot_overlay",
+      "x": -2.32,
+      "d": 4.36,
+      "elevation": 0.6
+    },
+    {
+      "id": "paper_right",
+      "type": "paper_full",
+      "x": 3.36,
+      "d": 5.58
+    },
+    {
+      "id": "plate_far",
+      "type": "steel_plate",
+      "x": 3.14,
+      "d": 10.15
+    }
+  ]
+}

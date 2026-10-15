@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_101",
+  "name": "Box Drill",
+  "description": "Two cards on a wide box, then swing out to paper and steel.",
+  "environment": "outdoor_03",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_101_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 5.5,
+  "objects": [
+    {
+      "id": "crate_wide_1",
+      "type": "crate_wide",
+      "x": -2.3,
+      "d": 6.8
+    },
+    {
+      "id": "paper_card_2",
+      "type": "paper_card",
+      "x": -2.6,
+      "d": 6.8,
+      "elevation": 0.6
+    },
+    {
+      "id": "paper_hc_half_card_3",
+      "type": "paper_hc_half_card",
+      "x": -2,
+      "d": 6.8,
+      "elevation": 0.6
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": 0.2,
+      "d": 10.5
+    },
+    {
+      "id": "steel_popper_5",
+      "type": "steel_popper",
+      "x": -0.7,
+      "d": 13
+    },
+    {
+      "id": "paper_hc_vertical_6",
+      "type": "paper_hc_vertical",
+      "x": 3,
+      "d": 7.4
+    },
+    {
+      "id": "mesh_wall_diagonal_7",
+      "type": "mesh_wall_diagonal",
+      "x": 1.4,
+      "d": 7.6,
+      "yaw": 35
+    }
+  ]
+}

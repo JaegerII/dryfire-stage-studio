@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { DND_TYPE } from '../../components/editor/AssetLibrary';
 import { useElementSize } from '../../hooks/useElementSize';
 import type { ObjectType } from '../../types/stage';
 import { type Footprint, footprintOf } from '../StageScene3D';
 import { legPath } from '../timeline';
 import { type Room, type Stage3D, roomOf } from '../types';
-import { type Selection, clampToRoom, insertVia, moveVia, patchObjects, patchPosition, removeVia, snapTo, withGroups } from './ops';
+import { DND_TYPE, type Selection, clampToRoom, insertVia, moveVia, patchObjects, patchPosition, removeVia, snapTo, withGroups } from './ops';
 
 export type Tool = 'select' | 'position';
 
@@ -294,9 +293,21 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
         {/* hall */}
         <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={room.d1 - room.d0} className="plan-floor" />
         {grid}
-        <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={2.2} fill="url(#berm)" />
-        <text x={0} y={-room.d1 + 1.3} className="plan-note">BACKSTOP</text>
-        <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={room.d1 - room.d0} className="plan-wall" />
+        {room.kind === 'indoor' ? (
+          <>
+            <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={2.2} fill="url(#berm)" />
+            <text x={0} y={-room.d1 + 1.3} className="plan-note">BACKSTOP</text>
+            <rect x={room.x0} y={-room.d1} width={room.x1 - room.x0} height={room.d1 - room.d0} className="plan-wall" />
+          </>
+        ) : room.berms ? (
+          // outdoors the bounds are the feet of the berms: the berms rise outside them
+          <>
+            <path d={`M${room.x0 - 1.5},${-room.d0} V${-room.d1 - 1.5} H${room.x1 + 1.5} V${-room.d0} H${room.x1} V${-room.d1} H${room.x0} V${-room.d0} Z`} fill="url(#berm)" />
+            <text x={0} y={-room.d1 - 0.45} className="plan-note">BERM</text>
+          </>
+        ) : (
+          <text x={0} y={-room.d1 - 0.45} className="plan-note">COVERED FIRING LINE ↑</text>
+        )}
         <text x={0} y={-room.d0 - 0.3} className="plan-note">UPRANGE</text>
 
         {/* path */}

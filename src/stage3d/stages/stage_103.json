@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_103",
+  "name": "Plate Rack Finish",
+  "description": "Paper left and right, one through the port, finish on the plate rack.",
+  "environment": "indoor_03",
+  "repetitions": 5,
+  "resetTime": 3,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_103_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [],
+  "finalTime": 7,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -0.9,
+      "d": 7.6
+    },
+    {
+      "id": "paper_hc_bottom_2",
+      "type": "paper_hc_bottom",
+      "x": 2,
+      "d": 7
+    },
+    {
+      "id": "mesh_wall_port_3",
+      "type": "mesh_wall_port",
+      "x": -2.6,
+      "d": 6.2
+    },
+    {
+      "id": "paper_full_4",
+      "type": "paper_full",
+      "x": -3.6,
+      "d": 8.6
+    },
+    {
+      "id": "steel_plate_rack_5",
+      "type": "steel_plate_rack",
+      "x": 0.3,
+      "d": 12
+    }
+  ]
+}

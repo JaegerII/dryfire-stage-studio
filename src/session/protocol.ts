@@ -6,7 +6,7 @@
  * Clocks: every time value is on the SENDER's performance clock (ms) unless
  * noted. The TV converts controller times with its clock-sync offset.
  */
-import type { Stage } from '../types/stage';
+import type { Stage3D } from '../stage3d/types';
 
 export const PROTOCOL = 1;
 
@@ -21,7 +21,7 @@ export type AudioOutput = 'tv' | 'phone' | 'both';
 
 export interface RunPlan {
   runId: string;
-  stage: Stage;
+  stage: Stage3D;
   /** Seed for buildSchedule — both sides compute the identical rep timeline from it. */
   seed: string;
   lead: number;
@@ -48,7 +48,7 @@ export type SessionMessage =
   | { type: 'hello'; from: string; role: Role; protocol: number; name?: string }
   | { type: 'ping'; from: string; id: number; t0: number }
   | { type: 'pong'; from: string; to: string; id: number; t0: number; t1: number }
-  | { type: 'stage'; from: string; stage: Stage | null }
+  | { type: 'stage'; from: string; stage: Stage3D | null }
   | { type: 'run_start'; from: string; plan: RunPlan }
   | { type: 'run_stop'; from: string; runId: string }
   | { type: 'rep_result'; from: string; runId: string; summary: RepSummary }

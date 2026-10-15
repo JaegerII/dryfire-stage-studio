@@ -1,15 +1,14 @@
 /**
- * Frame-by-frame MP4 render of a 3D stage video, entirely in the browser:
- * every frame is drawn at an exact time (no screen capture, no dropped
- * frames, any resolution), encoded with WebCodecs and muxed by mediabunny.
- * The soundtrack is mixed offline and lands sample-accurately on the beeps.
+ * Frame-by-frame MP4 render of a program (one stage or a whole match), entirely in the
+ * browser: every frame is drawn at an exact time (no screen capture, no dropped frames,
+ * any resolution), encoded with WebCodecs and muxed by mediabunny. The soundtrack is
+ * mixed offline and lands sample-accurately on the beeps.
  */
 import { AudioBufferSource, BufferTarget, CanvasSource, Mp4OutputFormat, Output, getFirstEncodableAudioCodec, getFirstEncodableVideoCodec } from 'mediabunny';
-import { renderSoundtrack, videoCues } from './audio';
-import { drawHud } from './hud';
+import { renderSoundtrack } from './audio';
+import { type Program, programCues, programFrameAt } from './program';
+import { drawProgramHud, loadScreenAssets, showsScene } from './screens';
 import { StageScene3D } from './StageScene3D';
-import { type VideoTimeline, frameAt } from './timeline';
-import type { Stage3D } from './types';
 
 export interface RenderOptions {
   width: number;
@@ -23,7 +22,7 @@ export interface RenderOptions {
 
 export class RenderAborted extends Error {}
 
-export const renderMp4 = async (stage: Stage3D, tl: VideoTimeline, o: RenderOptions): Promise<{ blob: Blob; codec: string; audio: string }> => {
+export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: Blob; codec: string; audio: string }> => {
   const { width: W, height: H, fps } = o;
   const vcodec = await getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width: W, height: H });
   if (!vcodec) throw new Error(`This browser cannot encode ${W}×${H} video. Try a lower resolution or Chrome / Edge.`);
@@ -36,7 +35,8 @@ export const renderMp4 = async (stage: Stage3D, tl: VideoTimeline, o: RenderOpti
   const scene = new StageScene3D(glCanvas);
   scene.renderer.setPixelRatio(1);
   scene.setSize(W, H);
-  await scene.load(stage);
+  await loadScreenAssets();
+  let loaded = -1;
   const out = document.createElement('canvas');
   out.width = W;
   out.height = H;
@@ -52,20 +52,29 @@ export const renderMp4 = async (stage: Stage3D, tl: VideoTimeline, o: RenderOpti
 
   try {
     if (audio) {
-      const sound = await renderSoundtrack(videoCues(tl, o.voice), tl.end);
+      const sound = await renderSoundtrack(programCues(p, o.voice), p.end);
       await audio.add(sound);
       audio.close();
     }
-    const total = Math.ceil(tl.end * fps);
+    const total = Math.ceil(p.end * fps);
     const project = scene.project.bind(scene);
     for (let i = 0; i < total; i++) {
       if (o.signal?.aborted) throw new RenderAborted('Render cancelled');
       const t = i / fps;
-      const f = frameAt(stage, tl, t, W / H);
-      scene.apply(f);
-      scene.render();
-      ctx.drawImage(glCanvas, 0, 0);
-      drawHud(ctx, W, H, f, stage, project, { showTimer: o.showTimer });
+      const pf = programFrameAt(p, t, W / H);
+      // the next stage's range and objects load during its title card
+      if (pf.stageIndex !== loaded) {
+        await scene.load(p.stages[pf.stageIndex]);
+        loaded = pf.stageIndex;
+      }
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      if (showsScene(pf) && pf.frame) {
+        scene.apply(pf.frame);
+        scene.render();
+        ctx.drawImage(glCanvas, 0, 0);
+      }
+      drawProgramHud(ctx, W, H, p, pf, project, { showTimer: o.showTimer });
       await video.add(t, 1 / fps);
       if (i % 15 === 0) {
         o.onProgress?.(i, total);

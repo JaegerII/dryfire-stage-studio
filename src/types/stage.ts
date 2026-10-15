@@ -1,10 +1,7 @@
 /**
- * Stage data model. A stage is plain JSON — creating a new stage never
- * requires code. Coordinates are normalised to the 16:9 stage frame
- * (0..1 on both axes), so layouts are resolution-independent.
+ * Shared ids of the stage model: environments, object types and target motion.
+ * The stages themselves are 3D stages (src/stage3d/types.ts).
  */
-
-export const SCHEMA_VERSION = 1;
 
 export type EnvironmentId = 'indoor_01' | 'indoor_02' | 'indoor_03' | 'indoor_04' | 'outdoor_01' | 'outdoor_02' | 'outdoor_03' | 'outdoor_04';
 
@@ -69,98 +66,4 @@ export interface Motion {
   hiddenUntilStart?: boolean;
   /** popup: seconds the target stays up (omit = until par end). */
   duration?: number;
-}
-
-export interface StageObject {
-  id: string;
-  type: ObjectType;
-  /** Ground contact point (bottom centre), 0..1 of stage width. */
-  x: number;
-  /** Ground contact point, 0..1 of stage height. Lower on screen = closer. */
-  y: number;
-  /** Extra size multiplier on top of the perspective size (1 = true size). */
-  scale: number;
-  /** Rotation in the image plane, degrees. */
-  rotation: number;
-  /** Height above the floor in meters (e.g. a card standing on a box). */
-  elevation?: number;
-  /** Mirror left/right (e.g. a diagonal wall sloping the other way). */
-  flip?: boolean;
-  /** Turn away from the shooter, degrees (−80..80). Faked in 2.5D. */
-  yaw?: number;
-  opacity?: number;
-  /** Draw order. Equal zIndex → sorted by y (closer objects on top). */
-  zIndex: number;
-  /** Group id: clicking one member selects the whole group (editor only). */
-  group?: string;
-  /** 'auto' derives size from y; 'manual' uses `depth` instead. */
-  perspective?: 'auto' | 'manual';
-  /** Manual depth 0 (at the bottom edge) .. 1 (at the horizon). */
-  depth?: number;
-  /** Optional target label, e.g. engagement order "1" (stored, not drawn). */
-  label?: string;
-  locked?: boolean;
-  motion?: Motion;
-}
-
-export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
-export type Discipline = 'handgun' | 'rifle' | 'pcc';
-
-/**
- * Dynamic stage: after the first area, the stage moves on to further areas
- * during the par window — a barrier sweeps across the screen (the shooter
- * "moves" to the next position and reloads), then new targets appear.
- * Area 1 is the stage itself (environment / objects / view); `areas` holds
- * area 2, 3, …
- */
-export interface StageArea {
-  id: string;
-  name?: string;
-  environment: EnvironmentId;
-  objects: StageObject[];
-  view?: { zoom?: number };
-  /** Seconds this area is shown (after its transition). */
-  time: number;
-}
-
-export type TransitionStyle = 'mesh' | 'wood';
-
-export interface AreaTransition {
-  /** Seconds the barrier needs to cross the screen — the reload window. */
-  duration: number;
-  /** ltr = barrier moves from left to right. */
-  direction: 'ltr' | 'rtl';
-  style: TransitionStyle;
-}
-
-export interface Stage {
-  schemaVersion: number;
-  id: string;
-  name: string;
-  description?: string;
-  environment: EnvironmentId;
-  /** Seconds between start beep and end beep. */
-  parTime: number;
-  repetitions: number;
-  /** Seconds of reset / preparation before every rep (and after the last). */
-  resetTime: number;
-  /** Random delay after "STAND BY" before the start beep, seconds. */
-  standbyDelay: { min: number; max: number };
-  objects: StageObject[];
-  /** Framing: zoom 1 = full plate, up to 2.5 = closer (scaled around the horizon centre). */
-  view?: { zoom?: number };
-  /** Dynamic stage: further areas after area 1 (see StageArea). parTime is derived from the area times. */
-  areas?: StageArea[];
-  /** Dynamic stage: seconds area 1 is shown after the start beep. */
-  areaTime?: number;
-  transition?: AreaTransition;
-  /** Library metadata — filters, categories, ownership (future platform). */
-  meta?: {
-    difficulty?: Difficulty;
-    discipline?: Discipline;
-    tags?: string[];
-    author?: string;
-    createdAt?: string;
-    updatedAt?: string;
-  };
 }

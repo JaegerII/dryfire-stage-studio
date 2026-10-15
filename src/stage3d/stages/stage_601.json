@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "id": "stage_601",
+  "name": "Run & Reload",
+  "description": "Three targets, move past the wall and reload, then the activator on the second position.",
+  "environment": "outdoor_02",
+  "repetitions": 5,
+  "resetTime": 4,
+  "standbyDelay": {
+    "min": 1,
+    "max": 2
+  },
+  "positions": [
+    {
+      "id": "stage_601_start",
+      "label": "START",
+      "x": 0,
+      "d": 1.48,
+      "heading": 0
+    },
+    {
+      "id": "stage_601_p2",
+      "label": "P2",
+      "x": 1.5,
+      "d": 1.48,
+      "heading": 0
+    }
+  ],
+  "legs": [
+    {
+      "after": 3,
+      "duration": 2.5,
+      "reload": true
+    }
+  ],
+  "finalTime": 4.5,
+  "objects": [
+    {
+      "id": "paper_full_1",
+      "type": "paper_full",
+      "x": -1.2,
+      "d": 9,
+      "shown": {
+        "until": 4.25
+      }
+    },
+    {
+      "id": "paper_full_2",
+      "type": "paper_full",
+      "x": 0,
+      "d": 9,
+      "shown": {
+        "until": 4.25
+      }
+    },
+    {
+      "id": "paper_full_3",
+      "type": "paper_full",
+      "x": 1.2,
+      "d": 9,
+      "shown": {
+        "until": 4.25
+      }
+    },
+    {
+      "id": "p2_popper_act",
+      "type": "steel_popper",
+      "x": 2.83,
+      "d": 8.3,
+      "motion": {
+        "kind": "fall",
+        "delay": 6.5
+      },
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_swinger",
+      "type": "paper_swinger",
+      "x": 0.68,
+      "d": 5.88,
+      "motion": {
+        "kind": "swing",
+        "angle": 45,
+        "period": 1.6,
+        "trigger": "popper_act",
+        "delay": 0
+      },
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_wall_swinger",
+      "type": "mesh_wall_short",
+      "x": 0.69,
+      "d": 5.72,
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_box_left",
+      "type": "crate_wide",
+      "x": -1,
+      "d": 4.36,
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_card_left",
+      "type": "paper_card",
+      "x": -1.15,
+      "d": 4.36,
+      "elevation": 0.6,
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_noshoot_left",
+      "type": "no_shoot_overlay",
+      "x": -0.82,
+      "d": 4.36,
+      "elevation": 0.6,
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_paper_right",
+      "type": "paper_full",
+      "x": 4.86,
+      "d": 5.58,
+      "shown": {
+        "from": 4.25
+      }
+    },
+    {
+      "id": "p2_plate_far",
+      "type": "steel_plate",
+      "x": 4.64,
+      "d": 10.15,
+      "shown": {
+        "from": 4.25
+      }
+    }
+  ]
+}

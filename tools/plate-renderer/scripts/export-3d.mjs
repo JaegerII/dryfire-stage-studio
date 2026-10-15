@@ -1,7 +1,9 @@
 // 3D assets for the Stage Studio 3D player (see blender/export3d.py).
 //   npm run blender3d                 → hall + every object → ../../public/3d
 //   npm run blender3d obj:paper_full  → only these jobs
-// BAKE_SAMPLES (default 256) sets the Cycles samples of the hall bake (~20 min on an RTX 2060).
+//   npm run blender3d env:outdoor_02  → one outdoor range: ground from above + sky panorama (~30 min)
+// BAKE_SAMPLES (default 256) sets the Cycles samples of the hall bake (~20 min on an RTX 2060),
+// OUTDOOR_SAMPLES (default 256) those of the outdoor ground renders.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
