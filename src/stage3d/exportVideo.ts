@@ -4,7 +4,7 @@
  * any resolution), encoded with WebCodecs and muxed by mediabunny. The soundtrack is
  * mixed offline and lands sample-accurately on the beeps.
  */
-import { AudioBufferSource, BufferTarget, CanvasSource, Mp4OutputFormat, Output, getFirstEncodableAudioCodec, getFirstEncodableVideoCodec } from 'mediabunny';
+import { AudioBufferSource, BufferTarget, CanvasSource, Mp4OutputFormat, Output, StreamTarget, type StreamTargetChunk, getFirstEncodableAudioCodec, getFirstEncodableVideoCodec } from 'mediabunny';
 import { renderSoundtrack } from './audio';
 import { type Program, programCues, programFrameAt } from './program';
 import { drawProgramHud, loadScreenAssets, showsScene } from './screens';
@@ -18,11 +18,16 @@ export interface RenderOptions {
   showTimer: boolean;
   onProgress?: (done: number, total: number) => void;
   signal?: AbortSignal;
+  /**
+   * Write the file out while rendering (batch render: npm run render) instead of keeping it in
+   * memory — a long match in 4K is gigabytes. The result's blob is null then.
+   */
+  stream?: WritableStream<StreamTargetChunk>;
 }
 
 export class RenderAborted extends Error {}
 
-export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: Blob; codec: string; audio: string }> => {
+export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: Blob | null; codec: string; audio: string }> => {
   const { width: W, height: H, fps } = o;
   const vcodec = await getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width: W, height: H });
   if (!vcodec) throw new Error(`This browser cannot encode ${W}×${H} video. Try a lower resolution or Chrome / Edge.`);
@@ -42,7 +47,10 @@ export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: B
   out.height = H;
   const ctx = out.getContext('2d')!;
 
-  const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target: new BufferTarget() });
+  // in memory: the index (moov) goes in front, the file streams right away when played from a server
+  const output = o.stream
+    ? new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new StreamTarget(o.stream, { chunked: true }) })
+    : new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target: new BufferTarget() });
   // ~0.12 bit per pixel and frame: generous for YouTube's re-encode (4K60 ≈ 60 Mbit/s)
   const video = new CanvasSource(out, { codec: vcodec, bitrate: Math.round(W * H * fps * 0.12), keyFrameInterval: 2 });
   output.addVideoTrack(video, { frameRate: fps });
@@ -91,6 +99,6 @@ export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: B
   } finally {
     scene.dispose();
   }
-  const buf = (output.target as BufferTarget).buffer!;
-  return { blob: new Blob([buf], { type: 'video/mp4' }), codec: vcodec, audio: acodec ?? 'none' };
+  const blob = o.stream ? null : new Blob([(output.target as BufferTarget).buffer!], { type: 'video/mp4' });
+  return { blob, codec: vcodec, audio: acodec ?? 'none' };
 };

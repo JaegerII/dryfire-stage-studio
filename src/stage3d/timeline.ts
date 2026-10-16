@@ -210,6 +210,23 @@ export interface CameraPose {
 }
 
 export const POV_FOV = 62;
+
+/**
+ * Vertical field of view of the shooter's eyes for a frame aspect. POV_FOV is made for 16:9;
+ * a narrower frame (9:16 shorts) would only keep ~37° across with it — the targets left and
+ * right fall out. So narrow frames keep most of the 16:9 width (68 % of it at 9:16) and
+ * grow upwards and downwards instead, capped at 100°.
+ */
+export const povFov = (aspect = 16 / 9) => {
+  const wide = 16 / 9;
+  if (aspect >= wide) return POV_FOV;
+  const rad = Math.PI / 180;
+  const across = 2 * Math.atan(Math.tan((POV_FOV / 2) * rad) * wide);
+  const keep = 0.68 + 0.32 * Math.max(0, (aspect - 9 / 16) / (wide - 9 / 16));
+  const v = (2 * Math.atan(Math.tan((across * keep) / 2) / aspect)) / rad;
+  return Math.min(100, Math.max(POV_FOV, v));
+};
+
 /** One step while moving through a stage, meters (two steps = one full sway left and right). */
 const STEP = 0.8;
 
@@ -310,29 +327,29 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
     const u = (t - tl.briefingEnd) / T.flyIn;
     // the arrows belong to the briefing: gone within the first moment of the flight (the run shows only the slats)
     const arrows = s.legs.map(() => Math.max(0, 1 - u * 8));
-    const eyes = povPose(start, t, shakeOf(s));
+    const eyes = { ...povPose(start, t, shakeOf(s)), fov: povFov(aspect) };
     const table = startTablePitch(s);
     if (table !== null) eyes.pitch = table;
     return { t, segment, camera: mixPose(briefingPose(s, tl.briefingEnd, aspect), eyes, u), arrows, rep: null, shooter: start };
   }
   if (segment === 'outro') {
-    return { t, segment, camera: { ...povPose(start, t, shakeOf(s)), fade: Math.min(0.6, (t - tl.stageEnd) / 1.2) }, arrows: null, rep: null, shooter: start };
+    return { t, segment, camera: { ...povPose(start, t, shakeOf(s)), fov: povFov(aspect), fade: Math.min(0.6, (t - tl.stageEnd) / 1.2) }, arrows: null, rep: null, shooter: start };
   }
-  return runFrameAt(s, tl.schedule, t - tl.flyInEnd, t, T.resetFade);
+  return runFrameAt(s, tl.schedule, t - tl.flyInEnd, t, T.resetFade, aspect);
 };
 
 /**
  * The shooter's view during the reps: `local` = seconds on the rep schedule (0 = its start),
  * `t` = the clock for the head movement. Also used by the TV, on the phone's schedule.
  */
-export const runFrameAt = (s: Stage3D, schedule: Schedule, local: number, t = local, resetFade = VIDEO_TIMING.resetFade): FrameState => {
+export const runFrameAt = (s: Stage3D, schedule: Schedule, local: number, t = local, resetFade = VIDEO_TIMING.resetFade, aspect = 16 / 9): FrameState => {
   const timing = stageTiming(s);
   const rep = snapshotAt(schedule, local, timing);
   const par = timing.parTime;
   // during the par window and the "TIME" second the shooter is on the path; then back to the start
   const onPath = rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1);
   const shooter = onPath ? shooterAt(s, Math.min(rep.sinceStart, par)) : shooterAt(s, 0);
-  const camera = povPose(shooter, t, shakeOf(s));
+  const camera = { ...povPose(shooter, t, shakeOf(s)), fov: povFov(aspect) };
   // walking back to the start between reps happens behind a short black fade
   if (rep.phase === 'reset' && s.positions.length > 1) {
     const back = rep.sinceStart - (par + 1);

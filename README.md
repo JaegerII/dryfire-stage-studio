@@ -122,6 +122,28 @@ On the match page, **Match settings** apply to that match only (stored in the ma
 mediabunny): 1080p / 1440p / 4K, 30 / 60 fps, with the beeps and the spoken "Stand by" mixed in sample-accurately.
 No screen recording, no OBS: the file is identical to the preview and renders much faster than real time on a desktop GPU.
 
+### Batch render (`npm run render`)
+
+Renders stage and match videos without opening the player — like the explainer shorts:
+a headless Chrome opens the studio at `#/render` and renders every video frame by frame,
+exactly like the player's **Render MP4** button (same reps, same sound). The file is
+written to disk while it renders (no size limit), by default to `D:/Dryfire-Videos`,
+as 16:9 **and** as a 9:16 short (1080 × 1920): HUD and screens sized to the narrow frame,
+the shooter's view a little taller so the targets left and right stay in the picture.
+
+```bash
+npm run render                                    # list stages and matches + options
+npm run render -- match_001                       # one match, 16:9 + 9:16
+npm run render -- match_001,stage_101 --format 16x9 --res 4K
+npm run render -- matches                         # every match that is not archived
+npm run render -- D:/exports/my_match.json        # a match / stage exported from the studio
+```
+
+Options: `--format both|16x9|9x16` · `--res 1080p|1440p|4K` · `--fps 30|60` ·
+`--out <folder>` · `--no-voice` · `--timer`. Stages and matches you made in the browser
+are stored in that browser: export them (Export JSON) and pass the file. Needs Chrome
+(or set `CHROME_PATH`); about 4× faster than real time at 1080p60.
+
 ## Online version (GitHub Pages)
 
 Every push to `main` builds the app and publishes it via `.github/workflows/deploy.yml`.

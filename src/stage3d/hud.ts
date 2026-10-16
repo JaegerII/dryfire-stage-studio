@@ -23,6 +23,13 @@ const FONT = 'Montserrat, ui-sans-serif, system-ui, sans-serif';
 /** Range commands: "Are you ready?" shows this long before STANDBY (as in the classic player). */
 const ASK_SECONDS = 1.6;
 
+/**
+ * Size unit of the HUD and the screens: 1 % of the frame height — for 16:9 and wider. A
+ * narrow frame (9:16 shorts) is limited by its width instead, so cards and texts still fit
+ * across (layout stays anchored to the edges and the centre).
+ */
+export const hudUnit = (W: number, H: number) => Math.min(H / 100, W / 110);
+
 type Project = (x: number, y: number, d: number) => { x: number; y: number } | null;
 
 const font = (ctx: CanvasRenderingContext2D, weight: number, px: number) => (ctx.font = `${weight} ${px}px ${FONT}`);
@@ -44,7 +51,7 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 /** Centre card: small line above, big command, red rule below. */
 const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small: string, big: string, color: string, rule = C.accent, alpha = 1) => {
-  const u = H / 100;
+  const u = hudUnit(W, H);
   ctx.save();
   ctx.globalAlpha = alpha;
   font(ctx, 900, 7.6 * u);
@@ -75,8 +82,7 @@ const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small:
   ctx.restore();
 };
 
-const pill = (ctx: CanvasRenderingContext2D, H: number, text: string, cx: number, cy: number, color: string, alpha: number) => {
-  const u = H / 100;
+const pill = (ctx: CanvasRenderingContext2D, u: number, text: string, cx: number, cy: number, color: string, alpha: number) => {
   ctx.save();
   ctx.globalAlpha = alpha;
   font(ctx, 800, 1.9 * u);
@@ -100,7 +106,7 @@ export interface HudOptions {
 }
 
 export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: FrameState, s: Stage3D, project: Project, o: HudOptions) => {
-  const u = H / 100;
+  const u = hudUnit(W, H);
   const par = s.legs.reduce((t, l) => t + l.after + l.duration, 0) + s.finalTime;
 
   // ---------------------------------------------------------------- briefing
@@ -123,10 +129,10 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     spaced(ctx, 'STAGE BRIEFING', 4 * u, 6.5 * u, 0.3 * 2 * u);
     font(ctx, 900, 6 * u);
     ctx.fillStyle = C.text;
-    ctx.fillText(s.name, 4 * u, 13 * u);
+    ctx.fillText(s.name, 4 * u, 13 * u, W - 8 * u);
     font(ctx, 600, 2.1 * u);
     ctx.fillStyle = C.sage;
-    ctx.fillText(`Par ${par.toFixed(1)} s · ${s.repetitions} reps · ${s.positions.length} positions`, 4 * u, 17.5 * u);
+    ctx.fillText(`Par ${par.toFixed(1)} s · ${s.repetitions} reps · ${s.positions.length} positions`, 4 * u, 17.5 * u, W - 8 * u);
     if (s.start) {
       // start condition: a strip under the title block
       font(ctx, 700, 1.7 * u);
@@ -142,7 +148,7 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     s.positions.forEach((p, i) => {
       const show = i === 0 ? a : Math.min(1, Math.max(0, ((f.arrows?.[i - 1] ?? 0) - 0.85) / 0.15)) * fadeOut;
       const q = project(p.x, 0.05, p.d);
-      if (q && show > 0) pill(ctx, H, p.label ?? `P${i + 1}`, q.x * W, q.y * H + 4 * u, i === 0 ? C.go : C.text, show);
+      if (q && show > 0) pill(ctx, u, p.label ?? `P${i + 1}`, q.x * W, q.y * H + 4 * u, i === 0 ? C.go : C.text, show);
     });
     s.legs.forEach((leg, i) => {
       const prog = f.arrows?.[i] ?? 0;
@@ -150,10 +156,10 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
       const mid = alongPath(legPath(s, i), 0.5);
       const q = project(mid.x, 0.05, mid.d);
       const text = leg.reload ? `MOVE · RELOAD · ${leg.duration} s` : `MOVE · ${leg.duration} s`;
-      if (q) pill(ctx, H, text, q.x * W, q.y * H - 4 * u, leg.reload ? C.standby : C.text, Math.min(1, (prog - 0.45) / 0.2) * fadeOut);
+      if (q) pill(ctx, u, text, q.x * W, q.y * H - 4 * u, leg.reload ? C.standby : C.text, Math.min(1, (prog - 0.45) / 0.2) * fadeOut);
       // when to go: seconds at the previous position
       const from = project(s.positions[i].x, 0.05, s.positions[i].d);
-      if (from) pill(ctx, H, `${leg.after} s`, from.x * W, from.y * H + 9 * u, C.sage, Math.min(1, (prog - 0.45) / 0.2) * fadeOut);
+      if (from) pill(ctx, u, `${leg.after} s`, from.x * W, from.y * H + 9 * u, C.sage, Math.min(1, (prog - 0.45) / 0.2) * fadeOut);
     });
   }
 
@@ -170,7 +176,8 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     ctx.textAlign = 'left';
     font(ctx, 800, 3.9 * u);
     ctx.fillStyle = C.text;
-    ctx.fillText(s.name, 3.6 * u, 7.4 * u);
+    // room for PAR / REP on the right
+    ctx.fillText(s.name, 3.6 * u, 7.4 * u, W - 34 * u);
     ctx.textAlign = 'right';
     const stat = (label: string, value: string, y: number) => {
       font(ctx, 800, 3.1 * u);
@@ -210,7 +217,7 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     if (r.phase === 'active' && f.shooter && f.shooter.leg >= 0) {
       const p = f.shooter.legProgress;
       const alpha = Math.min(1, p * 6, (1 - p) * 6);
-      pill(ctx, H, f.shooter.reloading ? 'MOVE · RELOAD' : 'MOVE', W / 2, H - 10 * u, f.shooter.reloading ? C.standby : C.text, alpha);
+      pill(ctx, u, f.shooter.reloading ? 'MOVE · RELOAD' : 'MOVE', W / 2, H - 10 * u, f.shooter.reloading ? C.standby : C.text, alpha);
     }
     if (o.showTimer && r.phase === 'active') {
       ctx.textAlign = 'center';

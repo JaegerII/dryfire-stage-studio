@@ -220,7 +220,7 @@ export const Player3D = ({ stages: stagesProp, matchName, settings, onExit }: Pr
     setProgress({ done: 0, total: 1, started });
     try {
       const r = await renderMp4(program, { width: w, height: h, fps, voice, showTimer, signal: ac.signal, onProgress: (done, total) => setProgress({ done, total, started }) });
-      downloadBlob(r.blob, `${title.replace(/[^\w-]+/g, '_')}_${res}_${fps}fps.mp4`);
+      if (r.blob) downloadBlob(r.blob, `${title.replace(/[^\w-]+/g, '_')}_${res}_${fps}fps.mp4`);
     } catch (e) {
       if (!(e instanceof RenderAborted)) alert(`Render failed: ${(e as Error).message}`);
     } finally {

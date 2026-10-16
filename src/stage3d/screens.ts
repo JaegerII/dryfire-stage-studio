@@ -2,11 +2,13 @@
  * Full-frame screens of a program, drawn on the HUD canvas (so they are part of the MP4):
  * FORTH TRACE logo, safety, the title card before every stage of a match, and the end.
  * Same look as the studio (Montserrat, accent red, sizes relative to the frame height).
+ * Laid out on a 100-unit high block (hudUnit), centred vertically: on a 9:16 short the
+ * same screens sit in the middle of the tall frame.
  */
 import { MARK_PATH, MARK_VIEWBOX } from '../assets/brand/mark';
 import topoUrl from '../assets/brand/topo.svg';
 import { ASSETS } from '../assets/registry';
-import { drawHud, type HudOptions } from './hud';
+import { drawHud, type HudOptions, hudUnit } from './hud';
 import type { Program, ProgramFrame } from './program';
 import type { Stage3D } from './types';
 import { parTime3D } from './types';
@@ -42,6 +44,12 @@ const spaced = (ctx: CanvasRenderingContext2D, text: string, x: number, y: numbe
     c.letterSpacing = '0px';
   } else ctx.fillText(text, x, y);
 };
+/** Size unit and the top of the 100-unit high block, centred in the frame. */
+const block = (W: number, H: number) => {
+  const u = hudUnit(W, H);
+  return { u, oy: (H - 100 * u) / 2 };
+};
+
 /** Fade in over the first 0.6 s of a screen. */
 const fadeIn = (local: number) => Math.min(1, local / 0.6);
 
@@ -51,7 +59,7 @@ const background = (ctx: CanvasRenderingContext2D, W: number, H: number, alpha =
 };
 
 const brandScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number) => {
-  const u = H / 100;
+  const { u, oy } = block(W, H);
   background(ctx, W, H);
   ctx.save();
   ctx.globalAlpha = fadeIn(local);
@@ -67,6 +75,7 @@ const brandScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
   v.addColorStop(1, 'rgba(5,6,5,0)');
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, W, H);
+  ctx.translate(0, oy);
   // mark
   const [, , vw, vh] = MARK_VIEWBOX.split(' ').map(Number);
   const mh = 21 * u;
@@ -91,16 +100,19 @@ const brandScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
 };
 
 const safetyScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number) => {
-  const u = H / 100;
+  const { u, oy } = block(W, H);
+  // a tall frame: smaller headline, the rules in one column
+  const narrow = W < 150 * u;
   background(ctx, W, H);
   ctx.save();
   ctx.globalAlpha = fadeIn(local);
+  ctx.translate(0, oy);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   font(ctx, 700, 2.3 * u);
   ctx.fillStyle = C.accent;
   spaced(ctx, '⚠ SAFETY FIRST', W / 2, 24 * u, 0.22);
-  font(ctx, 900, 8.4 * u);
+  font(ctx, 900, (narrow ? 6.4 : 8.4) * u);
   ctx.fillStyle = C.text;
   ctx.fillText('Your firearm must be', W / 2, 37 * u);
   // "unloaded" in red, the rest white, centred as one line
@@ -115,16 +127,17 @@ const safetyScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local
   ctx.fillText(b, W / 2 - (wa + wb) / 2 + wa, 46.5 * u);
   // rules: two columns under a hairline
   ctx.fillStyle = C.line;
-  ctx.fillRect(W / 2 - 70 * u, 55 * u, 140 * u, Math.max(1, 0.1 * u));
+  const half = narrow ? 46 * u : 70 * u;
+  ctx.fillRect(W / 2 - half, 55 * u, 2 * half, Math.max(1, 0.1 * u));
   SAFETY_RULES.forEach((r, i) => {
-    const x = W / 2 + (i % 2 === 0 ? -70 * u : 4 * u);
-    const y = 63 * u + Math.floor(i / 2) * 6 * u;
+    const x = narrow ? W / 2 - half : W / 2 + (i % 2 === 0 ? -70 * u : 4 * u);
+    const y = narrow ? 63 * u + i * 6 * u : 63 * u + Math.floor(i / 2) * 6 * u;
     font(ctx, 800, 2.5 * u);
     ctx.fillStyle = C.faint;
     ctx.fillText(`0${i + 1}`, x, y);
     font(ctx, 500, 2.5 * u);
     ctx.fillStyle = C.text;
-    ctx.fillText(r, x + 4.5 * u, y, 61 * u);
+    ctx.fillText(r, x + 4.5 * u, y, narrow ? 2 * half - 4.5 * u : 61 * u);
   });
   ctx.restore();
 };
@@ -145,7 +158,7 @@ const wrap = (ctx: CanvasRenderingContext2D, text: string, maxW: number) => {
 };
 
 const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number, stage: Stage3D, index: number, count: number, matchName?: string) => {
-  const u = H / 100;
+  const { u } = block(W, H);
   background(ctx, W, H);
   ctx.save();
   ctx.globalAlpha = fadeIn(local);
@@ -206,10 +219,11 @@ const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
 };
 
 const completeScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number, title: string, detail: string) => {
-  const u = H / 100;
+  const { u, oy } = block(W, H);
   background(ctx, W, H, Math.min(0.86, local / 0.8));
   ctx.save();
   ctx.globalAlpha = fadeIn(local);
+  ctx.translate(0, oy);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   font(ctx, 700, 2.3 * u);

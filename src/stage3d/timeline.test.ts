@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import proto from './stages/proto_01.json';
-import { EYE_HEIGHT, alongPath, briefingPose, buildVideoTimeline, frameAt, moveProfile, povPose, segmentAt, shooterAt, smoothPath } from './timeline';
+import { EYE_HEIGHT, POV_FOV, alongPath, briefingPose, buildVideoTimeline, frameAt, moveProfile, povFov, povPose, segmentAt, shooterAt, smoothPath } from './timeline';
 import { type Stage3D, parTime3D } from './types';
 
 const stage = proto as Stage3D;
@@ -111,5 +111,24 @@ describe('camera', () => {
     expect(frameAt(stage, tl, beep + 12 + 1 - 1e-3).camera.fade).toBeGreaterThan(0.95);
     expect(frameAt(stage, tl, beep + 12 + 1.05).camera.x).toBeCloseTo(-3.2, 1);
     expect(frameAt(stage, tl, beep + 12 + 2).camera.fade).toBe(0);
+  });
+});
+
+describe('9:16 shorts', () => {
+  const across = (fov: number, aspect: number) => (2 * Math.atan(Math.tan((fov * Math.PI) / 360) * aspect) * 180) / Math.PI;
+  it('keep the 16:9 view unchanged and most of its width in a tall frame', () => {
+    expect(povFov(16 / 9)).toBe(POV_FOV);
+    expect(povFov(21 / 9)).toBe(POV_FOV);
+    const tall = povFov(9 / 16);
+    expect(tall).toBeGreaterThan(POV_FOV);
+    expect(tall).toBeLessThanOrEqual(100);
+    // at least 60° across instead of the ~37° the 16:9 field of view would leave
+    expect(across(tall, 9 / 16)).toBeGreaterThan(60);
+  });
+
+  it('use that field of view in the shooter view', () => {
+    const run = tl.flyInEnd + 3;
+    expect(frameAt(stage, tl, run, 9 / 16).camera.fov).toBeCloseTo(povFov(9 / 16));
+    expect(frameAt(stage, tl, run).camera.fov).toBe(POV_FOV);
   });
 });
