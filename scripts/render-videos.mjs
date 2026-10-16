@@ -13,6 +13,7 @@
  *
  * Options: --format both|16x9|9x16 (both) · --res 1080p|1440p|4K (1080p) · --fps 30|60 (60)
  *          --out <folder> (D:/Dryfire-Videos) · --no-voice · --timer
+ *          --fast  no supersampling: about 3× quicker, for a quick look (edges and mesh shimmer)
  *
  * Stages and matches you made in the browser live in that browser: export them in the studio
  * (Export JSON) and pass the file.
@@ -36,6 +37,7 @@ const format = opt('--format', 'both');
 const outDir = resolve(opt('--out', 'D:/Dryfire-Videos'));
 const voice = !args.includes('--no-voice');
 const showTimer = args.includes('--timer');
+const fast = args.includes('--fast');
 if (!RES[res]) throw new Error(`--res must be ${Object.keys(RES).join(' | ')}`);
 if (![30, 60].includes(fps)) throw new Error('--fps must be 30 or 60');
 if (!['both', '16x9', '9x16'].includes(format)) throw new Error('--format must be both | 16x9 | 9x16');
@@ -121,6 +123,7 @@ npm run render -- <ids, comma separated | matches | stages | file.json> [options
   --fps 30|60               (60)          --out <folder>         (D:/Dryfire-Videos)
   --no-voice                no spoken "Stand by"
   --timer                   running time at the bottom
+  --fast                    quick preview: no supersampling (edges / mesh shimmer when moving)
 `);
     await done();
   }
@@ -156,7 +159,7 @@ npm run render -- <ids, comma separated | matches | stages | file.json> [options
         process.stdout.write(`\r${label}  ${(pct * 100).toFixed(0).padStart(3)} %${Number.isFinite(left) ? ` · ${Math.floor(left / 60)}:${String(Math.round(left % 60)).padStart(2, '0')} left` : ''}      `);
       };
       try {
-        const r = await page.evaluate((j) => window.__dryfire.render(j), { kind: job.kind, id: job.id, width: f.width, height: f.height, fps, voice, showTimer, file: key });
+        const r = await page.evaluate((j) => window.__dryfire.render(j), { kind: job.kind, id: job.id, width: f.width, height: f.height, fps, voice, showTimer, file: key, ...(fast ? { supersample: 1 } : {}) });
         closeSync(files.get(key));
         files.delete(key);
         const took = (Date.now() - t0) / 1000;

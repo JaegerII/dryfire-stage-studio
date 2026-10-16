@@ -9,7 +9,7 @@ import { matchRepository } from '../data/matchRepository';
 import { STANDBY_VOICE_LEAD } from '../utils/audioEngine';
 import { readImportFile, saveImportedMatch } from '../utils/matchIO';
 import { matchStages } from '../utils/matchUtils';
-import { renderMp4 } from './exportVideo';
+import { type RenderOptions, renderMp4 } from './exportVideo';
 import { buildProgram } from './program';
 import { stage3dRepository } from './repository';
 
@@ -23,6 +23,7 @@ export interface RenderJob {
   showTimer: boolean;
   /** Key of the file the script opened for this video. */
   file: string;
+  supersample?: RenderOptions['supersample'];
 }
 
 declare global {
@@ -76,6 +77,7 @@ const api = {
       voice: job.voice,
       showTimer: job.showTimer,
       stream: fileStream(job.file),
+      supersample: job.supersample,
       onProgress: (done, total) => window.__renderProgress?.(done, total),
     });
     return { codec: r.codec, audio: r.audio, seconds: program.end };

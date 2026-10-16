@@ -120,7 +120,7 @@ On the match page, **Match settings** apply to that match only (stored in the ma
 
 **Render MP4** in the player renders the stage or the whole match **frame by frame in the browser** (WebCodecs +
 mediabunny): 1080p / 1440p / 4K, 30 / 60 fps, with the beeps and the spoken "Stand by" mixed in sample-accurately.
-No screen recording, no OBS: the file is identical to the preview and renders much faster than real time on a desktop GPU.
+No screen recording, no OBS: the file is identical to the preview and renders about as fast as real time on a desktop GPU (1080p60, with supersampling).
 
 ### Batch render (`npm run render`)
 
@@ -140,9 +140,16 @@ npm run render -- D:/exports/my_match.json        # a match / stage exported fro
 ```
 
 Options: `--format both|16x9|9x16` · `--res 1080p|1440p|4K` · `--fps 30|60` ·
-`--out <folder>` · `--no-voice` · `--timer`. Stages and matches you made in the browser
+`--out <folder>` · `--no-voice` · `--timer` · `--fast`.
+
+Quality (also for the player's Render MP4 button): the 3D frame is rendered 2× larger and
+scaled down (1.5× above 1440p) — smooth edges, no shimmer or moiré on the barrier mesh while
+the camera moves — and encoded at up to 0.3 bit per pixel (≈ 21 Mbit/s at 1080p60, capped at
+80 Mbit/s), so the floor and the mesh do not break into blocks in motion. `--fast` skips the
+supersampling for a quick look (about 3× quicker). For YouTube, uploading 1440p or 4K also
+gets the 1080p viewers a better stream. Stages and matches you made in the browser
 are stored in that browser: export them (Export JSON) and pass the file. Needs Chrome
-(or set `CHROME_PATH`); about 4× faster than real time at 1080p60.
+(or set `CHROME_PATH`); 1080p60 renders a little faster than real time, 4K60 at about half speed.
 
 ## Online version (GitHub Pages)
 

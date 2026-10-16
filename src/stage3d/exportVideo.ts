@@ -23,7 +23,24 @@ export interface RenderOptions {
    * memory — a long match in 4K is gigabytes. The result's blob is null then.
    */
   stream?: WritableStream<StreamTargetChunk>;
+  /**
+   * The 3D frame is rendered this many times larger and scaled down (default: 2, 1.5 above
+   * 1440p): smooth edges, no shimmer / moiré on the barrier mesh and fine textures while the
+   * camera moves. 1 = fast (about 3× quicker).
+   */
+  supersample?: number;
 }
+
+/**
+ * Video bits per pixel and frame: 0.3 ≈ 21 Mbit/s at 1080p60. Lower rates smear the floor and
+ * the mesh into blocks while the camera moves (the encoder also undershoots the target). Capped
+ * at 80 Mbit/s — YouTube re-encodes anyway, above that the files only get bigger.
+ */
+const BITS_PER_PIXEL = 0.3;
+const MAX_BITRATE = 80e6;
+
+/** By the frame's short side: 4K would need an 8K render at 2×. */
+export const defaultSupersample = (shortSide: number) => (shortSide > 1440 ? 1.5 : 2);
 
 export class RenderAborted extends Error {}
 
@@ -34,25 +51,26 @@ export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: B
   const acodec = await getFirstEncodableAudioCodec(['aac', 'opus'], { numberOfChannels: 2, sampleRate: 48000 });
 
   // 3D frame on its own canvas, composited with the HUD onto the canvas that gets encoded
+  const ss = o.supersample ?? defaultSupersample(Math.min(W, H));
   const glCanvas = document.createElement('canvas');
-  glCanvas.width = W;
-  glCanvas.height = H;
+  glCanvas.width = W * ss;
+  glCanvas.height = H * ss;
   const scene = new StageScene3D(glCanvas);
   scene.renderer.setPixelRatio(1);
-  scene.setSize(W, H);
+  scene.setSize(W * ss, H * ss);
   await loadScreenAssets();
   let loaded = -1;
   const out = document.createElement('canvas');
   out.width = W;
   out.height = H;
   const ctx = out.getContext('2d')!;
+  ctx.imageSmoothingQuality = 'high';
 
   // in memory: the index (moov) goes in front, the file streams right away when played from a server
   const output = o.stream
     ? new Output({ format: new Mp4OutputFormat({ fastStart: false }), target: new StreamTarget(o.stream, { chunked: true }) })
     : new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target: new BufferTarget() });
-  // ~0.12 bit per pixel and frame: generous for YouTube's re-encode (4K60 ≈ 60 Mbit/s)
-  const video = new CanvasSource(out, { codec: vcodec, bitrate: Math.round(W * H * fps * 0.12), keyFrameInterval: 2 });
+  const video = new CanvasSource(out, { codec: vcodec, bitrate: Math.min(MAX_BITRATE, Math.round(W * H * fps * BITS_PER_PIXEL)), keyFrameInterval: 2 });
   output.addVideoTrack(video, { frameRate: fps });
   const audio = acodec ? new AudioBufferSource({ codec: acodec, bitrate: 192_000 }) : null;
   if (audio) output.addAudioTrack(audio);
@@ -80,7 +98,7 @@ export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: B
       if (showsScene(pf) && pf.frame) {
         scene.apply(pf.frame);
         scene.render();
-        ctx.drawImage(glCanvas, 0, 0);
+        ctx.drawImage(glCanvas, 0, 0, W, H);
       }
       drawProgramHud(ctx, W, H, p, pf, project, { showTimer: o.showTimer });
       await video.add(t, 1 / fps);
