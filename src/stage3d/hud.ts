@@ -49,15 +49,15 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.roundRect(x, y, w, h, r);
 };
 
-/** Centre card: small line above, big command, red rule below. */
-const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small: string, big: string, color: string, rule = C.accent, alpha = 1) => {
+/** Centre card: small line above, big command, red rule below — and a countdown under it. */
+const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small: string, big: string, color: string, rule = C.accent, alpha = 1, count?: string) => {
   const u = hudUnit(W, H);
   ctx.save();
   ctx.globalAlpha = alpha;
   font(ctx, 900, 7.6 * u);
   const bigW = ctx.measureText(big).width + big.length * 0.09 * 7.6 * u;
   const w = Math.max(52 * u, bigW + 12 * u);
-  const h = 17 * u;
+  const h = count === undefined ? 17 * u : 27 * u;
   const x = (W - w) / 2;
   const y = (H - h) / 2;
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
@@ -79,6 +79,11 @@ const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small:
   spaced(ctx, big.toUpperCase(), W / 2, y + 12 * u, 0.09 * 7.6 * u);
   ctx.fillStyle = rule;
   ctx.fillRect(W / 2 - 3 * u, y + 14 * u, 6 * u, 0.35 * u);
+  if (count !== undefined) {
+    font(ctx, 900, 8 * u);
+    ctx.fillStyle = C.text;
+    ctx.fillText(count, W / 2, y + 24 * u);
+  }
   ctx.restore();
 };
 
@@ -207,9 +212,11 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     // centre command (same cues as the classic player)
     const cue = afterEnd ? 'time' : (r.phase === 'ready' || r.phase === 'reset') && r.untilStandby <= ASK_SECONDS ? 'ask' : r.phase;
     const rep = `Rep ${Math.max(1, r.rep)} / ${s.repetitions}`;
-    if (cue === 'ready') commandCard(ctx, W, H, rep, 'Make Ready', C.sage);
+    // MAKE READY counts down to the first STANDBY (on through "Are you ready?")
+    const count = r.phase === 'ready' && Number.isFinite(r.untilStandby) ? String(Math.max(1, Math.ceil(r.untilStandby))) : undefined;
+    if (cue === 'ready') commandCard(ctx, W, H, rep, 'Make Ready', C.sage, C.accent, 1, count);
     else if (cue === 'reset') commandCard(ctx, W, H, rep, 'Reset', C.sage);
-    else if (cue === 'ask') commandCard(ctx, W, H, rep, 'Are you ready?', C.text);
+    else if (cue === 'ask') commandCard(ctx, W, H, rep, 'Are you ready?', C.text, C.accent, 1, count);
     else if (cue === 'standby') commandCard(ctx, W, H, rep, 'Standby', C.standby, C.standby);
     else if (cue === 'time') commandCard(ctx, W, H, rep, 'Time', C.accent);
 
@@ -219,11 +226,26 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
       const alpha = Math.min(1, p * 6, (1 - p) * 6);
       pill(ctx, u, f.shooter.reloading ? 'MOVE · RELOAD' : 'MOVE', W / 2, H - 10 * u, f.shooter.reloading ? C.standby : C.text, alpha);
     }
-    if (o.showTimer && r.phase === 'active') {
-      ctx.textAlign = 'center';
-      font(ctx, 800, 6 * u);
-      ctx.fillStyle = C.text;
-      ctx.fillText(r.elapsed.toFixed(2), W / 2, H - 4.2 * u);
+    // running time: top right under PAR / REP (stops and turns red at TIME)
+    if (o.showTimer && (r.phase === 'active' || afterEnd)) {
+      const text = r.elapsed.toFixed(2);
+      font(ctx, 800, 5.4 * u);
+      const tw = ctx.measureText('00.00').width;
+      const bw = Math.max(tw, ctx.measureText(text).width) + 3.6 * u;
+      const bh = 7.4 * u;
+      const bx = W - 3.6 * u - bw;
+      const by = 13 * u;
+      ctx.fillStyle = 'rgba(10, 11, 10, 0.82)';
+      roundRect(ctx, bx, by, bw, bh, 1.2 * u);
+      ctx.fill();
+      ctx.strokeStyle = afterEnd ? C.accent : C.go;
+      ctx.lineWidth = 0.18 * u;
+      ctx.stroke();
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = afterEnd ? C.accent : C.text;
+      ctx.fillText(text, W - 3.6 * u - 1.8 * u, by + bh / 2 + 0.3 * u);
+      ctx.textBaseline = 'alphabetic';
     }
     // par progress bar
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
