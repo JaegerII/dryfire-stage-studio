@@ -52,6 +52,17 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
           <input type="checkbox" checked={o.shown?.until !== undefined} onChange={(e) => set({ shown: window_(o.shown, { until: e.target.checked ? parTime3D(stage) : undefined }) })} />
           {o.shown?.until !== undefined && <NumberField value={o.shown.until} min={0} max={120} step={0.25} digits={2} onChange={(until) => set({ shown: window_(o.shown, { until }) })} />}
         </Row>
+        <Row label="Briefing note" hint="Red pen circle around it in the briefing, with this text — e.g. where the first shot goes for an activator">
+          <input type="checkbox" checked={o.note !== undefined} onChange={(e) => set({ note: e.target.checked ? 'FIRST SHOT' : undefined })} />
+          {o.note !== undefined && (
+            <input list="p3d-note-presets" value={o.note} placeholder="FIRST SHOT" onChange={(e) => set({ note: e.target.value })} />
+          )}
+          <datalist id="p3d-note-presets">
+            {NOTE_PRESETS.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        </Row>
         <div className="actions">
           <button onClick={onDuplicate}>Duplicate</button>
           <button className="danger" onClick={onDelete}>Delete</button>
@@ -187,6 +198,9 @@ const window_ = (w: { from?: number; until?: number } | undefined, patch: { from
   if (next.until === undefined) delete next.until;
   return Object.keys(next).length ? next : undefined;
 };
+
+/** Briefing notes offered in the note field (any text works). */
+const NOTE_PRESETS = ['FIRST SHOT', 'ACTIVATOR', 'LAST SHOT', 'NO SHOOT', 'STRONG HAND', 'WEAK HAND'];
 
 /** Common start conditions of practical shooting stages. */
 const START_PRESETS = [

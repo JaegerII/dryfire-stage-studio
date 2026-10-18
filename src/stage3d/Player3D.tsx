@@ -124,7 +124,7 @@ export const Player3D = ({ stages: stagesProp, matchName, settings, onExit }: Pr
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, hud.width, hud.height);
       }
-      drawProgramHud(ctx, hud.width, hud.height, program, pf, s.project.bind(s), { showTimer });
+      drawProgramHud(ctx, hud.width, hud.height, program, pf, s.project.bind(s), { showTimer, box: s.screenBox.bind(s) });
     },
     [program, ready, box.width, box.height, showTimer],
   );

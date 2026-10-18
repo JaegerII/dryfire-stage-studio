@@ -375,6 +375,20 @@ export const PlanView = ({ stage, selection, onSelect, onUpdate, onCommit, tool,
             </text>
           ) : null,
         )}
+        {/* briefing notes: the red circle the briefing draws */}
+        {objects.map((o) => {
+          if (o.note === undefined) return null;
+          const f = prints[o.type] ?? FALLBACK[category(o.type)];
+          const r = (Math.max(f.x1 - f.x0, f.z1 - f.z0) / 2) * (o.scale ?? 1) + 0.35;
+          return (
+            <g key={`n${o.id}`} className="plan-note">
+              <circle cx={o.x} cy={-o.d} r={r} />
+              <text x={o.x + r * 0.75} y={-o.d - r * 0.8}>
+                {o.note}
+              </text>
+            </g>
+          );
+        })}
 
         {/* rotation handle of a single selected object: behind it (downrange) */}
         {singleSel &&

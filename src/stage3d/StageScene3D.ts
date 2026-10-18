@@ -727,6 +727,24 @@ export class StageScene3D {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /** Screen rectangle (normalised 0..1) of an object as it is drawn now, null when it is not in front of the camera. */
+  screenBox(objectId: string) {
+    const g = this.stageGroup.children.find((c) => c.userData.objectId === objectId);
+    if (!g) return null;
+    const b = new THREE.Box3().setFromObject(g);
+    if (b.isEmpty()) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const v = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(this.camera);
+      if (v.z > 1) return null;
+      x0 = Math.min(x0, v.x);
+      x1 = Math.max(x1, v.x);
+      y0 = Math.min(y0, v.y);
+      y1 = Math.max(y1, v.y);
+    }
+    return { x0: (x0 + 1) / 2, x1: (x1 + 1) / 2, y0: (1 - y1) / 2, y1: (1 - y0) / 2 };
+  }
+
   /** World point (meters: x, height, downrange) → normalised screen position (0..1), null if behind the camera. */
   project(x: number, y: number, d: number) {
     const v = new THREE.Vector3(x, y, -d).project(this.camera);

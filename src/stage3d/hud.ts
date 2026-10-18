@@ -108,7 +108,71 @@ const pill = (ctx: CanvasRenderingContext2D, u: number, text: string, cx: number
 
 export interface HudOptions {
   showTimer: boolean;
+  /** Screen rectangle (0..1) of an object in the current view — for the briefing notes. */
+  box?: (objectId: string) => { x0: number; y0: number; x1: number; y1: number } | null;
 }
+
+/** Small stable number per id: every note circle wobbles a little differently. */
+const seedOf = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) / 997;
+
+/**
+ * A briefing note: a red circle as if drawn with a marker around the object, drawn on
+ * over `p` (0..1), slightly overshooting its start; the text next to it once it is closed.
+ */
+const penNote = (ctx: CanvasRenderingContext2D, W: number, H: number, u: number, box: { x0: number; y0: number; x1: number; y1: number }, text: string, seed: number, p: number, alpha: number) => {
+  const cx = ((box.x0 + box.x1) / 2) * W;
+  const cy = ((box.y0 + box.y1) / 2) * H;
+  const rx = Math.max(((box.x1 - box.x0) * W) / 2, 2.4 * u) * 1.28 + 0.8 * u;
+  const ry = Math.max(((box.y1 - box.y0) * H) / 2, 2.4 * u) * 1.16 + 0.8 * u;
+  const tilt = (-0.14 + seed * 0.1);
+  const a0 = -2.2 + seed * 0.8;
+  const sweep = Math.PI * 2 * 1.12 * p;
+  const point = (a: number) => {
+    // wobble + a slow spiral: the end does not meet the start, like a quick hand
+    const k = 1 + 0.045 * Math.sin(3 * a + seed * 9) + 0.025 * Math.sin(7 * a + seed * 4) + 0.05 * ((a - a0) / (Math.PI * 2));
+    const x = Math.cos(a) * rx * k;
+    const y = Math.sin(a) * ry * k;
+    return [cx + x * Math.cos(tilt) - y * Math.sin(tilt), cy + x * Math.sin(tilt) + y * Math.cos(tilt)];
+  };
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = 0.8 * u;
+  if (p > 0) {
+    // marker: a full stroke and a thinner, lighter one beside it (ink runs unevenly)
+    for (const [w, off, a] of [[0.62, 0, 0.95], [0.3, 0.22, 0.55]]) {
+      ctx.beginPath();
+      const steps = Math.max(8, Math.ceil(90 * p));
+      for (let i = 0; i <= steps; i++) {
+        const [x, y] = point(a0 + (sweep * i) / steps);
+        if (i) ctx.lineTo(x + off * u, y + off * u);
+        else ctx.moveTo(x + off * u, y + off * u);
+      }
+      ctx.strokeStyle = `rgba(255, 49, 49, ${a})`;
+      ctx.lineWidth = w * u;
+      ctx.stroke();
+    }
+  }
+  // the note, written next to the circle (above right, or above left at the right edge)
+  const t = Math.min(1, Math.max(0, (p - 0.85) / 0.15));
+  if (t > 0 && text) {
+    ctx.globalAlpha = alpha * t;
+    font(ctx, 900, 3 * u);
+    const tw = ctx.measureText(text.toUpperCase()).width + text.length * 0.08 * 3 * u;
+    const right = cx + rx * 0.7 + tw < W - 2 * u;
+    ctx.translate(right ? cx + rx * 0.62 : cx - rx * 0.62, cy - ry * 0.92);
+    ctx.rotate(-0.09);
+    ctx.textAlign = right ? 'left' : 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.shadowBlur = 1.2 * u;
+    ctx.shadowColor = 'rgba(0,0,0,0.75)';
+    ctx.fillStyle = C.accent;
+    spaced(ctx, text.toUpperCase(), 0, 0, 0.08 * 3 * u);
+  }
+  ctx.restore();
+};
 
 export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: FrameState, s: Stage3D, project: Project, o: HudOptions) => {
   const u = hudUnit(W, H);
@@ -166,6 +230,16 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
       const from = project(s.positions[i].x, 0.05, s.positions[i].d);
       if (from) pill(ctx, u, `${leg.after} s`, from.x * W, from.y * H + 9 * u, C.sage, Math.min(1, (prog - 0.45) / 0.2) * fadeOut);
     });
+    // notes: drawn on one after the other once the stage is on screen
+    if (o.box) {
+      s.objects
+        .filter((x) => x.note !== undefined)
+        .forEach((x, k) => {
+          const box = o.box!(x.id);
+          const p = Math.min(1, Math.max(0, (f.t - 1.1 - k * 0.6) / 0.75));
+          if (box && p > 0) penNote(ctx, W, H, u, box, x.note ?? '', seedOf(x.id), p, fadeOut);
+        });
+    }
   }
 
   // ---------------------------------------------------------------- stage

@@ -100,7 +100,7 @@ export const renderMp4 = async (p: Program, o: RenderOptions): Promise<{ blob: B
         scene.render();
         ctx.drawImage(glCanvas, 0, 0, W, H);
       }
-      drawProgramHud(ctx, W, H, p, pf, project, { showTimer: o.showTimer });
+      drawProgramHud(ctx, W, H, p, pf, project, { showTimer: o.showTimer, box: scene.screenBox.bind(scene) });
       await video.add(t, 1 / fps);
       if (i % 15 === 0) {
         o.onProgress?.(i, total);

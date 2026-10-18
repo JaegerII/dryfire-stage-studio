@@ -36,6 +36,11 @@ export interface StageObject3D {
    * briefing always show it.
    */
   shown?: { from?: number; until?: number };
+  /**
+   * Briefing note: the briefing draws a red pen circle around the object and writes this
+   * next to it (e.g. "FIRST SHOT" on the target that starts an activator).
+   */
+  note?: string;
 }
 
 export interface ShooterPosition {
