@@ -82,11 +82,14 @@ FOCUS = (AIM - CAM).length
 # The look of each map: sky, ground, trees, haze, exposure, bark
 LOOKS = {
     'buche_herbst': dict(hdri='autumn_forest_02', ground='autumn', trees='beech', season='autumn', fog_d=420.0,
-                         fog_col='#b4b6ae', exposure=0.35, sky_fog=0.2, bark=(0.22, 3.0, '#ffffff'), props=True),
+                         fog_col='#b4b6ae', exposure=0.35, sky_fog=0.2, bark=(0.3, 2.3, '#eceeec'), bark_tex='Bark005',
+                         props=True),
     'buche_winter': dict(hdri='snowy_forest', ground='snow', trees='beech', season='winter', fog_d=300.0,
-                         fog_col='#c4c8ca', exposure=0.05, sky_fog=0.3, bark=(0.18, 2.6, '#ffffff'), props=False),
+                         fog_col='#c4c8ca', exposure=0.05, sky_fog=0.3, bark=(0.25, 2.1, '#e8eaea'), bark_tex='Bark005',
+                         props=False),
     'fichte': dict(hdri='schachen_forest', ground='needles', trees='spruce', season='autumn', fog_d=380.0,
-                   fog_col='#a8aca4', exposure=0.75, sky_fog=0.2, bark=(0.55, 1.5, '#a07e66'), props=True),
+                   fog_col='#a8aca4', exposure=0.75, sky_fog=0.2, bark=(0.85, 1.0, '#ffffff'), bark_tex='Bark014',
+                   props=True, scans=True),
 }
 LOOK = LOOKS[MAP]
 # horizontal field of view, deg: 16:9 -> stand 1.3 x the screen width away for 1:1 angles; 9:16 shorts are
@@ -324,7 +327,7 @@ def bark_material():
     mp = N.new('ShaderNodeMapping')
     mp.inputs['Scale'].default_value = (1.2, 1.2, 0.6)
     L.new(tc.outputs['Object'], mp.inputs['Vector'])
-    dp, np_, rp = forest_maps('trident_maple_bark')
+    dp, np_, rp = forest_maps(LOOK['bark_tex'])
 
     def t(p, nc):
         n = tex_node(N, L, mp.outputs['Vector'], p, nc)
@@ -465,15 +468,18 @@ def ground(mat, rect=(-120, 120, -120, 300), step=1.0):
     return mesh_from_bm('ground', bm, [mat])
 
 
-def tube(bm, pts, radii, sides):
-    """Tapered tube along a polyline (open ends: they sit inside the parent branch / end in a point)."""
+def tube(bm, pts, radii, sides, lobes=None):
+    """Tapered tube along a polyline (open ends: they sit inside the parent branch / end in a point).
+    lobes: (count, phase, [amplitude per ring]) — root buttresses flaring out at the foot."""
     rings = []
     up = Vector((0, 0, 1))
     for i, p in enumerate(pts):
         d = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
         a = d.cross(up if abs(d.dot(up)) < 0.95 else Vector((1, 0, 0))).normalized()
         c = d.cross(a)
-        rings.append([bm.verts.new(p + (a * math.cos(t) + c * math.sin(t)) * radii[i])
+        amp = lobes[2][i] if lobes and i < len(lobes[2]) else 0.0
+        rings.append([bm.verts.new(p + (a * math.cos(t) + c * math.sin(t)) * radii[i]
+                                   * (1 + amp * max(0.0, math.cos(lobes[0] * t + lobes[1])) ** 2 if amp else 1.0))
                       for t in (k * 2 * math.pi / sides for k in range(sides))])
     for r0, r1 in zip(rings, rings[1:]):
         for k in range(sides):
@@ -497,6 +503,7 @@ class Tree:
         self.leafless = leafless
         # export: a third of the leaves, a little bigger (own generator: the branching stays the same)
         self.keep = random.Random(seed + 77) if EXPORT else None
+        self.twig_rng = random.Random(seed + 99)
         self.wood = bmesh.new()
         self.leaves = bmesh.new()
         self.leaf_size, self.spray, self.spacing, self.droop = leaf_size, spray, spacing, droop
@@ -516,7 +523,10 @@ class Tree:
             dirs.append(dv)
         tube(self.wood, pts, rad, sides[min(level, 3)])
         if level >= maxlevel:
-            self.sprays(pts, dirs)
+            if self.leafless:
+                self.twigs(pts, dirs)
+            else:
+                self.sprays(pts, dirs)
             return pts
         kids = max(1, int(length / (0.55 if level else 0.9)))
         for _ in range(kids):
@@ -528,6 +538,22 @@ class Tree:
             cd = (dirs[i] * 0.55 + side.normalized()).normalized()
             self.branch(base, cd, length * rng.uniform(0.3, 0.55), rad[i] * 0.55, level + 1, maxlevel)
         return pts
+
+    def twigs(self, pts, dirs):
+        """Bare crown: 3–6 thin, slightly zigzagging shoots along the outer part of each end branch
+        (not in the live preview's export: too fine to see there, and heavy)."""
+        if EXPORT:
+            return
+        rng = self.twig_rng           # own generator: the branching is the same with or without twigs
+        for _ in range(rng.randint(3, 6)):
+            i = rng.randint(len(pts) // 2, len(pts) - 2)
+            p = pts[i]
+            d = (dirs[i] + Vector((rng.gauss(0, 0.6), rng.gauss(0, 0.6), rng.gauss(0.15, 0.4)))).normalized()
+            q = [p]
+            for _k in range(3):
+                d = (d + Vector((rng.gauss(0, 0.35), rng.gauss(0, 0.35), rng.gauss(0, 0.2)))).normalized()
+                q.append(q[-1] + d * rng.uniform(0.12, 0.22))
+            tube(self.wood, q, [0.006, 0.0045, 0.003, 0.0015], 3)
 
     def sprays(self, pts, dirs):
         """Beech sprays: flat, roughly horizontal fans of leaves along the outer part of each twig."""
@@ -580,7 +606,8 @@ class Tree:
 
 
 def trunk(t, height, r0, lean):
-    """Main stem: slightly leaning, gently wavy, tapered; returns its polyline."""
+    """Main stem: slightly leaning, gently wavy, tapered, with a flared foot and root buttresses running
+    into the ground; returns its polyline (above the foot) and radii."""
     rng = t.rng
     n = max(6, int(height / 1.5))
     pts, rad = [Vector((0, 0, -0.4))], [r0 * 1.25]
@@ -590,7 +617,12 @@ def trunk(t, height, r0, lean):
         pts.append(pts[-1] + d * ((height + 0.4) / n))
         f = i / n
         rad.append(r0 * (1 - 0.88 * f) * (1.25 if i == 1 else 1.0))
-    tube(t.wood, pts, rad, 14)
+    tube(t.wood, pts, rad, 18)
+    if r0 > 0.06:
+        # the foot: 0.1 m below ground to 1 m up, wider and lobed (4–6 buttresses)
+        foot = [Vector((0, 0, z)) for z in (-0.1, 0.05, 0.25, 0.55, 1.0)]
+        fr = [r0 * k for k in (1.9, 1.6, 1.32, 1.14, 1.02)]
+        tube(t.wood, foot, fr, 36, (rng.randint(4, 6), rng.uniform(0, 6.3), (0.55, 0.42, 0.22, 0.08, 0.0)))
     return pts, rad
 
 
@@ -699,6 +731,41 @@ def spruce_young(seed, coll, bark, leafmat):
     return spruce(seed, coll, bark, leafmat, (1.2, 4.0), (0.02, 0.05), 0.03, sprays=9)
 
 
+_SCANS = {}
+
+
+def scan_fn(mid, mult):
+    """A Poly Haven tree file as a forest kind. Each file holds three trees side by side (a, b, c): split
+    into one collection per tree, centred on its foot, scaled by `mult`; successive calls cycle a, b, c."""
+    def fn(*_a):
+        raise RuntimeError('scan kinds are instanced, not built')
+    state = {'i': 0}
+
+    def scan():
+        if mid not in _SCANS:
+            c = import_gltf(mid)
+            variants = []
+            for o in sorted([o for o in c.objects if o.type == 'MESH'], key=lambda o: o.name):
+                mw = o.matrix_world.copy()
+                o.parent = None
+                o.matrix_world = mw
+                bb = [mw @ Vector(v) for v in o.bound_box]
+                cx, cy = sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8
+                vc = collection(f'src_{o.name}')
+                for uc in list(o.users_collection):
+                    uc.objects.unlink(o)
+                vc.objects.link(o)
+                o.location = Vector((o.location.x - cx, o.location.y - cy, o.location.z)) * mult
+                o.scale = o.scale * mult
+                variants.append(vc)
+            _SCANS[mid] = variants
+        v = _SCANS[mid][state['i'] % len(_SCANS[mid])]
+        state['i'] += 1
+        return v
+    fn.scan = scan
+    return fn
+
+
 def collection(name, hidden=True):
     c = bpy.data.collections.new(name)
     bpy.context.scene.collection.children.link(c)
@@ -737,11 +804,11 @@ def in_view_corridor(x, y):
     """Keep every stand's line of sight down the lane open for the first meters, and the stand itself free."""
     for cam, aim in STANDS:
         v = Vector((x, y)) - cam.xy
-        if v.length < 2.5:
+        if v.length < 5.0:
             return True
         a = (aim.xy - cam.xy).normalized()
         along = v.dot(a)
-        if 0 < along < 17 and abs(v.x * a.y - v.y * a.x) < 0.6 + along * 0.38:
+        if 0 < along < 20 and abs(v.x * a.y - v.y * a.x) < 1.5 + along * 0.45:
             return True
     return False
 
@@ -755,12 +822,20 @@ def build_forest():
     ground(ground_material())
     forest = collection('forest', hidden=False)
     kinds = {}
-    kind_fns = ((('big', spruce_big, 6), ('pole', spruce_pole, 7), ('sap', spruce_young, 6), ('sap', sapling, 4))
+    scans = LOOK.get('scans') and not EXPORT
+    kind_fns = ((('big', scan_fn('fir_tree_01', 1.4), 6), ('pole', scan_fn('fir_sapling_medium', 1.0), 7),
+                 ('sap', scan_fn('fir_sapling', 1.6), 6), ('sap', sapling, 4)) if scans else
+                (('big', spruce_big, 6), ('pole', spruce_pole, 7), ('sap', spruce_young, 6), ('sap', sapling, 4))
                 if LOOK['trees'] == 'spruce' else (('big', big_beech, 7), ('pole', pole_beech, 8), ('sap', sapling, 10)))
     for kind, fn, n in kind_fns:
         kinds.setdefault(kind, [])
         for _ in range(n):
             i = len(kinds[kind])
+            if getattr(fn, 'scan', None):
+                # one scanned model, listed n times so the scatter draws the same random numbers as with n
+                # procedural variants (the live preview's trees stand where the render's do)
+                kinds[kind].append(fn.scan())
+                continue
             c = collection(f'src_{kind}_{i}')
             fn(1000 * len(kinds) + i, c, bark, leaves)
             kinds[kind].append(c)
@@ -797,7 +872,9 @@ def build_forest():
                                         ('dry_branches_medium_01', 160, 3.2, 60, (0.8, 1.4)),
                                         ('bark_debris_01', 90, 3.0, 60, (0.8, 1.3)),
                                         ('moss_01', 120, 3.0, 40, (0.8, 1.6)),
-                                        ('fern_02', 40, 4.5, 40, (0.6, 1.0))):
+                                        ('fern_02', 40, 4.5, 40, (0.6, 1.0)),
+                                        ('tree_stump_01', 18, 4.2, 35, (0.8, 1.2)),
+                                        ('tree_stump_02', 18, 4.2, 35, (0.8, 1.2))):
         if not LOOK['props'] and mid in ('moss_01', 'fern_02', 'bark_debris_01'):
             continue
         src = import_gltf(mid)

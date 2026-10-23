@@ -1,7 +1,8 @@
-// Downloads the CC0 forest assets (Poly Haven textures, models, HDRIs) the driven-hunt scenes use,
+// Downloads the CC0 forest assets (Poly Haven textures, models, HDRIs; ambientCG bark) the driven-hunt scenes use,
 // into public/tex/forest (not committed — run once).
 //   node scripts/fetch-forest.mjs
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const OUT = 'public/tex/forest';
@@ -22,7 +23,15 @@ const MODELS = {
   fern_02: '1k',
   moss_01: '1k',
   bark_debris_01: '1k',
+  // photo-scanned conifers for the spruce lane (render only — the live preview keeps its light trees)
+  fir_tree_01: '1k',
+  fir_sapling_medium: '1k',
+  fir_sapling: '1k',
+  tree_stump_01: '1k',
+  tree_stump_02: '1k',
 };
+/** ambientCG bark (CC0), 2K: Bark005 smooth grey (beech), Bark014 scaly red-brown (spruce). */
+const AMBIENT = ['Bark005', 'Bark014'];
 const HDRIS = { autumn_forest_02: '4k', snowy_forest: '4k', schachen_forest: '4k' };
 
 const get = async (url, file) => {
@@ -52,6 +61,23 @@ for (const [id, res] of Object.entries(MODELS)) {
 for (const [id, res] of Object.entries(HDRIS)) {
   console.log(`hdri ${id} (${res}) ...`);
   await get(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${id}_${res}.hdr`, join(OUT, `${id}.hdr`));
+}
+
+for (const id of AMBIENT) {
+  const dir = join(OUT, id);
+  if (existsSync(join(dir, `${id}_diff.jpg`))) continue;
+  console.log(`ambientCG ${id} ...`);
+  const tmp = join(OUT, `.${id}`);
+  mkdirSync(tmp, { recursive: true });
+  await get(`https://ambientcg.com/get?file=${id}_2K-JPG.zip`, join(tmp, 'a.zip'));
+  const tar = process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+  execSync(`"${tar}" -xf "${join(tmp, 'a.zip')}" -C "${tmp}"`);
+  mkdirSync(dir, { recursive: true });
+  for (const f of readdirSync(tmp)) {
+    const m = f.match(/_2K-JPG_(Color|NormalGL|Roughness)\.jpg$/);
+    if (m) copyFileSync(join(tmp, f), join(dir, `${id}_${{ Color: 'diff', NormalGL: 'nor_gl', Roughness: 'rough' }[m[1]]}.jpg`));
+  }
+  rmSync(tmp, { recursive: true, force: true });
 }
 
 console.log('forest assets ready in', OUT);
