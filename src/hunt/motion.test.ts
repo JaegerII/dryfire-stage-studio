@@ -18,12 +18,27 @@ describe('driven hunt motion (mirrors hunt.py)', () => {
   });
 
   it('parks animals before their start and after they have crossed', () => {
-    const s = { crossings: [{ id: 'a', at: 5, animals: ['keiler'], gait: 'trot', speed: 4, distance: 30, direction: 'rtl', seed: 1 }] } as unknown as HuntScenario;
+    const s = { map: 'buche_herbst', stand: 0, crossings: [{ id: 'a', at: 5, animals: ['keiler'], gait: 'trot', speed: 4, distance: 30, direction: 'rtl', seed: 1 }] } as unknown as HuntScenario;
     const [a] = scenarioTracks(s, '16x9');
     expect(a.dir).toBe(-1);
     expect(poseAt(a, 4).visible).toBe(false);
     expect(poseAt(a, 7).visible).toBe(true);
     expect(poseAt(a, 7).x).toBeLessThan(a.x0);
     expect(poseAt(a, 60).visible).toBe(false);
+  });
+});
+
+describe('stands and maps', () => {
+  it('crosses the lane at the given distance from any stand, "from the left" as the hunter sees it', async () => {
+    const { crossingLine } = await import('./rules');
+    const { standView, laneX } = await import('./maps');
+    for (const stand of [0, 1, 2] as const) {
+      const st = standView('buche_herbst', stand);
+      const l = crossingLine('buche_herbst', stand, 40);
+      expect(Math.hypot(laneX('buche_herbst', l.y) - st.x, l.y - st.y)).toBeCloseTo(40, 1);
+    }
+    // stand 3 looks back down the lane: from the left = towards −x
+    const back = { map: 'buche_herbst', stand: 2, crossings: [{ id: 'a', at: 0, animals: ['keiler'], gait: 'trot', speed: 4, distance: 30, direction: 'ltr', seed: 1 }] } as unknown as HuntScenario;
+    expect(scenarioTracks(back, '16x9')[0].dir).toBe(-1);
   });
 });

@@ -196,3 +196,18 @@ Gemessen: Beispiel-Szenario (3 Anläufe, 1 Rotte à 7) in Vorschau-Qualität (96
 Plate ≈ 20 s. Final (1080p, 256 Samples) grob ×4–6.
 
 Offen: Ton (Horn, Hundelaut), Wind, Rot-/Damwild, Wintervariante, gekaufte Tiermodelle optional.
+
+## 9. Stand 23.10.2026 (abends): Bedienung wie der Match-Builder
+
+- **Drückjagd ≙ Match** (`Hunt`): bis zu 9 Szenarien in Spielreihenfolge, eine Freigabe für die ganze Jagd,
+  Briefing an/aus, Archiv, Duplizieren. Seite `#/hunt/<id>`: Szenarien ordnen/hinzufügen/entfernen, die ganze Jagd
+  live in 3D abspielen (Briefing → je Szenario Titelkarte + Treiben → Auflösung), alle Szenarien nacheinander in
+  Blender rendern, ein MP4 der ganzen Jagd exportieren.
+- **Szenario ≙ Stage** (`HuntScenario`): Revier (Karte) + einer von 3 Ständen + Anläufe. Editor mit Revier- und
+  Stand-Kacheln (Vorschaubilder aus Blender), Plan mit allen drei Ständen (klicken = wechseln).
+- **Karten** (`src/hunt/maps.json`, von Blender und Studio gelesen): Buchenschneise Herbst, Buchenschneise Winter
+  (Schnee, Altbuchen kahl, Verjüngung mit trockenem Laub), Fichtenschneise (prozedurale Fichten). Je 3 Stände:
+  links am Schneisenrand, rechts weiter vorn (Blick schräg über die Schneise), Gegenrichtung.
+- Blender: `hunt.py ... map=<id> stand=<0..2>`; `thumbs` (Stand-Vorschaubilder), `export3d map=<id> [boars=1]`
+  (3D-Daten je Karte unter `public/3d/hunt/<map>/`). Neue Karte = Eintrag in maps.json + Look in `LOOKS` (hunt.py)
+  und `LOOK` (HuntScene3D.ts), dann `thumbs` + `export3d`.

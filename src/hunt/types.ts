@@ -1,13 +1,20 @@
 /**
  * Driven hunt (Drückjagd): you sit on a stand at the edge of a forest lane, game crosses it, you
  * identify it (ansprechen), decide whether it is released (Freigabe), swing with it and take the shot —
- * or don't. A scenario is a list of crossings on one timeline; the lane and the animals are rendered
- * offline in Blender (tools/plate-renderer/blender/hunt.py) through the local render service.
+ * or don't. Built like the IPSC match builder:
  *
- * Lane geometry (meters, same as hunt.py): x to the right, y down the lane; the stand's eye is at
- * x = −6.5, y = 0, 3.3 m up, looking down the lane; the lane centre line bends right after 30 m.
+ *   HuntScenario  ≙ stage: a map (Revier) + one of its three stands + crossings on one timeline
+ *   Hunt          ≙ match: up to nine scenarios played as one session / one video, one release for all
+ *
+ * The lane and the animals are rendered offline in Blender (tools/plate-renderer/blender/hunt.py) through
+ * the local render service; the editor shows the same scene live in three.js.
+ * Lane geometry (meters, same as hunt.py): x to the right, y down the lane; maps and stands: maps.json.
  */
-export const SCHEMA_HUNT = 1;
+import type { MapId, StandIndex } from './maps';
+
+export const SCHEMA_HUNT = 2;
+/** A hunt plays at most this many scenarios. */
+export const MAX_SCENARIOS = 9;
 
 export type GameClass = 'keiler' | 'bache' | 'ueberlaeufer' | 'frischling' | 'frischling_gestreift';
 export type Gait = 'trot' | 'gallop';
@@ -37,14 +44,15 @@ export interface Crossing {
   gait: Gait;
   /** m/s */
   speed: number;
-  /** Meters from the stand down the lane where the animals cross. */
+  /** Meters from the stand to where the animals cross the lane. */
   distance: number;
+  /** As the hunter on the stand sees it: from the left / from the right. */
   direction: Direction;
   /** Seed of the sounder's order, spacing and sizes (same seed → same picture). */
   seed: number;
 }
 
-/** The hunt master's release (Freigabe) for the drive. */
+/** The hunt master's release (Freigabe). */
 export interface HuntRelease {
   keiler: boolean;
   /** Only sows without young: a sow with piglets in the sounder is never released (parent protection). */
@@ -57,11 +65,14 @@ export interface HuntRelease {
   maxDistance: number;
 }
 
+/** A scenario (≙ stage): one stand on one map, crossings on one timeline. */
 export interface HuntScenario {
   schema: typeof SCHEMA_HUNT;
   id: string;
   name: string;
-  lane: 'buche_herbst';
+  map: MapId;
+  stand: StandIndex;
+  /** Release when the scenario plays on its own; inside a hunt the hunt's release applies. */
   release: HuntRelease;
   crossings: Crossing[];
   /** Seconds the answer card (identification, release, lead) stays up after each crossing; 0 = only at the end. */
@@ -70,4 +81,16 @@ export interface HuntScenario {
   meta?: { updatedAt?: string };
 }
 
-export const LANES = { buche_herbst: 'Schneise · Buchenwald im Herbst' } as const;
+/** A driven hunt (≙ match): scenarios in play order with one release. */
+export interface Hunt {
+  schema: typeof SCHEMA_HUNT;
+  id: string;
+  name: string;
+  description?: string;
+  scenarioIds: string[];
+  release: HuntRelease;
+  /** Briefing screen before the first scenario (default on). */
+  intro?: boolean;
+  archived?: boolean;
+  meta?: { updatedAt?: string };
+}

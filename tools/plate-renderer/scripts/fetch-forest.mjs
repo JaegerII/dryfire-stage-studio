@@ -13,6 +13,7 @@ const TEXTURES = {
   stony_dirt_path: '2k', // gravel track
   trident_maple_bark: '2k', // smooth bark, tinted grey → beech
   snow_02: '2k', // winter variant
+  forest_leaves_04: '2k', // needle litter (spruce lane)
 };
 /** Poly Haven model id → resolution (glTF). */
 const MODELS = {
@@ -22,7 +23,7 @@ const MODELS = {
   moss_01: '1k',
   bark_debris_01: '1k',
 };
-const HDRIS = { autumn_forest_02: '4k', snowy_forest: '4k' };
+const HDRIS = { autumn_forest_02: '4k', snowy_forest: '4k', schachen_forest: '4k' };
 
 const get = async (url, file) => {
   if (existsSync(file)) return;

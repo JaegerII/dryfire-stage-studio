@@ -9,7 +9,7 @@
  *   POST /__hunt/cancel
  *   GET  /__hunt/files/<key>/plate.png | crops.json | crops/NNNN.png
  *
- * Pipeline (tools/plate-renderer/blender): the empty lane is rendered once per format and quality
+ * Pipeline (tools/plate-renderer/blender): the empty lane is rendered once per map, stand, format and quality
  * (hunt.py plate, cached), then only the animals, cropped frame by frame (hunt.py game), then the
  * crops get their feathered edge as alpha (hunt_compose.py rgba). The studio lays them onto the plate.
  * One job at a time (one GPU). An unchanged scenario is not rendered again.
@@ -26,6 +26,7 @@ const BLENDER = process.env.BLENDER ?? 'D:/Tools/blender-5.2.2-windows-x64/blend
 const FORMATS = { '16x9': [1920, 1080], '9x16': [1080, 1920] };
 const QUALITY = { preview: { scale: 0.5, samples: 64 }, final: { scale: 1, samples: 256 } };
 const KINDS = new Set(['keiler', 'bache', 'ueberlaeufer', 'frischling', 'frischling_gestreift']);
+const MAPS = JSON.parse(readFileSync(resolve('src/hunt/maps.json'), 'utf8'));
 const KEY_RE = /^[\w-]{1,80}$/;
 const MAX_BODY = 256 * 1024;
 
@@ -37,7 +38,10 @@ const cleanScenario = (s) => {
     return n;
   };
   if (!s || !Array.isArray(s.crossings) || s.crossings.length > 40) throw new Error('no crossings');
+  if (!MAPS[s.map] || ![0, 1, 2].includes(s.stand)) throw new Error('unknown map / stand');
   return {
+    map: s.map,
+    stand: s.stand,
     duration: num(s.duration, 1, 1800),
     crossings: s.crossings.map((c) => {
       if (!Array.isArray(c.animals) || !c.animals.length || c.animals.length > 16 || !c.animals.every((k) => KINDS.has(k))) throw new Error('bad animals');
@@ -83,7 +87,9 @@ const startJob = async ({ key, scenario, format, quality }) => {
   const w = Math.round(fw * q.scale);
   const h = Math.round(fh * q.scale);
   const common = [`w=${w}`, `h=${h}`, `samples=${q.samples}`];
-  const plateDir = join(OUT, 'plates', `buche_herbst_${format}_${quality}`);
+  // the empty lane: once per map, stand, format and quality
+  const plateDir = join(OUT, 'plates', `${scenario.map}_${scenario.stand + 1}_${format}_${quality}`);
+  common.push(`map=${scenario.map}`, `stand=${scenario.stand}`);
   const dir = join(OUT, 'jobs', `${key}_${format}_${quality}`);
   const hash = createHash('sha1').update(JSON.stringify(scenario)).digest('hex').slice(0, 12);
   job = { key: `${key}_${format}_${quality}`, phase: 'plate', done: 0, total: 0, error: null, started: Date.now(), finished: null, width: w, height: h, proc: null, cancelled: false };

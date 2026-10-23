@@ -3,7 +3,7 @@
  * animate_boar) on the same PRNG (mulberry32), so the live 3D preview shows the sounder exactly as
  * Blender renders it. Lane coordinates (meters): x right, y down the lane, z up.
  */
-import { AIM, HFOV, STAND } from './rules';
+import { crossingLine } from './rules';
 import type { GameClass, Gait, HuntFormat, HuntScenario } from './types';
 
 /** mulberry32 (hunt.py: Mulberry). */
@@ -91,15 +91,14 @@ export interface AnimalTrack {
 }
 
 /** hunt.py scenario_game: every animal of every crossing. */
-export const scenarioTracks = (s: HuntScenario, format: HuntFormat): AnimalTrack[] => {
+export const scenarioTracks = (s: Pick<HuntScenario, 'map' | 'stand' | 'crossings'>, format: HuntFormat): AnimalTrack[] => {
   const tracks: AnimalTrack[] = [];
   let n = 0;
   for (const c of s.crossings) {
     const rng = mulberry(c.seed);
-    const y = c.distance;
-    const half = Math.tan((HFOV[format] * Math.PI) / 360) * (y - STAND.y) + 4;
-    const xc = STAND.x + ((AIM.x - STAND.x) * (y - STAND.y)) / (AIM.y - STAND.y);
-    const dir = c.direction === 'ltr' ? 1 : -1;
+    const { y, xc, half, look } = crossingLine(s.map, s.stand, c.distance, format);
+    // "from the left" as the hunter sees it: looking back down the lane, left is +x
+    const dir = ((c.direction === 'ltr' ? 1 : -1) * look) as 1 | -1;
     const xStart = xc - dir * half;
     const xEnd = xc + dir * half;
     for (const a of rotteLayout(c.animals, rng)) {

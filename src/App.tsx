@@ -9,12 +9,13 @@ import { stage3dRepository } from './stage3d/repository';
 import { matchStages } from './utils/matchUtils';
 import { TRACE_TABS, TraceApp, type TraceTab } from './trace/TraceApp';
 import { HuntHome } from './hunt/HuntHome';
-import { huntRepository } from './hunt/repository';
+import { huntRepository, scenarioRepository } from './hunt/repository';
 
 // three.js + the encoder only load when the editor or the player opens
 const Editor3D = lazy(() => import('./stage3d/editor/Editor3D').then((m) => ({ default: m.Editor3D })));
 const Player3D = lazy(() => import('./stage3d/Player3D').then((m) => ({ default: m.Player3D })));
 const HuntEditor = lazy(() => import('./hunt/HuntEditor').then((m) => ({ default: m.HuntEditor })));
+const HuntMatchPage = lazy(() => import('./hunt/HuntMatchPage').then((m) => ({ default: m.HuntMatchPage })));
 const TvReceiver = lazy(() => import('./trace/tv/TvReceiver').then((m) => ({ default: m.TvReceiver })));
 
 /**
@@ -29,8 +30,10 @@ const TvReceiver = lazy(() => import('./trace/tv/TvReceiver').then((m) => ({ def
  *   #/training/<program>        run a training program
  *   #/trace[/<tab>]             FORTH TRACE on the phone: training, live tracking, analysis, settings
  *   #/tv[/<room>]               TV renderer that joins a phone's training session
- *   #/hunt                      driven-hunt scenarios (Drückjagd)
- *   #/hunt/<id>                 driven-hunt editor: crossings, release, render in Blender, MP4
+ *   #/hunt                      driven hunts (Drückjagd, ≙ matches) and all their scenarios (≙ stages)
+ *   #/hunt/<id>                 one hunt: its scenarios, release, play / render / MP4 of the whole hunt
+ *   #/hunt/<id>/edit/<scenario> edit a scenario of that hunt (map, stand, crossings)
+ *   #/hunt-scenario/<scenario>  edit a scenario on its own
  * Old links of the 3D beta (#/3d, #/3d/edit/<id>, #/3d/play/<id>) lead to the same pages.
  */
 type View =
@@ -42,7 +45,8 @@ type View =
   | { page: 'trace'; tab: TraceTab }
   | { page: 'tv'; room?: string }
   | { page: 'hunts' }
-  | { page: 'hunt'; huntId: string };
+  | { page: 'hunt'; huntId: string }
+  | { page: 'huntScenario'; scenarioId: string; huntId?: string };
 
 /** What the player shows on top of the page: one stage, or a whole match. */
 type Playing = { kind: 'stage'; id: string } | { kind: 'match'; id: string };
@@ -62,7 +66,9 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
   if ((m = hash.match(/^#\/training\/(.+)$/)) && programById(dec(m[1]))) return { view: { page: 'program', programId: dec(m[1]) }, playing: null };
   if (hash === '#/training') return { view: { page: 'training' }, playing: null };
   if (hash === '#/hunt') return { view: { page: 'hunts' }, playing: null };
-  if ((m = hash.match(/^#\/hunt\/(.+)$/))) return { view: { page: 'hunt', huntId: dec(m[1]) }, playing: null };
+  if ((m = hash.match(/^#\/hunt\/([^/]+)\/edit\/(.+)$/))) return { view: { page: 'huntScenario', huntId: dec(m[1]), scenarioId: dec(m[2]) }, playing: null };
+  if ((m = hash.match(/^#\/hunt\/([^/]+)$/))) return { view: { page: 'hunt', huntId: dec(m[1]) }, playing: null };
+  if ((m = hash.match(/^#\/hunt-scenario\/(.+)$/))) return { view: { page: 'huntScenario', scenarioId: dec(m[1]) }, playing: null };
   if ((m = hash.match(/^#\/trace(?:\/([a-z]+))?$/))) {
     const tab = (TRACE_TABS as string[]).includes(m[1] ?? '') ? (m[1] as TraceTab) : 'training';
     return { view: { page: 'trace', tab }, playing: null };
@@ -82,6 +88,7 @@ const toHash = (view: View, playing: Playing | null) => {
   if (view.page === 'tv') return view.room ? `#/tv/${enc(view.room)}` : '#/tv';
   if (view.page === 'hunts') return '#/hunt';
   if (view.page === 'hunt') return `#/hunt/${enc(view.huntId)}`;
+  if (view.page === 'huntScenario') return view.huntId ? `#/hunt/${enc(view.huntId)}/edit/${enc(view.scenarioId)}` : `#/hunt-scenario/${enc(view.scenarioId)}`;
   return '#/';
 };
 
@@ -107,7 +114,7 @@ export const App = () => {
   /** Navigate to another page — asks first when the editor has unsaved changes. */
   const go = useCallback(
     (next: View) => {
-      if ((view.page === 'edit' || view.page === 'hunt') && editorDirty.current && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
+      if ((view.page === 'edit' || view.page === 'huntScenario') && editorDirty.current && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
       editorDirty.current = false;
       setState({ view: next, playing: null });
     },
@@ -146,19 +153,50 @@ export const App = () => {
           onOpenHunt={() => go({ page: 'hunts' })}
         />
       )}
-      {view.page === 'hunts' && <HuntHome onHome={() => go({ page: 'home' })} onOpen={(id) => go({ page: 'hunt', huntId: id })} />}
+      {view.page === 'hunts' && (
+        <HuntHome
+          onHome={() => go({ page: 'home' })}
+          onOpenHunt={(id) => go({ page: 'hunt', huntId: id })}
+          onOpenScenario={(id) => go({ page: 'huntScenario', scenarioId: id })}
+        />
+      )}
       {view.page === 'hunt' && (
         <Suspense fallback={<Loading />}>
+          <HuntMatchPage
+            key={`hunt:${view.huntId}`}
+            huntId={view.huntId}
+            onHome={() => go({ page: 'hunts' })}
+            onOpenHunt={(id) => go({ page: 'hunt', huntId: id })}
+            onOpenScenario={(id) => go({ page: 'huntScenario', scenarioId: id, huntId: view.huntId })}
+          />
+        </Suspense>
+      )}
+      {view.page === 'huntScenario' && (
+        <Suspense fallback={<Loading />}>
           {(() => {
-            const h = huntRepository.get(view.huntId);
-            return h ? (
-              <HuntEditor key={`hunt:${view.huntId}`} initial={h} onExit={() => go({ page: 'hunts' })} onDirtyChange={onDirty} />
-            ) : (
-              <div className="page">
-                <p className="hint empty">
-                  Diese Drückjagd gibt es nicht (mehr). <button onClick={() => go({ page: 'hunts' })}>Zurück</button>
-                </p>
-              </div>
+            const sc = scenarioRepository.get(view.scenarioId);
+            const hunt = view.huntId ? huntRepository.get(view.huntId) : undefined;
+            const back = () => go(hunt ? { page: 'hunt', huntId: hunt.id } : { page: 'hunts' });
+            if (!sc)
+              return (
+                <div className="page">
+                  <p className="hint empty">
+                    Dieses Szenario gibt es nicht (mehr). <button onClick={back}>Zurück</button>
+                  </p>
+                </div>
+              );
+            const ids = hunt?.scenarioIds ?? [];
+            const i = ids.indexOf(view.scenarioId);
+            const to = (j: number) => () => go({ page: 'huntScenario', scenarioId: ids[j], huntId: hunt!.id });
+            return (
+              <HuntEditor
+                key={`hs:${view.scenarioId}`}
+                initial={sc}
+                hunt={hunt}
+                onExit={back}
+                onDirtyChange={onDirty}
+                nav={hunt && i >= 0 && ids.length > 1 ? { index: i, count: ids.length, onPrev: i > 0 ? to(i - 1) : undefined, onNext: i < ids.length - 1 ? to(i + 1) : undefined } : undefined}
+              />
             );
           })()}
         </Suspense>

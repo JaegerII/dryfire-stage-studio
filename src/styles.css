@@ -570,3 +570,16 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .hunt-player .hp-error { position: absolute; left: 16px; bottom: 16px; color: var(--standby); font-size: 12px; }
 .hunt-player .hp-view { display: inline-flex; gap: 2px; margin-left: auto; }
 .hunt-player .hp-view button.on { border-color: var(--accent); color: #fff; }
+.hunt-editor .stand-list { display: grid; gap: 6px; }
+.hunt-plan .hp-stand { cursor: pointer; }
+.hunt-scenarios .hs-thumb { width: 128px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 5px; }
+.hunt-page .hunt-page-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.4fr); }
+.hunt-page .hunt-page-left { overflow-y: auto; padding: 22px; border-right: 1px solid var(--line); display: grid; gap: 10px; align-content: start; }
+.hunt-page .hunt-page-left h3 { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+.hunt-page .hunt-page-right { overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+.hunt-page .hunt-page-right .hunt-player { flex: none; display: block; }
+.hunt-page .hunt-page-right .hp-screen { height: 52vh; }
+.hunt-page .hunt-page-left textarea { min-height: 48px; }
+.hunt-page .hunt-page-right .render-box { padding: 0 22px 22px; }
+.hunt-page .add-row { flex-wrap: wrap; gap: 6px; }
+.hunt-page .add-row select { max-width: 220px; }

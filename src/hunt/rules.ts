@@ -6,16 +6,12 @@
  *   protection, § 22 (4) BJagdG; the lead sow is never shot) → the class's release.
  * Timing mirrors hunt.py: animals start just outside one frame edge and run to just outside the other.
  */
+import { type MapId, type StandIndex, laneX, standView } from './maps';
 import { type Crossing, GAME_CLASSES, type GameClass, type HuntFormat, type HuntRelease } from './types';
 
-/** Stand and view, as in hunt.py. */
-export const STAND = { x: -6.5, y: 0, eye: 3.3 };
-export const AIM = { x: 0, y: 35 };
 export const HFOV: Record<HuntFormat, number> = { '16x9': 42, '9x16': 30 };
 /** Mean bullet speed over 30–60 m for the lead estimate (m/s). */
 export const BULLET_SPEED = 800;
-
-export const laneX = (y: number) => 0.0005 * Math.max(0, y - 30) ** 2;
 
 export interface AnimalVerdict {
   kind: GameClass;
@@ -57,11 +53,34 @@ export const groupLength = (animals: GameClass[]) =>
   animals.reduce((s, k) => s + 1.65 * GAME_CLASSES[k].scale, 0) + Math.max(0, animals.length - 1) * 0.9;
 
 /**
+ * Where game crosses the lane `d` meters from the stand (hunt.py crossing_line): the lane station y,
+ * centre and half width of the view at that depth (+4 m: animals start / end just outside the frame),
+ * and which way the stand looks along the lane (+1 / −1).
+ */
+export const crossingLine = (map: MapId, stand: StandIndex, d: number, format: HuntFormat = '16x9') => {
+  const s = standView(map, stand);
+  const [ax, ay] = s.aim;
+  const look = ay >= s.y ? 1 : -1;
+  let lo = 0;
+  let hi = 250;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    const yy = s.y + look * mid;
+    if (Math.hypot(laneX(map, yy) - s.x, yy - s.y) < d) lo = mid;
+    else hi = mid;
+  }
+  const y = s.y + look * lo;
+  const half = Math.tan((HFOV[format] * Math.PI) / 360) * Math.abs(y - s.y) + 4;
+  const xc = s.x + ((ax - s.x) * (y - s.y)) / (ay - s.y);
+  return { y, xc, half, look };
+};
+
+/**
  * When the crossing is on screen: from the lead animal entering the frame to the last one leaving it
  * (estimated; the render's crop rects give the exact frames).
  */
 export const crossingWindow = (c: Crossing, format: HuntFormat = '16x9') => {
-  const half = Math.tan((HFOV[format] * Math.PI) / 360) * (c.distance - STAND.y);
+  const half = Math.tan((HFOV[format] * Math.PI) / 360) * c.distance;
   const enter = c.at + 4 / c.speed;
   const leave = c.at + (2 * half + 4 + groupLength(c.animals)) / c.speed;
   return { enter, leave, run: c.at + (2 * half + 8.5 + groupLength(c.animals)) / c.speed };

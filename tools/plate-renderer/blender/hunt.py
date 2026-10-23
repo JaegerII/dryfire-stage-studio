@@ -71,20 +71,35 @@ class Mulberry:
 
 # ------------------------------------------------------------------ lane layout
 
-CAM = Vector((-6.5, 0.0, 3.3))     # eye on the stand, at the left edge of the lane
-AIM = Vector((0.0, 35.0, 0.6))
-FOCUS = 35.0
+# Maps and their three stands are shared with the studio (src/hunt/maps.json): lane bend, stand eye, aim.
+MAPS = json.load(open(os.path.join(S.HERE, '..', '..', '..', 'src', 'hunt', 'maps.json'), encoding='utf-8'))
+MAP = OPT.get('map', 'buche_herbst')
+STAND_I = int(OPT.get('stand', 0))
+LANE_A, LANE_Y0 = MAPS[MAP]['lane']['a'], MAPS[MAP]['lane']['y0']
+STANDS = [(Vector((st['x'], st['y'], st['eye'])), Vector(st['aim'])) for st in MAPS[MAP]['stands']]
+CAM, AIM = STANDS[STAND_I]           # eye on the stand, and where it looks down the lane
+FOCUS = (AIM - CAM).length
+# The look of each map: sky, ground, trees, haze, exposure, bark
+LOOKS = {
+    'buche_herbst': dict(hdri='autumn_forest_02', ground='autumn', trees='beech', season='autumn', fog_d=420.0,
+                         fog_col='#b4b6ae', exposure=0.35, sky_fog=0.2, bark=(0.22, 3.0, '#ffffff'), props=True),
+    'buche_winter': dict(hdri='snowy_forest', ground='snow', trees='beech', season='winter', fog_d=300.0,
+                         fog_col='#c4c8ca', exposure=0.05, sky_fog=0.3, bark=(0.18, 2.6, '#ffffff'), props=False),
+    'fichte': dict(hdri='schachen_forest', ground='needles', trees='spruce', season='autumn', fog_d=380.0,
+                   fog_col='#a8aca4', exposure=0.75, sky_fog=0.2, bark=(0.55, 1.5, '#a07e66'), props=True),
+}
+LOOK = LOOKS[MAP]
 # horizontal field of view, deg: 16:9 -> stand 1.3 x the screen width away for 1:1 angles; 9:16 shorts are
 # narrower (the same 42 deg would make the frame mostly sky and leaf litter)
 HFOV = 42.0 if W >= H else 30.0
-FOG_D = 420.0                       # m, haze: 1 - exp(-d / FOG_D)
-FOG_COL = '#b4b6ae'
+FOG_D = LOOK['fog_d']               # m, haze: 1 - exp(-d / FOG_D)
+FOG_COL = LOOK['fog_col']
 CROSS_Y = 35.0                      # where the boar crosses the lane
 
 
 def lane_x(y):
     """Centre line of the lane; it bends away to the right in the distance like the reference photo."""
-    return 0.0005 * max(0.0, y - 30.0) ** 2
+    return LANE_A * max(0.0, y - LANE_Y0) ** 2
 
 
 def smoothstep(e0, e1, x):
@@ -162,6 +177,21 @@ def forest_maps(tid):
     return [os.path.join(FOREST, tid, f'{tid}_{k}.jpg') for k in ('diff', 'nor_gl', 'rough')]
 
 
+# forest floor / verge / track per map: (layer, Poly Haven texture, tile m, saturation, value, tint)
+GROUND_LAYERS = {
+    'autumn': (('litter', 'dry_decay_leaves', 2.2, 1.0, 1.05, '#ffffff'),
+               ('moss', 'forest_leaves_02', 2.6, 0.85, 0.95, '#ffffff'),
+               ('gravel', 'stony_dirt_path', 2.8, 0.15, 2.1, '#efe2cc')),
+    # snow everywhere; the verge a little bluer, the wheel tracks trodden grey
+    'snow': (('litter', 'snow_02', 2.6, 0.5, 1.0, '#ffffff'),
+             ('moss', 'snow_02', 3.4, 0.5, 0.95, '#eef2f6'),
+             ('gravel', 'snow_02', 2.0, 0.3, 0.8, '#d6d9dc')),
+    'needles': (('litter', 'forest_leaves_04', 2.4, 0.85, 0.9, '#ffffff'),
+                ('moss', 'forest_leaves_02', 2.6, 0.95, 0.95, '#ffffff'),
+                ('gravel', 'stony_dirt_path', 2.8, 0.15, 2.0, '#efe2cc')),
+}
+
+
 def ground_material(fog=True):
     """Leaf litter in the forest, moss + leaves on the verges, light gravel on the track (with a mossy
     centre strip), all keyed off the distance to the lane's centre line."""
@@ -183,8 +213,8 @@ def ground_material(fog=True):
                 L.new(v, n.inputs[i])
         return n.outputs[0]
 
-    t = math('MAXIMUM', math('SUBTRACT', sep.outputs['Y'], 30.0), 0.0)
-    xc = math('MULTIPLY', math('MULTIPLY', t, t), 0.0005)
+    t = math('MAXIMUM', math('SUBTRACT', sep.outputs['Y'], LANE_Y0), 0.0)
+    xc = math('MULTIPLY', math('MULTIPLY', t, t), LANE_A)
     d = math('ABSOLUTE', math('SUBTRACT', sep.outputs['X'], xc))
     wn = N.new('ShaderNodeTexNoise')
     wn.inputs['Scale'].default_value = 0.35
@@ -214,11 +244,7 @@ def ground_material(fog=True):
         return mp.outputs['Vector']
 
     layers = {}
-    for key, tid, tile, sat, val, tint in (
-        ('litter', 'dry_decay_leaves', 2.2, 1.0, 1.05, '#ffffff'),
-        ('moss', 'forest_leaves_02', 2.6, 0.85, 0.95, '#ffffff'),
-        ('gravel', 'stony_dirt_path', 2.8, 0.15, 2.1, '#efe2cc'),
-    ):
+    for key, tid, tile, sat, val, tint in GROUND_LAYERS[LOOK['ground']]:
         dp, np_, rp = forest_maps(tid)
         v = uv(tile, len(layers) * 0.37)
         c = tex_node(N, L, v, dp)
@@ -307,9 +333,16 @@ def bark_material():
         return n
     c = t(dp, False)
     hs = N.new('ShaderNodeHueSaturation')
-    hs.inputs['Saturation'].default_value = 0.22
-    hs.inputs['Value'].default_value = 3.0
+    hs.inputs['Saturation'].default_value = LOOK['bark'][0]
+    hs.inputs['Value'].default_value = LOOK['bark'][1]
     L.new(c.outputs['Color'], hs.inputs['Color'])
+    bt = N.new('ShaderNodeMix')
+    bt.data_type = 'RGBA'
+    bt.blend_type = 'MULTIPLY'
+    bt.inputs['Factor'].default_value = 1.0
+    L.new(hs.outputs['Color'], bt.inputs['A'])
+    bt.inputs['B'].default_value = hex_rgba(LOOK['bark'][2])
+    hs = bt
     # algae: noise, strongest near the foot of the trunk
     nz = N.new('ShaderNodeTexNoise')
     nz.inputs['Scale'].default_value = 1.6
@@ -331,7 +364,7 @@ def bark_material():
     mx = N.new('ShaderNodeMix')
     mx.data_type = 'RGBA'
     L.new(am.outputs[0], mx.inputs['Factor'])
-    L.new(hs.outputs['Color'], mx.inputs['A'])
+    L.new(hs.outputs['Result'], mx.inputs['A'])
     mx.inputs['B'].default_value = hex_rgba('#4e5a34')
     L.new(mx.outputs['Result'], b.inputs['Base Color'])
     nm = N.new('ShaderNodeNormalMap')
@@ -366,7 +399,9 @@ def plain(name, color, rough=0.6):
     return m if EXPORT else fogify(m)
 
 
-def world(hdri='autumn_forest_02', strength=1.0, rotation=0.0, sky_fog=0.2):
+def world(hdri=None, strength=1.0, rotation=0.0, sky_fog=None):
+    hdri = hdri or LOOK['hdri']
+    sky_fog = LOOK['sky_fog'] if sky_fog is None else sky_fog
     w = bpy.data.worlds.new('World')
     bpy.context.scene.world = w
     w.use_nodes = True
@@ -416,7 +451,7 @@ def mesh_from_bm(name, bm, mats, coll=None):
     return link(bpy.data.objects.new(name, me), coll)
 
 
-def ground(mat, rect=(-120, 120, -30, 300), step=1.0):
+def ground(mat, rect=(-120, 120, -120, 300), step=1.0):
     """Displaced grid over the forest block (render: 1 m cells, whole block)."""
     bm = bmesh.new()
     x0, x1, y0, y1 = rect
@@ -455,15 +490,18 @@ LEAF = [(0.0, 0.0), (0.22, 0.30), (0.62, 0.34), (1.0, 0.0), (0.62, -0.34), (0.22
 class Tree:
     """Recursive branch generator: wood tubes + flat leaf sprays (one ngon per leaf)."""
 
-    def __init__(self, seed, leaf_size=0.085, spray=6, spacing=0.14, droop=(0.0, 0.03, 0.08, 0.12)):
+    def __init__(self, seed, leaf_size=0.085, spray=6, spacing=0.14, droop=(0.0, 0.03, 0.08, 0.12), palette=None,
+                 shape=None, leafless=False):
         self.rng = random.Random(seed)
+        self.shape = shape or LEAF
+        self.leafless = leafless
         # export: a third of the leaves, a little bigger (own generator: the branching stays the same)
         self.keep = random.Random(seed + 77) if EXPORT else None
         self.wood = bmesh.new()
         self.leaves = bmesh.new()
         self.leaf_size, self.spray, self.spacing, self.droop = leaf_size, spray, spacing, droop
         self.cols = []
-        palette = [c for c, w in LEAF_COLS for _ in range(w)]
+        palette = [c for c, w in (palette or LEAF_COLS) for _ in range(w)]
         self.palette = [hex_rgba(c) for c in palette]
 
     def branch(self, p0, d, length, r0, level, maxlevel, sides=(10, 6, 5, 4)):
@@ -493,6 +531,8 @@ class Tree:
 
     def sprays(self, pts, dirs):
         """Beech sprays: flat, roughly horizontal fans of leaves along the outer part of each twig."""
+        if self.leafless:
+            return
         rng = self.rng
         total = sum((b - a).length for a, b in zip(pts, pts[1:]))
         s = total * 0.25
@@ -512,11 +552,13 @@ class Tree:
                 c = p + ax * rng.uniform(0.0, 0.12) + side * rng.gauss(0, 0.04)
                 col = list(rng.choice(self.palette))
                 j = rng.uniform(0.8, 1.15)
-                if self.keep and self.keep.random() > 0.33:
+                # export: a third of the leaves (an eighth of the needle sprays), bigger to keep the crown's fill
+                share = 0.12 if self.shape is NEEDLE else 0.33
+                if self.keep and self.keep.random() > share:
                     continue
                 if self.keep:
-                    size *= 1.6
-                vs = [self.leaves.verts.new(c + (ax * u + side * v) * size) for u, v in (LEAF[::2] if self.keep else LEAF)]
+                    size *= 1.6 if share > 0.2 else 2.4
+                vs = [self.leaves.verts.new(c + (ax * u + side * v) * size) for u, v in (self.shape[::2] if self.keep and len(self.shape) > 4 else self.shape)]
                 self.leaves.faces.new(vs)
                 self.cols.append((col[0] * j, col[1] * j, col[2] * j, 1.0))
             s += self.spacing * rng.uniform(0.7, 1.3)
@@ -552,8 +594,13 @@ def trunk(t, height, r0, lean):
     return pts, rad
 
 
+# winter: old beech and pole wood bare; the young growth keeps its dry, pale brown leaves (marcescence)
+DRY_LEAF_COLS = [('#8c5d36', 4), ('#7a4f2d', 4), ('#a06c40', 3), ('#6b4728', 2), ('#b08055', 1)]
+WINTER = LOOK['season'] == 'winter'
+
+
 def big_beech(seed, coll, bark, leafmat):
-    t = Tree(seed)
+    t = Tree(seed, leafless=WINTER)
     rng = t.rng
     h = rng.uniform(24, 31)
     pts, rad = trunk(t, h, rng.uniform(0.17, 0.3), (rng.gauss(0, 0.03), rng.gauss(0, 0.03)))
@@ -577,7 +624,7 @@ def big_beech(seed, coll, bark, leafmat):
 
 def pole_beech(seed, coll, bark, leafmat):
     """Pole stage (Stangenholz): thin stems, leafy from a few meters up - the orange mid layer."""
-    t = Tree(seed, spray=8, spacing=0.09)
+    t = Tree(seed, spray=8, spacing=0.09, leafless=WINTER)
     rng = t.rng
     h = rng.uniform(6, 13)
     pts, rad = trunk(t, h, rng.uniform(0.04, 0.1), (rng.gauss(0, 0.05), rng.gauss(0, 0.05)))
@@ -593,7 +640,7 @@ def pole_beech(seed, coll, bark, leafmat):
 
 def sapling(seed, coll, bark, leafmat):
     """Young beech (Naturverjuengung): bushy, keeps its dry brown leaves into winter."""
-    t = Tree(seed, leaf_size=0.075, spray=9, spacing=0.07)
+    t = Tree(seed, leaf_size=0.075, spray=9, spacing=0.07, palette=DRY_LEAF_COLS if WINTER else None)
     rng = t.rng
     for s in range(rng.randint(1, 4)):
         h = rng.uniform(0.9, 3.5)
@@ -612,6 +659,44 @@ def sapling(seed, coll, bark, leafmat):
             dd = Vector((math.cos(az), math.sin(az), rng.uniform(-0.05, 0.4))).normalized()
             t.branch(pts[i], dd, h * rng.uniform(0.25, 0.5) + 0.2, rad[i] * 0.6, 3, 3)
     return t.build(f'sapling_{seed}', coll, bark, leafmat)
+
+
+# spruce: dark needle sprays (narrow cards) on drooping branches in whorls
+SPRUCE_COLS = [('#304228', 4), ('#3a4f2e', 4), ('#2a3823', 3), ('#475d36', 2), ('#53663f', 1)]
+NEEDLE = [(0.0, 0.0), (0.5, 0.16), (1.0, 0.0), (0.5, -0.16)]
+
+
+def spruce(seed, coll, bark, leafmat, height, radius, clear, sprays=8):
+    """Norway spruce: straight stem, whorls of 4–6 branches every half meter, longest low down, drooping,
+    flat needle sprays along the twigs."""
+    t = Tree(seed, leaf_size=0.3, spray=sprays, spacing=0.065, droop=(0.0, 0.1, 0.16, 0.2), palette=SPRUCE_COLS, shape=NEEDLE)
+    rng = t.rng
+    h = rng.uniform(*height)
+    pts, rad = trunk(t, h, rng.uniform(*radius), (rng.gauss(0, 0.01), rng.gauss(0, 0.01)))
+    z = h * clear
+    while z < h * 0.97:
+        i = min(len(pts) - 2, int(z / (h / (len(pts) - 1))))
+        L = (h - z) * rng.uniform(0.26, 0.34) + 0.3
+        n = rng.randint(4, 6)
+        a0 = rng.uniform(0, 6.3)
+        for k in range(n):
+            az = a0 + k * 2 * math.pi / n + rng.uniform(-0.3, 0.3)
+            d = Vector((math.cos(az), math.sin(az), rng.uniform(-0.35, 0.05))).normalized()
+            t.branch(pts[i], d, L, max(0.01, rad[i] * 0.3), 2, 3)
+        z += rng.uniform(0.45, 0.75)
+    return t.build(f'spruce_{seed}', coll, bark, leafmat)
+
+
+def spruce_big(seed, coll, bark, leafmat):
+    return spruce(seed, coll, bark, leafmat, (20, 30), (0.17, 0.3), 0.4)
+
+
+def spruce_pole(seed, coll, bark, leafmat):
+    return spruce(seed, coll, bark, leafmat, (6, 12), (0.05, 0.11), 0.12)
+
+
+def spruce_young(seed, coll, bark, leafmat):
+    return spruce(seed, coll, bark, leafmat, (1.2, 4.0), (0.02, 0.05), 0.03, sprays=9)
 
 
 def collection(name, hidden=True):
@@ -649,13 +734,16 @@ def import_gltf(mid):
 
 
 def in_view_corridor(x, y):
-    """Keep the stand's line of sight down the lane open for the first meters."""
-    if y < -1 or y > 16:
-        return False
-    v = Vector((x, y)) - CAM.xy
-    a = (AIM.xy - CAM.xy).normalized()
-    along = v.dot(a)
-    return along > 0 and abs(v.x * a.y - v.y * a.x) < 0.6 + along * 0.38
+    """Keep every stand's line of sight down the lane open for the first meters, and the stand itself free."""
+    for cam, aim in STANDS:
+        v = Vector((x, y)) - cam.xy
+        if v.length < 2.5:
+            return True
+        a = (aim.xy - cam.xy).normalized()
+        along = v.dot(a)
+        if 0 < along < 17 and abs(v.x * a.y - v.y * a.x) < 0.6 + along * 0.38:
+            return True
+    return False
 
 
 INSTANCES = []   # (kind, variant, x, y, z, rot, scale) of every tree — exported for the live preview
@@ -667,9 +755,12 @@ def build_forest():
     ground(ground_material())
     forest = collection('forest', hidden=False)
     kinds = {}
-    for kind, fn, n in (('big', big_beech, 7), ('pole', pole_beech, 8), ('sap', sapling, 10)):
-        kinds[kind] = []
-        for i in range(n):
+    kind_fns = ((('big', spruce_big, 6), ('pole', spruce_pole, 7), ('sap', spruce_young, 6), ('sap', sapling, 4))
+                if LOOK['trees'] == 'spruce' else (('big', big_beech, 7), ('pole', pole_beech, 8), ('sap', sapling, 10)))
+    for kind, fn, n in kind_fns:
+        kinds.setdefault(kind, [])
+        for _ in range(n):
+            i = len(kinds[kind])
             c = collection(f'src_{kind}_{i}')
             fn(1000 * len(kinds) + i, c, bark, leaves)
             kinds[kind].append(c)
@@ -683,7 +774,7 @@ def build_forest():
             d = abs(x - lane_x(y))
             if d < dmin + rng.uniform(0, 1.2) or d > dmax:
                 continue
-            if (Vector((x, y)) - CAM.xy).length < 2.5 or in_view_corridor(x, y):
+            if in_view_corridor(x, y):
                 continue
             src = rng.choice(kinds[kind])
             rot, sc_ = rng.uniform(0, 6.3), rng.uniform(*scale)
@@ -691,26 +782,28 @@ def build_forest():
             INSTANCES.append((kind, kinds[kind].index(src), round(x, 2), round(y, 2), round(ground_z(x, y), 3), round(rot, 3), round(sc_, 3)))
             placed += 1
 
-    area = (-110, 110, -25, 290)
+    area = (-110, 110, -110, 290)
     scatter('big', 900, 5.0, 999, area)
     scatter('pole', 1300, 4.6, 999, area, (0.8, 1.2))
     # young growth crowds the light lane edges, sparse inside the stand
-    scatter('sap', 900, 4.0, 14, (-60, 80, -10, 220), (0.7, 1.3))
+    scatter('sap', 900, 4.0, 14, (-60, 80, -100, 220), (0.7, 1.3))
     scatter('sap', 700, 4.0, 999, area, (0.6, 1.2))
 
     if EXPORT:
         return kinds
-    # dead wood, branches, moss from Poly Haven
+    # dead wood, branches, moss from Poly Haven (in the snow only dead wood and branches)
     props = forest
     for mid, count, dmin, dmax, sc in (('dead_tree_trunk', 14, 5.5, 40, (0.9, 1.3)),
                                         ('dry_branches_medium_01', 160, 3.2, 60, (0.8, 1.4)),
                                         ('bark_debris_01', 90, 3.0, 60, (0.8, 1.3)),
                                         ('moss_01', 120, 3.0, 40, (0.8, 1.6)),
                                         ('fern_02', 40, 4.5, 40, (0.6, 1.0))):
+        if not LOOK['props'] and mid in ('moss_01', 'fern_02', 'bark_debris_01'):
+            continue
         src = import_gltf(mid)
         placed = 0
         while placed < count:
-            x, y = rng.uniform(-60, 80), rng.uniform(-5, 160)
+            x, y = rng.uniform(-60, 80), rng.uniform(-60, 160)
             d = abs(x - lane_x(y))
             if d < dmin or d > dmax or in_view_corridor(x, y):
                 continue
@@ -1461,7 +1554,7 @@ def setup():
     sc.render.film_transparent = False
     sc.render.fps = FPS
     sc.render.image_settings.color_mode = 'RGB'
-    sc.view_settings.exposure = float(OPT.get('exposure', 0.35))
+    sc.view_settings.exposure = float(OPT.get('exposure', LOOK['exposure']))
     try:
         sc.cycles.curve_shape = 'RIBBONS'
     except Exception:
@@ -1553,6 +1646,25 @@ def gait_check(sc):
         bpy.ops.render.render(write_still=True)
 
 
+def crossing_line(d):
+    """Where game crosses the lane d meters from the stand (studio: src/hunt/motion.ts crossingLine):
+    lane station y (bisection on the distance to the lane centre), centre and half width of the view at
+    that depth (+4 m: start and end just outside the frame), and which way the stand looks (+1 / −1)."""
+    look = 1 if AIM.y >= CAM.y else -1
+    lo, hi = 0.0, 250.0
+    for _ in range(50):
+        mid = (lo + hi) / 2
+        yy = CAM.y + look * mid
+        if math.hypot(lane_x(yy) - CAM.x, yy - CAM.y) < d:
+            lo = mid
+        else:
+            hi = mid
+    y = CAM.y + look * lo
+    half = math.tan(math.radians(HFOV / 2)) * abs(y - CAM.y) + 4.0
+    xc = CAM.x + (AIM.x - CAM.x) * (y - CAM.y) / (AIM.y - CAM.y)
+    return y, xc, half, look
+
+
 def scenario_game(mats, sc_json):
     """All crossings of a scenario on one timeline. Each crossing: at (s), animals (classes, the lead
     animal first), gait, speed (m/s), distance (m from the stand), direction (ltr / rtl), seed."""
@@ -1561,12 +1673,9 @@ def scenario_game(mats, sc_json):
     roots, n = [], 0
     for c in sc_json['crossings']:
         rng = Mulberry(int(c.get('seed', 1)))
-        d = float(c['distance'])
-        y = d
-        # from just outside the frame edge on one side to just outside the other (wider further away)
-        half = math.tan(math.radians(HFOV / 2)) * (y - CAM.y) + 4.0
-        xc = CAM.x + (AIM.x - CAM.x) * (y - CAM.y) / (AIM.y - CAM.y)    # centre of the view at that depth
-        direction = 1 if c.get('direction', 'ltr') == 'ltr' else -1
+        y, xc, half, look = crossing_line(float(c['distance']))
+        # "from the left" as the hunter sees it: looking back down the lane, left is +x
+        direction = (1 if c.get('direction', 'ltr') == 'ltr' else -1) * look
         x_start, x_end = xc - direction * half, xc + direction * half
         group = c['animals']
         for kind, back, dy, size in rotte_layout(group, rng):
@@ -1596,7 +1705,8 @@ def export3d(sc):
     texture, the tree variants (a third of the leaves) + where every tree stands, the sky, a bark texture,
     and one GLB per boar class (coat as vertex colours, legs as separate nodes for the gait)."""
     import numpy as np
-    out = os.path.normpath(os.path.join(S.HERE, '..', '..', '..', 'public', '3d', 'hunt'))
+    base = os.path.normpath(os.path.join(S.HERE, '..', '..', '..', 'public', '3d', 'hunt'))
+    out = os.path.join(base, MAP)
     os.makedirs(out, exist_ok=True)
     kinds = build_forest()
     # trees: every variant's wood and leaves, named <kind>_<i>_wood / _leaves
@@ -1610,13 +1720,13 @@ def export3d(sc):
                 vis.objects.link(o)
                 tree_objs.append(o)
     export_glb(os.path.join(out, 'trees.glb'), tree_objs)
-    region = [t for t in INSTANCES if -70 <= t[2] <= 95 and -12 <= t[3] <= 230]
+    region = [t for t in INSTANCES if -70 <= t[2] <= 95 and -105 <= t[3] <= 230]
     json.dump({'instances': region}, open(os.path.join(out, 'trees.json'), 'w'))
     print('TREES', len(tree_objs), 'meshes', len(region), 'instances', flush=True)
     for o in tree_objs:
         o.hide_set(True)
     # ground: 2 m cells over the visible block, its shader baked to a texture (no fog: three.js adds it)
-    rect = (-70, 95, -15, 235)
+    rect = (-70, 95, -110, 235)
     g = ground(ground_material(fog=False), rect, 2.0)
     g.name = 'lane_ground'
     me = g.data
@@ -1666,7 +1776,10 @@ def export3d(sc):
     bark.filepath_raw = os.path.join(out, 'bark.jpg')
     bark.file_format = 'JPEG'
     bark.save()
-    # boars: one GLB per class
+    if OPT.get('boars') != '1':
+        return
+    # boars: one GLB per class (the same on every map)
+    out = base
     mats = boar_materials()
     for kind in BOAR_KINDS:
         root, body, legs = make_boar(mats, kind, seed=1)
@@ -1675,6 +1788,25 @@ def export3d(sc):
         print('BOAR', kind, len(objs), flush=True)
         for o in objs:
             bpy.data.objects.remove(o)
+
+
+def thumbs(sc):
+    """One small frame per stand of the map (studio: stand picker and scenario cards)."""
+    out = os.path.normpath(os.path.join(S.HERE, '..', '..', '..', 'public', '3d', 'hunt', MAP))
+    os.makedirs(out, exist_ok=True)
+    cam = camera(sc)
+    stand(cam)
+    build_forest()
+    sc.render.resolution_x, sc.render.resolution_y = 640, 360
+    sc.render.image_settings.file_format = 'JPEG'
+    sc.render.image_settings.quality = 85
+    for i, (c, a) in enumerate(STANDS):
+        cam.location = c
+        S.look_at(cam, a)
+        cam.data.dof.focus_distance = (a - c).length
+        sc.render.filepath = os.path.join(out, f'stand{i + 1}.jpg')
+        bpy.ops.render.render(write_still=True)
+        print('THUMB', MAP, i + 1, flush=True)
 
 
 def main():
@@ -1688,6 +1820,9 @@ def main():
         return
     if JOB == 'export3d':
         export3d(sc)
+        return
+    if JOB == 'thumbs':
+        thumbs(sc)
         return
     cam = camera(sc)
     stand(cam)

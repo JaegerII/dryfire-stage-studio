@@ -1,53 +1,62 @@
 import { useRef } from 'react';
-import { AIM, HFOV, STAND, crossingWindow, judge, laneX } from './rules';
-import type { Crossing, HuntScenario } from './types';
+import { type StandIndex, laneX, standView } from './maps';
+import { HFOV, crossingLine, crossingWindow, judge } from './rules';
+import type { Crossing, HuntRelease, HuntScenario } from './types';
 
 /**
- * Top view of the lane: forest, lane and gravel track (bending right after 30 m), the stand with its
- * field of view (16:9 solid, 9:16 dashed), the maximum shooting distance, and every crossing as an
- * arrow across the lane. Drag a crossing up / down to change its distance.
+ * Top view of the map: forest, lane and gravel track (bending as on the map), the three stands (click to
+ * change), the chosen stand's field of view (16:9 solid, 9:16 dashed), the maximum shooting distance, and
+ * every crossing as an arrow across the lane. Drag a crossing to change its distance from the stand.
  */
-const X0 = -34;
-const X1 = 34;
-const Y0 = -6;
-const Y1 = 82;
-
-const half = (format: '16x9' | '9x16', y: number) => Math.tan((HFOV[format] * Math.PI) / 360) * (y - STAND.y);
-const centreX = (y: number) => STAND.x + ((AIM.x - STAND.x) * (y - STAND.y)) / (AIM.y - STAND.y);
+const X0 = -40;
+const X1 = 40;
+const Y0 = -14;
+const Y1 = 136;
 
 export const HuntPlan = ({
   scenario,
+  release,
   selected,
   onSelect,
   onChange,
+  onStand,
   onCommit,
 }: {
   scenario: HuntScenario;
+  release: HuntRelease;
   selected: string | null;
   onSelect: (id: string) => void;
   onChange: (id: string, patch: Partial<Crossing>) => void;
+  onStand?: (stand: StandIndex) => void;
   onCommit?: () => void;
 }) => {
   const svg = useRef<SVGSVGElement>(null);
   const drag = useRef<string | null>(null);
-  const sy = (y: number) => Y1 - y; // svg y grows down, distance grows up
+  const { map, stand } = scenario;
+  const st = standView(map, stand);
+  const sy = (y: number) => Y1 - y; // svg y grows down, lane y grows up
 
   const lane = (w: number) => {
     const pts: string[] = [];
-    for (let y = Y0; y <= Y1; y += 2) pts.push(`${laneX(y) - w},${sy(y)}`);
-    for (let y = Y1; y >= Y0; y -= 2) pts.push(`${laneX(y) + w},${sy(y)}`);
+    for (let y = Y0; y <= Y1; y += 2) pts.push(`${laneX(map, y) - w},${sy(y)}`);
+    for (let y = Y1; y >= Y0; y -= 2) pts.push(`${laneX(map, y) + w},${sy(y)}`);
     return pts.join(' ');
   };
   const wedge = (format: '16x9' | '9x16') => {
-    const far = Y1 + 4;
-    return `${STAND.x},${sy(STAND.y)} ${centreX(far) - half(format, far)},${sy(far)} ${centreX(far) + half(format, far)},${sy(far)}`;
+    const [ax, ay] = st.aim;
+    const len = 160;
+    const dir = Math.atan2(ay - st.y, ax - st.x);
+    const h = (HFOV[format] * Math.PI) / 360;
+    const p = (a: number) => `${st.x + Math.cos(a) * len},${sy(st.y + Math.sin(a) * len)}`;
+    return `${st.x},${sy(st.y)} ${p(dir - h)} ${p(dir + h)}`;
   };
-  const toY = (e: React.PointerEvent) => {
+  const toPoint = (e: React.PointerEvent) => {
     const el = svg.current!;
     const pt = el.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
-    return Y1 - pt.matrixTransform(el.getScreenCTM()!.inverse()).y;
+    const q = pt.matrixTransform(el.getScreenCTM()!.inverse());
+    return { x: q.x, y: Y1 - q.y };
   };
 
   return (
@@ -58,7 +67,8 @@ export const HuntPlan = ({
       preserveAspectRatio="xMidYMid meet"
       onPointerMove={(e) => {
         if (!drag.current) return;
-        const d = Math.round(Math.min(80, Math.max(15, toY(e))));
+        const q = toPoint(e);
+        const d = Math.round(Math.min(80, Math.max(15, Math.hypot(q.x - st.x, q.y - st.y))));
         onChange(drag.current, { distance: d });
       }}
       onPointerUp={() => {
@@ -70,52 +80,66 @@ export const HuntPlan = ({
         drag.current = null;
       }}
     >
-      <rect x={X0} y={0} width={X1 - X0} height={Y1 - Y0} fill="#1c2018" />
-      {/* faint 10 m grid with distance labels */}
-      {Array.from({ length: 9 }, (_, i) => (i + 1) * 10).map((d) => (
-        <g key={d}>
-          <line x1={X0} x2={X1} y1={sy(d)} y2={sy(d)} stroke="rgba(237,237,230,0.06)" strokeWidth={0.2} />
-          <text x={X0 + 1} y={sy(d) - 0.6} className="hp-grid">{d} m</text>
-        </g>
-      ))}
-      <polygon points={lane(4.5)} fill="#3a3a2c" />
-      <polygon points={lane(1.5)} fill="#5c5a52" />
-      <polygon points={wedge('9x16')} fill="none" stroke="rgba(237,237,230,0.22)" strokeWidth={0.25} strokeDasharray="1 1" />
-      <polygon points={wedge('16x9')} fill="rgba(237,237,230,0.05)" stroke="rgba(237,237,230,0.35)" strokeWidth={0.25} />
-      <circle cx={STAND.x} cy={sy(STAND.y)} r={scenario.release.maxDistance} fill="none" stroke="rgba(255,49,49,0.55)" strokeWidth={0.3} strokeDasharray="1.5 1" />
-      <text x={STAND.x + 1.5} y={sy(STAND.y + scenario.release.maxDistance) - 0.8} className="hp-max">max. {scenario.release.maxDistance} m</text>
-      {scenario.crossings.map((c, i) => {
-        const y = c.distance;
-        const xc = centreX(y);
-        const h = half('16x9', y) + 4;
-        const dir = c.direction === 'ltr' ? 1 : -1;
-        const from = xc - dir * h;
-        const to = xc + dir * h;
-        const free = judge(c, scenario.release).some((v) => v.free);
-        const on = c.id === selected;
-        const col = free ? '#2bd96b' : '#ff3131';
-        return (
-          <g
-            key={c.id}
-            className={`hp-cross${on ? ' on' : ''}`}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              (e.target as Element).setPointerCapture?.(e.pointerId);
-              onSelect(c.id);
-              drag.current = c.id;
-            }}
-          >
-            <line x1={from} x2={to} y1={sy(y)} y2={sy(y)} stroke="transparent" strokeWidth={4} />
-            <line x1={from} x2={to - dir * 1.6} y1={sy(y)} y2={sy(y)} stroke={col} strokeWidth={on ? 0.9 : 0.5} />
-            <polygon points={`${to},${sy(y)} ${to - dir * 2.4},${sy(y) - 1.2} ${to - dir * 2.4},${sy(y) + 1.2}`} fill={col} />
-            <text x={xc} y={sy(y) - 1.6} textAnchor="middle" className="hp-label">
-              A{i + 1} · {fmtTime(c.at)} · {Math.round(c.distance)} m
-            </text>
+      <defs>
+        <clipPath id="hp-clip">
+          <rect x={X0} y={0} width={X1 - X0} height={Y1 - Y0} />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#hp-clip)">
+        <rect x={X0} y={0} width={X1 - X0} height={Y1 - Y0} fill={map === 'buche_winter' ? '#2a2e30' : map === 'fichte' ? '#18201a' : '#1c2018'} />
+        {Array.from({ length: 13 }, (_, i) => i * 10).map((d) => (
+          <g key={d}>
+            <line x1={X0} x2={X1} y1={sy(d)} y2={sy(d)} stroke="rgba(237,237,230,0.06)" strokeWidth={0.2} />
+            <text x={X0 + 1} y={sy(d) - 0.6} className="hp-grid">{d} m</text>
           </g>
-        );
-      })}
-      <rect x={STAND.x - 1.2} y={sy(STAND.y) - 1.2} width={2.4} height={2.4} fill="#ff3131" />
-      <text x={STAND.x + 2} y={sy(STAND.y) + 0.8} className="hp-label">Stand</text>
+        ))}
+        <polygon points={lane(4.5)} fill={map === 'buche_winter' ? '#6b6f72' : '#3a3a2c'} />
+        <polygon points={lane(1.5)} fill={map === 'buche_winter' ? '#8a8e92' : '#5c5a52'} />
+        <polygon points={wedge('9x16')} fill="none" stroke="rgba(237,237,230,0.22)" strokeWidth={0.25} strokeDasharray="1 1" />
+        <polygon points={wedge('16x9')} fill="rgba(237,237,230,0.05)" stroke="rgba(237,237,230,0.35)" strokeWidth={0.25} />
+        <circle cx={st.x} cy={sy(st.y)} r={release.maxDistance} fill="none" stroke="rgba(255,49,49,0.55)" strokeWidth={0.3} strokeDasharray="1.5 1" />
+        {scenario.crossings.map((c, i) => {
+          const { y, xc, half } = crossingLine(map, stand, c.distance);
+          const look = st.aim[1] >= st.y ? 1 : -1;
+          const dir = (c.direction === 'ltr' ? 1 : -1) * look;
+          const from = xc - dir * half;
+          const to = xc + dir * half;
+          const free = judge(c, release).some((v) => v.free);
+          const on = c.id === selected;
+          const col = free ? '#2bd96b' : '#ff3131';
+          return (
+            <g
+              key={c.id}
+              className={`hp-cross${on ? ' on' : ''}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                (e.target as Element).setPointerCapture?.(e.pointerId);
+                onSelect(c.id);
+                drag.current = c.id;
+              }}
+            >
+              <line x1={from} x2={to} y1={sy(y)} y2={sy(y)} stroke="transparent" strokeWidth={4} />
+              <line x1={from} x2={to - dir * 1.6} y1={sy(y)} y2={sy(y)} stroke={col} strokeWidth={on ? 0.9 : 0.5} />
+              <polygon points={`${to},${sy(y)} ${to - dir * 2.4},${sy(y) - 1.2} ${to - dir * 2.4},${sy(y) + 1.2}`} fill={col} />
+              <text x={xc} y={sy(y) - 1.6} textAnchor="middle" className="hp-label">
+                A{i + 1} · {fmtTime(c.at)} · {Math.round(c.distance)} m
+              </text>
+            </g>
+          );
+        })}
+        {([0, 1, 2] as StandIndex[]).map((k) => {
+          const s = standView(map, k);
+          const on = k === stand;
+          return (
+            <g key={k} className={`hp-stand${on ? ' on' : ''}`} onPointerDown={(e) => { e.stopPropagation(); onStand?.(k); }}>
+              <rect x={s.x - 1.6} y={sy(s.y) - 1.6} width={3.2} height={3.2} fill={on ? '#ff3131' : '#5a625b'} />
+              <text x={s.x + (s.x < 0 ? -2.4 : 2.4)} y={sy(s.y) + 0.9} textAnchor={s.x < 0 ? 'end' : 'start'} className="hp-label">
+                Stand {k + 1}
+              </text>
+            </g>
+          );
+        })}
+      </g>
     </svg>
   );
 };

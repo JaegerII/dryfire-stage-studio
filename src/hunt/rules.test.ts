@@ -35,3 +35,16 @@ group('driven hunt release', () => {
     expect(describe(['bache', 'frischling', 'frischling'])).toBe('Rotte · 1 Bache, 2 Frischlinge');
   });
 });
+
+group('hunt program', () => {
+  it('plays briefing, a title card and the drive per scenario, then the summary', async () => {
+    const { huntProgram, huntFrameAt, INTRO_SECONDS, TITLE_SECONDS } = await import('./program');
+    const { createScenario, DEFAULT_RELEASE } = await import('./repository');
+    const a = createScenario('buche_herbst', 0);
+    const b = createScenario('buche_winter', 2);
+    const p = huntProgram({ name: 'Test', release: DEFAULT_RELEASE, scenarios: [a, b], isHunt: true }, '16x9');
+    expect(p.segments.map((s) => s.kind)).toEqual(['intro', 'title', 'drive', 'title', 'drive', 'end']);
+    expect(huntFrameAt(p, INTRO_SECONDS + TITLE_SECONDS + 1)).toMatchObject({ phase: 'drive', scenario: 0 });
+    expect(huntFrameAt(p, p.segments[3].start + 1)).toMatchObject({ phase: 'title', scenario: 1 });
+  });
+});

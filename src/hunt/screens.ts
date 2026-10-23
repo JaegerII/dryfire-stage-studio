@@ -3,9 +3,10 @@
  * accent red, sized by hudUnit): briefing, the answer card after each crossing, summary.
  */
 import { hudUnit } from '../stage3d/hud';
-import { COUNTDOWN, type HuntFrame, type HuntProgram, INTRO_SECONDS } from './program';
+import { MAPS, standView } from './maps';
+import { COUNTDOWN, type HuntFrame, type HuntProgram, INTRO_SECONDS, scenarioPlace } from './program';
 import { HFOV, describe, judge, leadCm } from './rules';
-import { GAITS, GAME_CLASSES, type HuntFormat, LANES } from './types';
+import { GAITS, GAME_CLASSES, type HuntFormat } from './types';
 
 const C = { bg: '#050605', text: '#edede6', muted: '#949888', faint: '#5a625b', accent: '#ff3131', go: '#2bd96b', card: 'rgba(12, 13, 12, 0.86)', line: 'rgba(237, 237, 230, 0.14)' };
 const FONT = 'Montserrat, ui-sans-serif, system-ui, sans-serif';
@@ -31,7 +32,6 @@ const tick = (ctx: CanvasRenderingContext2D, ok: boolean, x: number, y: number, 
 };
 
 export const drawBriefing = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, format: HuntFormat, local: number) => {
-  const s = p.scenario;
   const u = hudUnit(W, H);
   const tall = H > W * 1.2;
   ctx.fillStyle = C.bg;
@@ -48,17 +48,18 @@ export const drawBriefing = (ctx: CanvasRenderingContext2D, W: number, H: number
   y += 7.5 * u;
   ctx.fillStyle = C.text;
   font(ctx, 900, 6 * u);
-  ctx.fillText(s.name.toUpperCase(), x0, y, (tall ? 86 : 124) * u);
+  ctx.fillText(p.name.toUpperCase(), x0, y, (tall ? 86 : 124) * u);
   y += 4.2 * u;
   ctx.fillStyle = C.muted;
   font(ctx, 600, 2.2 * u);
-  ctx.fillText(`${LANES[s.lane]} · ${s.crossings.length} Anläufe`, x0, y);
+  const runs = p.scenarios.reduce((n, s) => n + s.crossings.length, 0);
+  ctx.fillText(p.isHunt ? `${p.scenarios.length} Szenarien · ${runs} Anläufe` : `${scenarioPlace(p.scenarios[0])} · ${runs} Anläufe`, x0, y, (tall ? 86 : 124) * u);
   y += 3 * u;
   ctx.fillStyle = C.accent;
   ctx.fillRect(x0, y, 10 * u, 0.5 * u);
   y += 7 * u;
 
-  const r = s.release;
+  const r = p.release;
   const left: [string, boolean][] = [
     ['Keiler', r.keiler],
     ['Bache (nicht führend)', r.bache],
@@ -128,10 +129,10 @@ const card = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
 };
 
 /** Answer card after a crossing: what it was, released or not (and why), lead. */
-export const drawReveal = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, index: number, local: number) => {
-  const s = p.scenario;
+export const drawReveal = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, scenario: number, index: number, local: number) => {
+  const s = p.scenarios[scenario];
   const c = s.crossings[index];
-  const verdicts = judge(c, s.release);
+  const verdicts = judge(c, p.release);
   const u = hudUnit(W, H);
   const rows = verdicts.length;
   const w = Math.min(W - 6 * u, 74 * u);
@@ -184,21 +185,59 @@ export const drawDriveHud = (ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(237, 237, 230, 0.55)';
   font(ctx, 800, 1.5 * u);
-  spaced(ctx, `DRÜCKJAGD · ${p.scenario.name.toUpperCase()}`, 3 * u, 4.5 * u, 0.3 * u);
+  const s = p.scenarios[f.scenario];
+  const label = p.isHunt ? `${p.name} · Szenario ${f.scenario + 1}/${p.scenarios.length}` : p.name;
+  spaced(ctx, `DRÜCKJAGD · ${label.toUpperCase()} · ${MAPS[s.map].short.toUpperCase()}`, 3 * u, 4.5 * u, 0.3 * u);
   ctx.restore();
-  if (f.reveal) drawReveal(ctx, W, H, p, f.reveal.index, f.reveal.local);
+  if (f.reveal) drawReveal(ctx, W, H, p, f.scenario, f.reveal.index, f.reveal.local);
+};
+
+/** Title card before each scenario of a hunt: number, map, stand. */
+export const drawTitle = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, scenario: number, local: number) => {
+  const s = p.scenarios[scenario];
+  const u = hudUnit(W, H);
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = fade(local, 4);
+  const x = W / 2;
+  let y = H / 2 - 10 * u;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.accent;
+  font(ctx, 800, 2.2 * u);
+  spaced(ctx, `SZENARIO ${scenario + 1} / ${p.scenarios.length}`, x, y, 0.5 * u);
+  y += 8 * u;
+  ctx.fillStyle = C.text;
+  font(ctx, 900, 5.6 * u);
+  ctx.fillText(s.name.toUpperCase(), x, y, W - 8 * u);
+  y += 5.5 * u;
+  ctx.fillStyle = C.muted;
+  font(ctx, 600, 2.3 * u);
+  ctx.fillText(`${MAPS[s.map].label} · ${standView(s.map, s.stand).name}`, x, y, W - 8 * u);
+  y += 4 * u;
+  ctx.fillText(`${s.crossings.length} Anläufe`, x, y);
+  ctx.restore();
 };
 
 export const drawSummary = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, local: number) => {
-  const s = p.scenario;
   const u = hudUnit(W, H);
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W, H);
   ctx.save();
   ctx.globalAlpha = fade(local);
+  // one line per crossing (a single scenario) or per scenario (a hunt)
+  const rows: { n: string; text: string; free: number; total: number }[] = p.isHunt
+    ? p.scenarios.map((s, i) => {
+        const v = s.crossings.flatMap((c) => judge(c, p.release));
+        return { n: `${i + 1}`, text: `${s.name} · ${s.crossings.length} Anläufe`, free: v.filter((a) => a.free).length, total: s.crossings.length };
+      })
+    : p.scenarios[0].crossings.map((c, i) => {
+        const v = judge(c, p.release);
+        return { n: `${i + 1}`, text: `${describe(c.animals)} · ${GAITS[c.gait].label} · ${Math.round(c.distance)} m`, free: v.filter((a) => a.free).length, total: 1 };
+      });
   const w = Math.min(W - 8 * u, 110 * u);
   const x = (W - w) / 2;
-  let y = H / 2 - (s.crossings.length * 4.4 + 16) * u / 2;
+  let y = H / 2 - ((rows.length * 4.4 + 16) * u) / 2;
   ctx.textAlign = 'left';
   ctx.fillStyle = C.accent;
   font(ctx, 800, 2 * u);
@@ -206,21 +245,19 @@ export const drawSummary = (ctx: CanvasRenderingContext2D, W: number, H: number,
   y += 7 * u;
   ctx.fillStyle = C.text;
   font(ctx, 900, 4.6 * u);
-  ctx.fillText(s.name.toUpperCase(), x, y, w);
+  ctx.fillText(p.name.toUpperCase(), x, y, w);
   y += 6 * u;
-  for (const [i, c] of s.crossings.entries()) {
-    const v = judge(c, s.release);
-    const free = v.filter((a) => a.free).length;
+  for (const r of rows) {
     ctx.fillStyle = C.muted;
     font(ctx, 700, 2 * u);
-    ctx.fillText(`${i + 1}`, x, y);
+    ctx.fillText(r.n, x, y);
     ctx.fillStyle = C.text;
     font(ctx, 600, 2.2 * u);
-    ctx.fillText(`${describe(c.animals)} · ${GAITS[c.gait].label} · ${Math.round(c.distance)} m`, x + 4 * u, y, w * 0.62);
+    ctx.fillText(r.text, x + 4 * u, y, w * 0.62);
     ctx.textAlign = 'right';
-    ctx.fillStyle = free ? C.go : C.accent;
+    ctx.fillStyle = r.free ? C.go : C.accent;
     font(ctx, 800, 2 * u);
-    ctx.fillText(free ? `${free} × FREI` : 'KEIN SCHUSS', x + w, y);
+    ctx.fillText(r.free ? `${r.free} × FREI` : 'KEIN SCHUSS', x + w, y);
     ctx.textAlign = 'left';
     y += 4.4 * u;
   }

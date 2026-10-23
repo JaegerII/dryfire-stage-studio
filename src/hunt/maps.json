@@ -1,0 +1,32 @@
+{
+  "buche_herbst": {
+    "label": "Buchenschneise · Herbst",
+    "short": "Buche Herbst",
+    "lane": { "a": 0.0005, "y0": 30 },
+    "stands": [
+      { "name": "Stand 1 · Schneisenrand links", "x": -6.5, "y": 0, "eye": 3.3, "aim": [0, 35, 0.6] },
+      { "name": "Stand 2 · rechts, weiter vorn", "x": 6.5, "y": 25, "eye": 3.0, "aim": [0.6, 65, 0.6] },
+      { "name": "Stand 3 · Gegenrichtung", "x": -6.0, "y": 115, "eye": 3.4, "aim": [1.0, 75, 0.6] }
+    ]
+  },
+  "buche_winter": {
+    "label": "Buchenschneise · Winter",
+    "short": "Buche Winter",
+    "lane": { "a": -0.0004, "y0": 40 },
+    "stands": [
+      { "name": "Stand 1 · Schneisenrand links", "x": -6.5, "y": 0, "eye": 3.3, "aim": [0, 35, 0.6] },
+      { "name": "Stand 2 · rechts, weiter vorn", "x": 6.5, "y": 25, "eye": 3.0, "aim": [-0.25, 65, 0.6] },
+      { "name": "Stand 3 · Gegenrichtung", "x": 6.0, "y": 115, "eye": 3.4, "aim": [-0.5, 75, 0.6] }
+    ]
+  },
+  "fichte": {
+    "label": "Fichtenschneise",
+    "short": "Fichte",
+    "lane": { "a": 0.0003, "y0": 50 },
+    "stands": [
+      { "name": "Stand 1 · Schneisenrand links", "x": -6.5, "y": 0, "eye": 3.3, "aim": [0, 35, 0.6] },
+      { "name": "Stand 2 · rechts, weiter vorn", "x": 6.5, "y": 25, "eye": 3.0, "aim": [0.07, 65, 0.6] },
+      { "name": "Stand 3 · Gegenrichtung", "x": -6.0, "y": 115, "eye": 3.4, "aim": [0.2, 75, 0.6] }
+    ]
+  }
+}
