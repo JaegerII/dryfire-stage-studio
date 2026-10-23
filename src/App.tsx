@@ -8,10 +8,13 @@ import { matchRepository } from './data/matchRepository';
 import { stage3dRepository } from './stage3d/repository';
 import { matchStages } from './utils/matchUtils';
 import { TRACE_TABS, TraceApp, type TraceTab } from './trace/TraceApp';
+import { HuntHome } from './hunt/HuntHome';
+import { huntRepository } from './hunt/repository';
 
 // three.js + the encoder only load when the editor or the player opens
 const Editor3D = lazy(() => import('./stage3d/editor/Editor3D').then((m) => ({ default: m.Editor3D })));
 const Player3D = lazy(() => import('./stage3d/Player3D').then((m) => ({ default: m.Player3D })));
+const HuntEditor = lazy(() => import('./hunt/HuntEditor').then((m) => ({ default: m.HuntEditor })));
 const TvReceiver = lazy(() => import('./trace/tv/TvReceiver').then((m) => ({ default: m.TvReceiver })));
 
 /**
@@ -26,6 +29,8 @@ const TvReceiver = lazy(() => import('./trace/tv/TvReceiver').then((m) => ({ def
  *   #/training/<program>        run a training program
  *   #/trace[/<tab>]             FORTH TRACE on the phone: training, live tracking, analysis, settings
  *   #/tv[/<room>]               TV renderer that joins a phone's training session
+ *   #/hunt                      driven-hunt scenarios (Drückjagd)
+ *   #/hunt/<id>                 driven-hunt editor: crossings, release, render in Blender, MP4
  * Old links of the 3D beta (#/3d, #/3d/edit/<id>, #/3d/play/<id>) lead to the same pages.
  */
 type View =
@@ -35,7 +40,9 @@ type View =
   | { page: 'training' }
   | { page: 'program'; programId: string }
   | { page: 'trace'; tab: TraceTab }
-  | { page: 'tv'; room?: string };
+  | { page: 'tv'; room?: string }
+  | { page: 'hunts' }
+  | { page: 'hunt'; huntId: string };
 
 /** What the player shows on top of the page: one stage, or a whole match. */
 type Playing = { kind: 'stage'; id: string } | { kind: 'match'; id: string };
@@ -54,6 +61,8 @@ const parse = (hash: string): { view: View; playing: Playing | null } => {
   if ((m = hash.match(/^#\/(?:3d\/)?play\/(.+)$/))) return { view: { page: 'home' }, playing: { kind: 'stage', id: betaId(dec(m[1])) } };
   if ((m = hash.match(/^#\/training\/(.+)$/)) && programById(dec(m[1]))) return { view: { page: 'program', programId: dec(m[1]) }, playing: null };
   if (hash === '#/training') return { view: { page: 'training' }, playing: null };
+  if (hash === '#/hunt') return { view: { page: 'hunts' }, playing: null };
+  if ((m = hash.match(/^#\/hunt\/(.+)$/))) return { view: { page: 'hunt', huntId: dec(m[1]) }, playing: null };
   if ((m = hash.match(/^#\/trace(?:\/([a-z]+))?$/))) {
     const tab = (TRACE_TABS as string[]).includes(m[1] ?? '') ? (m[1] as TraceTab) : 'training';
     return { view: { page: 'trace', tab }, playing: null };
@@ -71,6 +80,8 @@ const toHash = (view: View, playing: Playing | null) => {
   if (view.page === 'program') return `#/training/${enc(view.programId)}`;
   if (view.page === 'trace') return `#/trace/${view.tab}`;
   if (view.page === 'tv') return view.room ? `#/tv/${enc(view.room)}` : '#/tv';
+  if (view.page === 'hunts') return '#/hunt';
+  if (view.page === 'hunt') return `#/hunt/${enc(view.huntId)}`;
   return '#/';
 };
 
@@ -96,7 +107,7 @@ export const App = () => {
   /** Navigate to another page — asks first when the editor has unsaved changes. */
   const go = useCallback(
     (next: View) => {
-      if (view.page === 'edit' && editorDirty.current && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
+      if ((view.page === 'edit' || view.page === 'hunt') && editorDirty.current && !confirm('Leave the editor? Unsaved changes will be lost.')) return;
       editorDirty.current = false;
       setState({ view: next, playing: null });
     },
@@ -132,7 +143,25 @@ export const App = () => {
           onPlayStage={(id) => play({ kind: 'stage', id })}
           onOpenTraining={() => go({ page: 'training' })}
           onOpenTrace={() => go({ page: 'trace', tab: 'training' })}
+          onOpenHunt={() => go({ page: 'hunts' })}
         />
+      )}
+      {view.page === 'hunts' && <HuntHome onHome={() => go({ page: 'home' })} onOpen={(id) => go({ page: 'hunt', huntId: id })} />}
+      {view.page === 'hunt' && (
+        <Suspense fallback={<Loading />}>
+          {(() => {
+            const h = huntRepository.get(view.huntId);
+            return h ? (
+              <HuntEditor key={`hunt:${view.huntId}`} initial={h} onExit={() => go({ page: 'hunts' })} onDirtyChange={onDirty} />
+            ) : (
+              <div className="page">
+                <p className="hint empty">
+                  Diese Drückjagd gibt es nicht (mehr). <button onClick={() => go({ page: 'hunts' })}>Zurück</button>
+                </p>
+              </div>
+            );
+          })()}
+        </Suspense>
       )}
       {view.page === 'trace' && <TraceApp tab={view.tab} onTab={(tab) => go({ page: 'trace', tab })} onStageBuilder={() => go({ page: 'home' })} />}
       {view.page === 'tv' && (

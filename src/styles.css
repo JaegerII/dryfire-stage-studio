@@ -516,3 +516,53 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .crumbs > .stage-nav { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; color: var(--muted); font-size: 12px; }
 .stage-nav button { font-size: 16px; padding: 0 4px; }
 .stage-nav button:disabled { opacity: 0.3; }
+
+/* ---- driven hunt (Drückjagd) */
+.hunt-editor {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 320px;
+  grid-template-rows: 58px minmax(0, 1fr);
+  grid-template-areas: 'bar bar bar' 'lib center props';
+  height: 100vh;
+}
+.hunt-editor .toolbar { grid-area: bar; }
+.hunt-editor .library { grid-area: lib; border-right: 1px solid var(--line); }
+.hunt-editor .properties { grid-area: props; border-left: 1px solid var(--line); }
+.hunt-editor .name-input { background: transparent; border: 1px solid transparent; color: var(--text); font: 700 13px var(--font); padding: 3px 6px; border-radius: 4px; min-width: 260px; }
+.hunt-editor .name-input:hover, .hunt-editor .name-input:focus { border-color: var(--line); }
+.hunt-editor .check-row { display: flex; gap: 8px; align-items: center; margin: 5px 0; font-size: 12.5px; }
+.hunt-center { grid-area: center; display: grid; grid-template-rows: minmax(0, 1fr) 64px; min-height: 0; background: var(--sunken); }
+.hunt-top { display: grid; grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.5fr); min-height: 0; }
+.hunt-plan { width: 100%; height: 100%; display: block; overflow: hidden; border-right: 1px solid var(--line); touch-action: none; user-select: none; }
+.hunt-plan .hp-grid { font: 700 1.6px var(--font); fill: var(--faint); }
+.hunt-plan .hp-max { font: 800 1.7px var(--font); fill: #ff3131; }
+.hunt-plan .hp-label { font: 800 1.7px var(--font); fill: var(--text); pointer-events: none; }
+.hunt-plan .hp-cross { cursor: ns-resize; }
+.hunt-plan .hp-cross.on .hp-label { fill: #fff; }
+.hunt-player { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+.hunt-player .hp-screen { display: grid; place-items: center; min-height: 0; padding: 12px; }
+.hunt-player canvas { max-width: 100%; max-height: 100%; background: #000; border-radius: 4px; }
+.hunt-player .hp-controls { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.hunt-player .hp-controls input[type='range'] { flex: 1; min-width: 120px; }
+.hunt-timeline { position: relative; border-top: 1px solid var(--line); background: var(--surface); margin: 0; padding: 0 12px; user-select: none; touch-action: none; }
+.hunt-timeline .ht-tick { position: absolute; top: 4px; font-size: 10px; color: var(--faint); transform: translateX(-50%); }
+.hunt-timeline .ht-block { position: absolute; top: 24px; height: 28px; min-width: 26px; padding: 0 6px; font-size: 11px; font-weight: 800; background: var(--surface-3); border: 1px solid var(--line); border-radius: 4px; cursor: ew-resize; overflow: hidden; }
+.hunt-timeline .ht-block.on { border-color: var(--accent); color: #fff; background: var(--accent-soft); }
+.hunt-timeline .ht-head { position: absolute; top: 18px; bottom: 6px; width: 2px; background: var(--accent); pointer-events: none; }
+.hunt-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.hunt-list button { width: 100%; text-align: left; display: grid; gap: 2px; padding: 7px 9px; white-space: normal; }
+.hunt-list button.on { border-color: var(--accent); }
+.hunt-list strong { color: var(--accent); margin-right: 4px; }
+.hunt-list span { color: var(--muted); font-size: 11px; }
+.hunt-list em, .verdicts em { font-style: normal; }
+.hunt-list .go, .verdicts .go em { color: var(--go); }
+.hunt-list .no, .verdicts .no em { color: var(--accent); }
+.verdicts { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 3px; font-size: 12px; }
+.verdicts li { display: flex; justify-content: space-between; gap: 8px; }
+.verdicts .no span { color: var(--muted); }
+.render-box { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.render-progress { display: grid; gap: 6px; margin: 8px 0; font-size: 12px; color: var(--muted); }
+.hunt-scenarios li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.hunt-scenarios .card-main { flex: 1; display: grid; gap: 3px; }
+.hunt-scenarios .card-main span { color: var(--muted); font-size: 12px; }
+.render-box .p3-bar { width: 100%; }
