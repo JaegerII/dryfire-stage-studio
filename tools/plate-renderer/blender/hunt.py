@@ -90,6 +90,19 @@ LOOKS = {
     'fichte': dict(hdri='schachen_forest', ground='needles', trees='spruce', season='autumn', fog_d=380.0,
                    fog_col='#a8aca4', exposure=0.75, sky_fog=0.2, bark=(0.85, 1.0, '#ffffff'), bark_tex='Bark014',
                    props=True, scans=True),
+    # dense bare beech poles on a slope rising right of the ride, powder snow with the leaves showing through
+    'buche_hang_schnee': dict(hdri='snowy_forest', ground='snowdust', trees='beech_poles', season='winter', fog_d=260.0,
+                              fog_col='#c3c6c6', exposure=0.1, sky_fog=0.3, bark=(0.35, 1.2, '#b9c0b0'), bark_tex='Bark005',
+                              props=False, slope=0.32, floor_patches=0.45,
+                              counts=dict(big=320, pole=5200, sap_edge=260, sap=160)),
+    # tall pines with clear boles, brown bracken, a leafy ride with grass
+    'kiefer_farn': dict(hdri='autumn_forest_03', ground='pine', trees='pine', season='autumn', fog_d=380.0,
+                        fog_col='#b2aa9c', exposure=0.45, sky_fog=0.2, bark=(0.8, 0.62, '#9a7a62'), bark_tex='Bark014',
+                        props=True, fern=(2600, '#e08a3c'), counts=dict(big=1100, pole=300, sap_edge=200, sap=150)),
+    # straight conifer poles, crowns high out of view, a leaf-covered ride, cold grey haze
+    'stangenholz_raureif': dict(hdri='schachen_forest', ground='leafride', trees='spruce_poles', season='autumn',
+                                fog_d=230.0, fog_col='#b9bcba', exposure=0.45, sky_fog=0.35, bark=(0.45, 0.75, '#8f857c'),
+                                bark_tex='Bark014', props=True, counts=dict(big=240, pole=6500, sap_edge=120, sap=80)),
 }
 LOOK = LOOKS[MAP]
 # horizontal field of view, deg: 16:9 -> stand 1.3 x the screen width away for 1:1 angles; 9:16 shorts are
@@ -111,9 +124,16 @@ def smoothstep(e0, e1, x):
 
 
 def ground_z(x, y):
-    d = abs(x - lane_x(y))
+    dx = x - lane_x(y)
+    d = abs(dx)
     n = noise.noise(Vector((x / 30, y / 30, 0.3))) * 0.7 + noise.noise(Vector((x / 8, y / 8, 1.7))) * 0.12
-    return n * smoothstep(4.5, 10.0, d)
+    z = n * smoothstep(4.5, 10.0, d)
+    slope = LOOK.get('slope', 0.0)
+    if slope:
+        # the hillside rises to the right of the ride (smooth start at its edge) and falls gently to the left
+        u = dx - 5.0
+        z += slope * (u + math.sqrt(u * u + 1.0)) / 2 - 0.25 * slope * max(0.0, -dx - 6.0)
+    return z
 
 
 # ------------------------------------------------------------------ materials
@@ -189,6 +209,18 @@ GROUND_LAYERS = {
     'snow': (('litter', 'snow_02', 2.6, 0.5, 1.0, '#ffffff'),
              ('moss', 'snow_02', 3.4, 0.5, 0.95, '#eef2f6'),
              ('gravel', 'snow_02', 2.0, 0.3, 0.8, '#d6d9dc')),
+    # powder snow; leaves show through in patches and on the ride
+    'snowdust': (('litter', 'snow_02', 2.4, 0.4, 1.0, '#ffffff'),
+                 ('moss', 'dry_decay_leaves', 2.2, 0.75, 0.8, '#ffffff'),
+                 ('gravel', 'dry_decay_leaves', 2.0, 0.55, 0.9, '#e6e6e6')),
+    # oak / pine litter, a mossy-grassy strip, a leafy ride
+    'pine': (('litter', 'dry_decay_leaves', 2.2, 0.95, 0.95, '#f1e2d0'),
+             ('moss', 'forest_leaves_02', 2.6, 1.0, 1.0, '#ffffff'),
+             ('gravel', 'dry_decay_leaves', 1.8, 0.9, 0.8, '#ffffff')),
+    # needle litter in the stand, the ride covered in fallen leaves, cold and pale (hoar frost)
+    'leafride': (('litter', 'dry_decay_leaves', 2.4, 0.7, 0.9, '#e2ddd8'),
+                 ('moss', 'forest_leaves_04', 2.2, 0.7, 0.95, '#e6e6e6'),
+                 ('gravel', 'dry_decay_leaves', 1.8, 0.65, 1.0, '#ece8e4')),
     'needles': (('litter', 'forest_leaves_04', 2.4, 0.85, 0.9, '#ffffff'),
                 ('moss', 'forest_leaves_02', 2.6, 0.95, 0.95, '#ffffff'),
                 ('gravel', 'stony_dirt_path', 2.8, 0.15, 2.0, '#efe2cc')),
@@ -284,9 +316,12 @@ def ground_material(fog=True):
     leafy = lr.outputs['Result']
 
     out = []
+    patches = LOOK.get('floor_patches', 0.0)
     for i in range(3):
         verge_mat = mix(leafy, layers['moss'][i], layers['litter'][i])
-        v = mix(verge, layers['litter'][i], verge_mat)
+        # some maps show the verge material in patches all over the forest floor (leaves through snow)
+        floor = mix(math('MULTIPLY', leafy, patches), layers['litter'][i], layers['moss'][i]) if patches else layers['litter'][i]
+        v = mix(verge, floor, verge_mat)
         track = mix(centre, layers['gravel'][i], verge_mat)
         track = mix(math('MULTIPLY', leafy, 0.35), track, layers['litter'][i])
         out.append(mix(road, v, track))
@@ -719,6 +754,38 @@ def spruce(seed, coll, bark, leafmat, height, radius, clear, sprays=8):
     return t.build(f'spruce_{seed}', coll, bark, leafmat)
 
 
+def spruce_stange(seed, coll, bark, leafmat):
+    """Pole-stage conifer (Stangenholz): thin, straight, crown high up, dead stubs below."""
+    t = spruce(seed, coll, bark, leafmat, (16, 24), (0.07, 0.14), 0.72, sprays=6)
+    return t
+
+
+# pine: needles in tufts at the twig ends, a lighter, greyer green than spruce
+PINE_COLS = [('#40502c', 4), ('#4b5a33', 4), ('#38462a', 3), ('#5a6a3c', 2)]
+
+
+def pine(seed, coll, bark, leafmat, height=(20, 28), radius=(0.2, 0.32), clear=0.72):
+    """Scots pine: tall straight clear bole, a small, flat-topped crown of a few strong branches curving
+    up, needle tufts at their ends."""
+    t = Tree(seed, leaf_size=0.22, spray=7, spacing=0.12, droop=(0.0, -0.03, 0.0, 0.04), palette=PINE_COLS, shape=NEEDLE)
+    rng = t.rng
+    h = rng.uniform(*height)
+    pts, rad = trunk(t, h, rng.uniform(*radius), (rng.gauss(0, 0.04), rng.gauss(0, 0.04)))
+    z = h * clear
+    while z < h * 0.98:
+        i = min(len(pts) - 2, int(z / (h / (len(pts) - 1))))
+        for _ in range(rng.randint(2, 4)):
+            az = rng.uniform(0, 6.3)
+            d = Vector((math.cos(az), math.sin(az), rng.uniform(0.25, 0.8))).normalized()
+            t.branch(pts[i], d, (h - z) * rng.uniform(0.35, 0.6) + 1.2, max(0.02, rad[i] * 0.4), 1, 3)
+        z += rng.uniform(0.9, 1.6)
+    return t.build(f'pine_{seed}', coll, bark, leafmat)
+
+
+def pine_young(seed, coll, bark, leafmat):
+    return pine(seed, coll, bark, leafmat, (10, 16), (0.08, 0.14), 0.55)
+
+
 def spruce_big(seed, coll, bark, leafmat):
     return spruce(seed, coll, bark, leafmat, (20, 30), (0.17, 0.3), 0.4)
 
@@ -784,7 +851,27 @@ def instance(src, loc, rot_z, scale, coll):
     return link(e, coll)
 
 
-def import_gltf(mid):
+def tint_material(m, color):
+    """Multiply a material's base colour (e.g. green fern → autumn bracken)."""
+    nt = m.node_tree
+    b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if not b or not b.inputs['Base Color'].links:
+        return
+    src = b.inputs['Base Color'].links[0].from_socket
+    hs = nt.nodes.new('ShaderNodeHueSaturation')
+    hs.inputs['Saturation'].default_value = 0.25
+    hs.inputs['Value'].default_value = 2.2
+    nt.links.new(src, hs.inputs['Color'])
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    mx.blend_type = 'MULTIPLY'
+    mx.inputs['Factor'].default_value = 1.0
+    nt.links.new(hs.outputs['Color'], mx.inputs['A'])
+    mx.inputs['B'].default_value = hex_rgba(color)
+    nt.links.new(mx.outputs['Result'], b.inputs['Base Color'])
+
+
+def import_gltf(mid, tint=None):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(FOREST, mid, f'{mid}.gltf'))
     new = [o for o in bpy.data.objects if o not in before]
@@ -795,6 +882,8 @@ def import_gltf(mid):
         c.objects.link(o)
         for slot in o.material_slots:
             if slot.material and not slot.material.get('fog'):
+                if tint:
+                    tint_material(slot.material, tint)
                 fogify(slot.material)
                 slot.material['fog'] = True
     return c
@@ -823,7 +912,12 @@ def build_forest():
     forest = collection('forest', hidden=False)
     kinds = {}
     scans = LOOK.get('scans') and not EXPORT
-    kind_fns = ((('big', scan_fn('fir_tree_01', 1.4), 6), ('pole', scan_fn('fir_sapling_medium', 1.0), 7),
+    special = {
+        'beech_poles': (('big', big_beech, 5), ('pole', pole_beech, 9), ('sap', sapling, 6)),
+        'pine': (('big', pine, 7), ('pole', pine_young, 5), ('sap', sapling, 6)),
+        'spruce_poles': (('big', spruce_big, 4), ('pole', spruce_stange, 8), ('sap', sapling, 4)),
+    }
+    kind_fns = special.get(LOOK['trees']) or ((('big', scan_fn('fir_tree_01', 1.4), 6), ('pole', scan_fn('fir_sapling_medium', 1.0), 7),
                  ('sap', scan_fn('fir_sapling', 1.6), 6), ('sap', sapling, 4)) if scans else
                 (('big', spruce_big, 6), ('pole', spruce_pole, 7), ('sap', spruce_young, 6), ('sap', sapling, 4))
                 if LOOK['trees'] == 'spruce' else (('big', big_beech, 7), ('pole', pole_beech, 8), ('sap', sapling, 10)))
@@ -858,14 +952,26 @@ def build_forest():
             placed += 1
 
     area = (-110, 110, -110, 290)
-    scatter('big', 900, 5.0, 999, area)
-    scatter('pole', 1300, 4.6, 999, area, (0.8, 1.2))
+    cnt = LOOK.get('counts', dict(big=900, pole=1300, sap_edge=900, sap=700))
+    scatter('big', cnt['big'], 5.0, 999, area)
+    scatter('pole', cnt['pole'], 4.6, 999, area, (0.8, 1.2))
     # young growth crowds the light lane edges, sparse inside the stand
-    scatter('sap', 900, 4.0, 14, (-60, 80, -100, 220), (0.7, 1.3))
-    scatter('sap', 700, 4.0, 999, area, (0.6, 1.2))
+    scatter('sap', cnt['sap_edge'], 4.0, 14, (-60, 80, -100, 220), (0.7, 1.3))
+    scatter('sap', cnt['sap'], 4.0, 999, area, (0.6, 1.2))
 
     if EXPORT:
         return kinds
+    if LOOK.get('fern'):
+        n_fern, tint = LOOK['fern']
+        src = import_gltf('fern_02', tint)
+        placed = 0
+        while placed < n_fern:
+            x, y = rng.uniform(-60, 80), rng.uniform(-60, 160)
+            d = abs(x - lane_x(y))
+            if d < 4.4 + rng.uniform(0, 1.0) or d > 45 or in_view_corridor(x, y):
+                continue
+            instance(src, (x, y, ground_z(x, y) - 0.02), rng.uniform(0, 6.3), rng.uniform(1.8, 2.8), forest)
+            placed += 1
     # dead wood, branches, moss from Poly Haven (in the snow only dead wood and branches)
     props = forest
     for mid, count, dmin, dmax, sc in (('dead_tree_trunk', 14, 5.5, 40, (0.9, 1.3)),
@@ -1318,6 +1424,7 @@ BOAR_BASE = os.path.join(S.TEX, 'animals', 'boar_base.blend')
 STATUE_FEET = {'FL': (0.177, 0.098), 'FR': (0.177, -0.098), 'HL': (-0.555, 0.102), 'HR': (-0.555, -0.102)}
 STATUE_WITHERS = 0.84      # after raising the forehand
 FOREHAND = 0.28            # forehand raised by up to 28 %
+NECK_PIVOT = (0.38, 0.0, 0.6)   # the head nods about this point (statue units)
 STATUE_TAIL = -0.655       # the statue's stub of a tail is cut off here and replaced by a hanging one
 STATUE_NECK = 0.42         # the statue's (domestic pig) head is cut off here ...
 # ... and replaced by a wild boar head (statue units): long wedge, deep cheeks and jowls, starting inside
@@ -1457,10 +1564,14 @@ def statue_boar(mats, kind='keiler', seed=1, size=1.0):
     body.location.z = body['z0']
     grow_fur(body, int(200000 * k['bulk']), statue_body_rule(k, slice_table(body.data)), mats['hair'], seed, lm)
     head = loft('boar_head', HEAD_PROFILE, [mats['skin'], mats['snout']], close_back=False, rings=48)
-    head.parent = body
+    neck = link(bpy.data.objects.new('neck', None))
+    neck.parent = body
+    neck.location = NECK_PIVOT
+    head.parent = neck
     # snout length: scale the head along X about the neck
     head.scale.x = k['snout']
-    head.location.x = STATUE_NECK * (1 - k['snout'])
+    head.location = (STATUE_NECK * (1 - k['snout']) - NECK_PIVOT[0], 0, -NECK_PIVOT[2])
+    body['neck'] = neck.name
     grow_fur(head, 60000, head_rule(k), mats['hair'], seed + 3, lm)
     ey = head_eye_y()
     for s_ in (-1, 1):
@@ -1516,15 +1627,70 @@ def make_boar(mats, kind='keiler', seed=1, size=1.0):
     return boar(mats, kind, seed)
 
 
-# gait: stride (m, keiler size), leg phase offsets (fraction of a cycle), swing amplitude front/hind (deg),
-# knee/hock flex front/hind (deg), body bob (m), pitch rock (deg), tail angle (deg, + = raised)
+# gait (mirrored in src/hunt/motion.ts — keep both in step):
+#   stride   m per full cycle at keiler size        duty   share of the cycle a hoof is on the ground
+#   phase    when each leg's stance starts          amp    hip swing front / hind (deg)
+#   flex     knee / hock bend in the swing (deg)    stance bend during the stance (front / hind, deg)
+#   bob      body up-down (m)   rock  pitch (deg)    head  head-down while running (deg)  nod  head nod (deg)
 GAITS = {
-    'trot': dict(stride=1.15, phase={'FL': 0.0, 'HR': 0.0, 'FR': 0.5, 'HL': 0.5}, amp=(24, 22), flex=(60, -35),
-                 bob=0.018, rock=1.2, tail=15),
+    'trot': dict(stride=1.15, duty=0.56, phase={'FL': 0.0, 'HR': 0.0, 'FR': 0.5, 'HL': 0.5}, amp=(22, 20),
+                 flex=(70, -45), stance=(6, -5), bob=0.016, rock=1.2, head=3.0, nod=1.5, tail=15),
     # rotary gallop: the fronts land one after the other, then the hinds; long reach, back rocking, tail up
-    'gallop': dict(stride=2.1, phase={'FL': 0.0, 'FR': 0.12, 'HL': 0.52, 'HR': 0.64}, amp=(44, 40), flex=(85, -55),
-                   bob=0.035, rock=6.0, tail=115),
+    'gallop': dict(stride=2.1, duty=0.38, phase={'FL': 0.0, 'FR': 0.1, 'HL': 0.5, 'HR': 0.6}, amp=(40, 36),
+                   flex=(95, -70), stance=(10, -8), bob=0.035, rock=5.0, head=7.0, nod=5.0, tail=115),
 }
+WANDER = 0.35      # m: how far an animal drifts sideways off its straight line
+SPEED_VAR = 0.06   # ± share of speed, slowly varying
+
+
+def gait_pose(g, gait, scale, x0, x1, y0, speed, t0, direction, phase0, surge, sp, wp, vp, t):
+    """Where an animal is and how its parts are turned at time t (mirrored in motion.ts poseAt)."""
+    def place(tt):
+        run = max(0.0, tt - t0)
+        ramp = min(1.0, run)
+        dist = speed * (run + SPEED_VAR / 0.9 * (math.cos(vp) - math.cos(0.9 * run + vp))) \
+            + surge * math.sin(run * 2.7 + sp) * ramp
+        return dist, x0 + direction * dist, y0 + WANDER * math.sin(0.45 * run + wp) * ramp
+    dist, x, y = place(t)
+    arrived = (x - x1) * direction >= 0
+    moving = speed > 0 and t0 <= t and not arrived
+    parked = speed > 0 and (t < t0 - 1.0 / FPS or arrived)
+    if moving:
+        _, xa, ya = place(t + 0.02)
+        heading = math.atan2(ya - y, xa - x)
+    else:
+        heading = 0.0 if direction > 0 else math.pi
+    cyc = dist / (g['stride'] * scale) + phase0
+    c = 2 * math.pi * cyc
+    pose = dict(x=x, y=y, heading=heading, parked=parked, moving=moving, legs={})
+    if not moving:
+        pose.update(bob=0.0, roll=0.0, pitch=0.0, neck=0.0, tail_x=0.0, tail_y=math.radians(5))
+        for key in g['phase']:
+            pose['legs'][key] = (0.0, 0.0, 0.0)
+        return pose
+    pitch = math.radians(g['rock']) * math.sin(c + 0.6)
+    pose['bob'] = g['bob'] * (math.cos(2 * c) if gait == 'trot' else math.cos(c))
+    pose['roll'] = 0.02 * math.sin(c)
+    pose['pitch'] = pitch
+    pose['neck'] = math.radians(g['head']) - 0.6 * pitch + math.radians(g['nod']) * math.sin((2 if gait == 'trot' else 1) * c + 1.4)
+    pose['tail_x'] = 0.15 * math.sin(c + 1.0)
+    pose['tail_y'] = math.radians(g['tail'] + 8 * math.sin(c))
+    for key, off in g['phase'].items():
+        i = 0 if key[0] == 'F' else 1
+        p = (cyc + off) % 1.0
+        A = math.radians(g['amp'][i])
+        if p < g['duty']:                      # stance: the hoof stays put, the leg sweeps back evenly
+            u = p / g['duty']
+            hip = A * (1 - 2 * u)
+            knee = math.radians(g['stance'][i]) * math.sin(math.pi * u)
+            hoof = 0.0
+        else:                                  # swing: lifted, folded, brought forward fast
+            u = (p - g['duty']) / (1 - g['duty'])
+            hip = -A + 2 * A * u * u * (3 - 2 * u)
+            knee = math.radians(g['flex'][i]) * math.sin(math.pi * u)
+            hoof = math.radians(45) * math.sin(math.pi * u)
+        pose['legs'][key] = (hip, knee, hoof)
+    return pose
 
 
 def animate_boar(root, body, legs, t0, x0, x1, speed, y, gait='trot', phase0=0.0, surge=0.0, seed=0, direction=1):
@@ -1533,46 +1699,33 @@ def animate_boar(root, body, legs, t0, x0, x1, speed, y, gait='trot', phase0=0.0
     before it starts and once it has arrived, so it neither shows nor costs render time."""
     sc = bpy.context.scene
     frames = int(SECONDS * FPS)
-    s = root.scale.x
     g = GAITS[gait]
     tail = bpy.data.objects.get(body.get('tail', ''))
-    sp = Mulberry(seed).random() * 6.3
+    neck = bpy.data.objects.get(body.get('neck', ''))
+    r = Mulberry(seed)
+    sp, wp, vp = r.random() * 6.3, r.random() * 6.3, r.random() * 6.3
+    z0 = body.get('z0', 0.0)
     for f in range(frames + 1):
-        t = f / FPS
-        run = max(0.0, t - t0)
-        x = x0 + direction * (run * speed + surge * math.sin(run * 2.7 + sp) * min(1.0, run))
-        arrived = (x - x1) * direction >= 0
-        moving = speed > 0 and t0 <= t and not arrived
-        phase = 2 * math.pi * (abs(x - x0) / (g['stride'] * s) + phase0)
-        parked = speed > 0 and (t < t0 - 1.0 / FPS or arrived)
-        root.location = (x, y, -100.0 if parked else ground_z(x, y))
-        root.rotation_euler = (0, 0, 0 if direction > 0 else math.pi)
+        q = gait_pose(g, gait, root.scale.x, x0, x1, y, speed, t0, direction, phase0, surge, sp, wp, vp, f / FPS)
+        root.location = (q['x'], q['y'], -100.0 if q['parked'] else ground_z(q['x'], q['y']))
+        root.rotation_euler = (0, 0, q['heading'])
         root.keyframe_insert('location', frame=f)
         root.keyframe_insert('rotation_euler', frame=f)
-        if moving:
-            bob = g['bob'] * (math.cos(2 * phase) if gait == 'trot' else math.cos(phase))
-            body.location = (0, 0, body.get('z0', 0.0) + bob)
-            body.rotation_euler = (0.02 * math.sin(phase), math.radians(g['rock']) * math.sin(phase + 0.6), 0)
-        else:
-            body.location = (0, 0, body.get('z0', 0.0))
-            body.rotation_euler = (0, 0, 0)
+        body.location = (0, 0, z0 + q['bob'])
+        body.rotation_euler = (q['roll'], q['pitch'], 0)
         body.keyframe_insert('location', frame=f)
         body.keyframe_insert('rotation_euler', frame=f)
+        if neck:
+            neck.rotation_euler = (0, q['neck'], 0)
+            neck.keyframe_insert('rotation_euler', frame=f)
         if tail:
-            lift = g['tail'] if moving else 5
-            tail.rotation_euler = (0.15 * math.sin(phase * 1.0 + 1.0) if moving else 0.0, math.radians(lift + (8 * math.sin(phase) if moving else 0)), 0)
+            tail.rotation_euler = (q['tail_x'], q['tail_y'], 0)
             tail.keyframe_insert('rotation_euler', frame=f)
         for key, (up, lo, hf) in legs.items():
-            ph = phase + 2 * math.pi * g['phase'][key]
-            front = key[0] == 'F'
-            if moving:
-                a = math.radians(g['amp'][0 if front else 1]) * math.sin(ph)
-                swing = max(0.0, math.cos(ph)) ** 1.5      # leg travelling forward, lifted
-                up.rotation_euler = (0, -a, 0)
-                lo.rotation_euler = (0, math.radians(g['flex'][0 if front else 1]) * swing, 0)
-                hf.rotation_euler = (0, math.radians(45) * swing, 0)
-            else:
-                up.rotation_euler = lo.rotation_euler = hf.rotation_euler = (0, 0, 0)
+            hip, knee, hoof = q['legs'][key]
+            up.rotation_euler = (0, -hip, 0)
+            lo.rotation_euler = (0, knee, 0)
+            hf.rotation_euler = (0, hoof, 0)
             for o in (up, lo, hf):
                 o.keyframe_insert('rotation_euler', frame=f)
     sc.frame_start, sc.frame_end = 0, frames

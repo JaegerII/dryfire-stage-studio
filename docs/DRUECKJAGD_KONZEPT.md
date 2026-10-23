@@ -223,3 +223,14 @@ Offen: Ton (Horn, Hundelaut), Wind, Rot-/Damwild, Wintervariante, gekaufte Tierm
 - **Schneller rendern:** Fell nach Entfernung (Bruchteil der Borsten, dicker), leere Bilder werden übersprungen,
   Final mit 160 statt 256 Samples (Hintergrund und Wild gleich). Gemessen Fichte · Stand 3 (55 s, 1080p): vorher
   hochgerechnet ~45–50 min, jetzt 27 min — die schweren Scan-Fichten bremsen, Buchen-Reviere sollten mehr profitieren.
+
+## 11. Natürlichere Gangart, drei neue Reviere
+
+- **Gangart** (`hunt.py gait_pose` = `motion.ts poseAt`, ein Test prüft die Gleichheit): Stand- und Schwungphase mit
+  Duty-Faktor — der Huf steht am Boden still, der Lauf wird angewinkelt schnell nach vorn geführt; Kopf nickt um ein
+  Halsgelenk (`neck`), beim Flüchten tiefer; Weg schwingt leicht seitlich (±0,35 m), Tempo variiert ±6 %, das Stück
+  dreht sich in Laufrichtung.
+- **Neue Reviere:** Buchen-Stangenholz am Hang · Schnee (Pulverschnee mit Laub, Hang rechts der Schneise),
+  Kiefernwald mit Adlerfarn, Nadel-Stangenholz · Raureif. Beispiel „Drückjagd 2“ mit je drei Ständen;
+  sechs Anlauf-Muster statt drei.
+- Render-Dienst: Renders werden neu erstellt, sobald sich `hunt.py` ändert.

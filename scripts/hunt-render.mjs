@@ -16,7 +16,7 @@
  */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const PATH = '/__hunt';
@@ -93,7 +93,9 @@ const startJob = async ({ key, scenario, format, quality }) => {
   const plateDir = join(OUT, 'plates', `${scenario.map}_${scenario.stand + 1}_${format}_${quality}_${q.samples}`);
   common.push(`map=${scenario.map}`, `stand=${scenario.stand}`);
   const dir = join(OUT, 'jobs', `${key}_${format}_${quality}`);
-  const hash = createHash('sha1').update(JSON.stringify([scenario, q])).digest('hex').slice(0, 12);
+  // a changed hunt.py (gait, animals) must not reuse an older render of the same scenario
+  const code = statSync(join(TOOLS, 'blender', 'hunt.py')).mtimeMs;
+  const hash = createHash('sha1').update(JSON.stringify([scenario, q, code])).digest('hex').slice(0, 12);
   job = { key: `${key}_${format}_${quality}`, phase: 'plate', done: 0, total: 0, error: null, started: Date.now(), finished: null, width: w, height: h, proc: null, cancelled: false };
   try {
     if (existsSync(join(dir, 'crops.json')) && existsSync(join(dir, 'hash')) && readFileSync(join(dir, 'hash'), 'utf8') === hash) {

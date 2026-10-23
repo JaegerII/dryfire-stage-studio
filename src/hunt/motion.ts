@@ -38,11 +38,28 @@ export const KIND_BODY: Record<GameClass, { scale: number; legs: number }> = {
 /** Statue units → keiler size (hunt.py: 0.92 / STATUE_WITHERS). */
 export const STATUE_SCALE = 0.92 / 0.84;
 
-/** hunt.py GAITS. */
-export const GAIT_MOTION: Record<Gait, { stride: number; phase: Record<'FL' | 'FR' | 'HL' | 'HR', number>; amp: [number, number]; flex: [number, number]; bob: number; rock: number; tail: number }> = {
-  trot: { stride: 1.15, phase: { FL: 0, HR: 0, FR: 0.5, HL: 0.5 }, amp: [24, 22], flex: [60, -35], bob: 0.018, rock: 1.2, tail: 15 },
-  gallop: { stride: 2.1, phase: { FL: 0, FR: 0.12, HL: 0.52, HR: 0.64 }, amp: [44, 40], flex: [85, -55], bob: 0.035, rock: 6, tail: 115 },
+type LegKey = 'FL' | 'FR' | 'HL' | 'HR';
+interface GaitDef {
+  stride: number;
+  duty: number;
+  phase: Record<LegKey, number>;
+  amp: [number, number];
+  flex: [number, number];
+  stance: [number, number];
+  bob: number;
+  rock: number;
+  head: number;
+  nod: number;
+  tail: number;
+}
+/** hunt.py GAITS (keep both in step). */
+export const GAIT_MOTION: Record<Gait, GaitDef> = {
+  trot: { stride: 1.15, duty: 0.56, phase: { FL: 0, HR: 0, FR: 0.5, HL: 0.5 }, amp: [22, 20], flex: [70, -45], stance: [6, -5], bob: 0.016, rock: 1.2, head: 3, nod: 1.5, tail: 15 },
+  gallop: { stride: 2.1, duty: 0.38, phase: { FL: 0, FR: 0.1, HL: 0.5, HR: 0.6 }, amp: [40, 36], flex: [95, -70], stance: [10, -8], bob: 0.035, rock: 5, head: 7, nod: 5, tail: 115 },
 };
+/** hunt.py WANDER / SPEED_VAR. */
+const WANDER = 0.35;
+const SPEED_VAR = 0.06;
 
 const ORDER: Record<GameClass, number> = { bache: 0, keiler: 0, frischling_gestreift: 1, frischling: 1, ueberlaeufer: 2 };
 
@@ -87,7 +104,10 @@ export interface AnimalTrack {
   dir: 1 | -1;
   phase0: number;
   surge: number;
+  /** Random phases of the group surge, the sideways wander and the speed variation (hunt.py sp, wp, vp). */
   sp: number;
+  wp: number;
+  vp: number;
 }
 
 /** hunt.py scenario_game: every animal of every crossing. */
@@ -116,7 +136,10 @@ export const scenarioTracks = (s: Pick<HuntScenario, 'map' | 'stand' | 'crossing
         dir,
         phase0: rng.random(),
         surge: c.animals.length > 1 ? 0.25 : 0,
-        sp: mulberry(n).random() * 6.3,
+        ...(() => {
+          const r = mulberry(n);
+          return { sp: r.random() * 6.3, wp: r.random() * 6.3, vp: r.random() * 6.3 };
+        })(),
       });
     }
   }
@@ -129,39 +152,61 @@ export interface AnimalPose {
   visible: boolean;
   x: number;
   y: number;
+  /** Direction of travel (radians, lane coords: 0 = +x). */
+  heading: number;
   /** Blender euler angles (radians) of the parts. */
   body: { bob: number; rx: number; ry: number };
+  neck: number;
   tail: { rx: number; ry: number };
-  legs: Record<'FL' | 'FR' | 'HL' | 'HR', { up: number; lo: number }>;
+  legs: Record<LegKey, { up: number; lo: number }>;
 }
 
-/** hunt.py animate_boar at time t. */
+/** hunt.py gait_pose at time t. */
 export const poseAt = (a: AnimalTrack, t: number): AnimalPose => {
   const g = GAIT_MOTION[a.gait];
-  const run = Math.max(0, t - a.t0);
-  const x = a.x0 + a.dir * (run * a.speed + a.surge * Math.sin(run * 2.7 + a.sp) * Math.min(1, run));
+  const place = (tt: number) => {
+    const run = Math.max(0, tt - a.t0);
+    const ramp = Math.min(1, run);
+    const dist = a.speed * (run + (SPEED_VAR / 0.9) * (Math.cos(a.vp) - Math.cos(0.9 * run + a.vp))) + a.surge * Math.sin(run * 2.7 + a.sp) * ramp;
+    return { dist, x: a.x0 + a.dir * dist, y: a.y + WANDER * Math.sin(0.45 * run + a.wp) * ramp };
+  };
+  const { dist, x, y } = place(t);
   const arrived = (x - a.x1) * a.dir >= 0;
   const moving = t >= a.t0 && !arrived;
-  const phase = 2 * Math.PI * (Math.abs(x - a.x0) / (g.stride * a.scale) + a.phase0);
   const parked = t < a.t0 - 1 / 30 || arrived;
+  let heading = a.dir > 0 ? 0 : Math.PI;
+  if (moving) {
+    const n = place(t + 0.02);
+    heading = Math.atan2(n.y - y, n.x - x);
+  }
   const legs = {} as AnimalPose['legs'];
-  for (const key of ['FL', 'FR', 'HL', 'HR'] as const) {
-    const ph = phase + 2 * Math.PI * g.phase[key];
-    const front = key[0] === 'F';
-    if (!moving) legs[key] = { up: 0, lo: 0 };
-    else {
-      const swing = Math.max(0, Math.cos(ph)) ** 1.5;
-      legs[key] = { up: -g.amp[front ? 0 : 1] * DEG * Math.sin(ph), lo: g.flex[front ? 0 : 1] * DEG * swing };
+  if (!moving) {
+    for (const k of ['FL', 'FR', 'HL', 'HR'] as const) legs[k] = { up: 0, lo: 0 };
+    return { visible: !parked, x, y, heading, body: { bob: 0, rx: 0, ry: 0 }, neck: 0, tail: { rx: 0, ry: 5 * DEG }, legs };
+  }
+  const cyc = dist / (g.stride * a.scale) + a.phase0;
+  const c = 2 * Math.PI * cyc;
+  const pitch = g.rock * DEG * Math.sin(c + 0.6);
+  for (const k of ['FL', 'FR', 'HL', 'HR'] as const) {
+    const i = k[0] === 'F' ? 0 : 1;
+    const p = (((cyc + g.phase[k]) % 1) + 1) % 1;
+    const A = g.amp[i] * DEG;
+    if (p < g.duty) {
+      const u = p / g.duty;
+      legs[k] = { up: A * (1 - 2 * u), lo: g.stance[i] * DEG * Math.sin(Math.PI * u) };
+    } else {
+      const u = (p - g.duty) / (1 - g.duty);
+      legs[k] = { up: -A + 2 * A * u * u * (3 - 2 * u), lo: g.flex[i] * DEG * Math.sin(Math.PI * u) };
     }
   }
   return {
     visible: !parked,
     x,
-    y: a.y,
-    body: moving
-      ? { bob: g.bob * (a.gait === 'trot' ? Math.cos(2 * phase) : Math.cos(phase)), rx: 0.02 * Math.sin(phase), ry: g.rock * DEG * Math.sin(phase + 0.6) }
-      : { bob: 0, rx: 0, ry: 0 },
-    tail: moving ? { rx: 0.15 * Math.sin(phase + 1), ry: (g.tail + 8 * Math.sin(phase)) * DEG } : { rx: 0, ry: 5 * DEG },
+    y,
+    heading,
+    body: { bob: g.bob * (a.gait === 'trot' ? Math.cos(2 * c) : Math.cos(c)), rx: 0.02 * Math.sin(c), ry: pitch },
+    neck: g.head * DEG - 0.6 * pitch + g.nod * DEG * Math.sin((a.gait === 'trot' ? 2 : 1) * c + 1.4),
+    tail: { rx: 0.15 * Math.sin(c + 1), ry: (g.tail + 8 * Math.sin(c)) * DEG },
     legs,
   };
 };

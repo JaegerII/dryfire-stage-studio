@@ -8,6 +8,10 @@ import type { Crossing, HuntRelease, HuntScenario } from './types';
  * change), the chosen stand's field of view (16:9 solid, 9:16 dashed), the maximum shooting distance, and
  * every crossing as an arrow across the lane. Drag a crossing to change its distance from the stand.
  */
+/** Plan colours per map: forest floor; snow maps get a pale lane. */
+const PLAN_FOREST: Record<string, string> = { buche_winter: '#2a2e30', buche_hang_schnee: '#2a2e30', fichte: '#18201a', stangenholz_raureif: '#1e2220', kiefer_farn: '#251d16' };
+const SNOW = new Set(['buche_winter', 'buche_hang_schnee']);
+
 const X0 = -40;
 const X1 = 40;
 const Y0 = -14;
@@ -86,15 +90,15 @@ export const HuntPlan = ({
         </clipPath>
       </defs>
       <g clipPath="url(#hp-clip)">
-        <rect x={X0} y={0} width={X1 - X0} height={Y1 - Y0} fill={map === 'buche_winter' ? '#2a2e30' : map === 'fichte' ? '#18201a' : '#1c2018'} />
+        <rect x={X0} y={0} width={X1 - X0} height={Y1 - Y0} fill={PLAN_FOREST[map] ?? '#1c2018'} />
         {Array.from({ length: 13 }, (_, i) => i * 10).map((d) => (
           <g key={d}>
             <line x1={X0} x2={X1} y1={sy(d)} y2={sy(d)} stroke="rgba(237,237,230,0.06)" strokeWidth={0.2} />
             <text x={X0 + 1} y={sy(d) - 0.6} className="hp-grid">{d} m</text>
           </g>
         ))}
-        <polygon points={lane(4.5)} fill={map === 'buche_winter' ? '#6b6f72' : '#3a3a2c'} />
-        <polygon points={lane(1.5)} fill={map === 'buche_winter' ? '#8a8e92' : '#5c5a52'} />
+        <polygon points={lane(4.5)} fill={SNOW.has(map) ? '#6b6f72' : '#3a3a2c'} />
+        <polygon points={lane(1.5)} fill={SNOW.has(map) ? '#8a8e92' : '#5c5a52'} />
         <polygon points={wedge('9x16')} fill="none" stroke="rgba(237,237,230,0.22)" strokeWidth={0.25} strokeDasharray="1 1" />
         <polygon points={wedge('16x9')} fill="rgba(237,237,230,0.05)" stroke="rgba(237,237,230,0.35)" strokeWidth={0.25} />
         <circle cx={st.x} cy={sy(st.y)} r={release.maxDistance} fill="none" stroke="rgba(255,49,49,0.55)" strokeWidth={0.3} strokeDasharray="1.5 1" />

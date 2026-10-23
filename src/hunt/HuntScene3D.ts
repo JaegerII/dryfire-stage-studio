@@ -30,6 +30,9 @@ const LOOK: Record<MapId, { fog: string; density: number; sky: string; ground: s
   buche_herbst: { fog: '#9a9c94', density: 0.0042, sky: '#c9ced2', ground: '#3b3834', hemi: 1.0, tint: '#d9cfc6', exposure: 0.95 },
   buche_winter: { fog: '#c2c6c8', density: 0.0058, sky: '#dfe4e8', ground: '#8e8e8a', hemi: 0.95, tint: '#e6e8ea', exposure: 0.95 },
   fichte: { fog: '#8d928a', density: 0.0048, sky: '#c4cbcc', ground: '#34322c', hemi: 1.0, tint: '#d6d0c8', exposure: 1.05 },
+  buche_hang_schnee: { fog: '#c3c6c6', density: 0.006, sky: '#dfe4e8', ground: '#8e8e8a', hemi: 0.95, tint: '#e6e8ea', exposure: 0.95 },
+  kiefer_farn: { fog: '#b2aa9c', density: 0.0045, sky: '#d0ccc2', ground: '#4a3a2c', hemi: 1.0, tint: '#d9cfc6', exposure: 1.0 },
+  stangenholz_raureif: { fog: '#b9bcba', density: 0.0065, sky: '#d2d6d6', ground: '#4a4640', hemi: 0.95, tint: '#d6d0c8', exposure: 1.0 },
 };
 
 interface MapScene {
@@ -70,6 +73,7 @@ interface Animal {
   root: THREE.Object3D;
   body: THREE.Object3D;
   tail: THREE.Object3D | null;
+  neck: THREE.Object3D | null;
   legs: Record<'FL' | 'FR' | 'HL' | 'HR', { up: THREE.Object3D; lo: THREE.Object3D }>;
   bodyY: number;
   /** Ground height cache along the track (x → z). */
@@ -183,7 +187,7 @@ export class HuntScene3D {
         const legs = {} as Animal['legs'];
         for (const k of ['FL', 'FR', 'HL', 'HR'] as const) legs[k] = { up: node(root, `leg_${k}`)!, lo: node(root, `shin_${k}`)! };
         group.add(root);
-        return { track, root: boarNode, body, tail: node(root, 'tail'), legs, bodyY: body.position.y, ground: new Map() };
+        return { track, root: boarNode, body, tail: node(root, 'tail'), neck: node(root, 'neck'), legs, bodyY: body.position.y, ground: new Map() };
       });
       group.visible = false;
       this.scene.add(group);
@@ -225,11 +229,12 @@ export class HuntScene3D {
       a.root.visible = p.visible;
       if (!p.visible) continue;
       a.root.position.copy(v3(p.x, p.y, this.groundAt(a, ms?.ground ?? null, p.x, p.y)));
-      a.root.rotation.set(0, a.track.dir > 0 ? 0 : Math.PI, 0);
+      a.root.rotation.set(0, p.heading, 0);
       // Blender rotation about +Y = three.js rotation about −Z
       a.body.position.y = a.bodyY + p.body.bob;
       a.body.rotation.set(p.body.rx, 0, -p.body.ry);
       if (a.tail) a.tail.rotation.set(p.tail.rx, 0, -p.tail.ry);
+      if (a.neck) a.neck.rotation.set(0, 0, -p.neck);
       for (const k of ['FL', 'FR', 'HL', 'HR'] as const) {
         a.legs[k].up.rotation.set(0, 0, -p.legs[k].up);
         a.legs[k].lo.rotation.set(0, 0, -p.legs[k].lo);
@@ -238,7 +243,7 @@ export class HuntScene3D {
   }
 
   private groundAt(a: Animal, ground: THREE.Mesh | null, x: number, y: number) {
-    const key = Math.round(x * 4);
+    const key = Math.round(x * 4) * 4096 + Math.round(y * 4);
     let z = a.ground.get(key);
     if (z === undefined) {
       z = 0;

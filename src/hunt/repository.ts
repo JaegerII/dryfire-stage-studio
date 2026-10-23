@@ -1,5 +1,5 @@
 /**
- * Driven hunts and their scenarios: a built-in demo hunt (nine scenarios: three maps × three stands)
+ * Driven hunts and their scenarios: built-in demo hunts (nine scenarios each: three maps × three stands)
  * plus what is saved in this browser (localStorage) — the same pattern as matches and stages.
  */
 import { newId } from '../utils/random';
@@ -24,21 +24,40 @@ export const newCrossing = (at: number, over: Partial<Crossing> = {}): Crossing 
   ...over,
 });
 
-// ---------------------------------------------------------------- built-in demo: 3 maps × 3 stands
-const DEMO_CROSSINGS: Omit<Crossing, 'id' | 'seed'>[][] = [
+// ---------------------------------------------------------------- built-in demos: each map × 3 stands
+type DemoCrossing = Omit<Crossing, 'id' | 'seed'>;
+const F = 'frischling';
+const FG = 'frischling_gestreift';
+/** Crossing patterns the demo scenarios cycle through: single animals, sounders, near and far, both ways. */
+const DEMO_CROSSINGS: DemoCrossing[][] = [
   [
     { at: 4, animals: ['ueberlaeufer'], gait: 'trot', speed: 3.6, distance: 32, direction: 'ltr' },
-    { at: 26, animals: ['bache', 'frischling', 'frischling', 'frischling', 'frischling', 'ueberlaeufer', 'ueberlaeufer'], gait: 'gallop', speed: 8, distance: 38, direction: 'rtl' },
+    { at: 26, animals: ['bache', F, F, F, F, 'ueberlaeufer', 'ueberlaeufer'], gait: 'gallop', speed: 8, distance: 38, direction: 'rtl' },
     { at: 44, animals: ['keiler'], gait: 'gallop', speed: 7, distance: 45, direction: 'ltr' },
   ],
   [
-    { at: 5, animals: ['bache', 'frischling', 'frischling', 'frischling'], gait: 'trot', speed: 3.2, distance: 30, direction: 'rtl' },
+    { at: 5, animals: ['bache', F, F, F], gait: 'trot', speed: 3.2, distance: 30, direction: 'rtl' },
     { at: 24, animals: ['ueberlaeufer', 'ueberlaeufer'], gait: 'gallop', speed: 8.5, distance: 42, direction: 'ltr' },
   ],
   [
     { at: 4, animals: ['bache'], gait: 'trot', speed: 3.4, distance: 36, direction: 'ltr' },
-    { at: 22, animals: ['bache', 'frischling_gestreift', 'frischling_gestreift', 'frischling_gestreift', 'frischling_gestreift', 'frischling_gestreift'], gait: 'trot', speed: 2.8, distance: 28, direction: 'rtl' },
-    { at: 46, animals: ['frischling', 'frischling'], gait: 'gallop', speed: 7.5, distance: 52, direction: 'ltr' },
+    { at: 22, animals: ['bache', FG, FG, FG, FG, FG], gait: 'trot', speed: 2.8, distance: 28, direction: 'rtl' },
+    { at: 46, animals: [F, F], gait: 'gallop', speed: 7.5, distance: 52, direction: 'ltr' },
+  ],
+  [
+    { at: 3, animals: ['keiler'], gait: 'trot', speed: 2.6, distance: 24, direction: 'rtl' },
+    { at: 18, animals: ['ueberlaeufer', 'ueberlaeufer', 'ueberlaeufer'], gait: 'gallop', speed: 9, distance: 34, direction: 'ltr' },
+    { at: 36, animals: ['bache', 'bache', F, F, F, F, F, F], gait: 'gallop', speed: 7.5, distance: 40, direction: 'rtl' },
+  ],
+  [
+    { at: 4, animals: [F, F, F], gait: 'gallop', speed: 8, distance: 26, direction: 'ltr' },
+    { at: 20, animals: ['bache', 'ueberlaeufer', F, F], gait: 'trot', speed: 3.8, distance: 55, direction: 'ltr' },
+    { at: 42, animals: ['keiler'], gait: 'gallop', speed: 9.5, distance: 32, direction: 'rtl' },
+  ],
+  [
+    { at: 5, animals: ['ueberlaeufer'], gait: 'gallop', speed: 10, distance: 46, direction: 'rtl' },
+    { at: 21, animals: ['bache', FG, FG, FG, FG], gait: 'trot', speed: 3, distance: 33, direction: 'ltr' },
+    { at: 40, animals: ['ueberlaeufer', 'ueberlaeufer'], gait: 'trot', speed: 4.2, distance: 22, direction: 'rtl' },
   ],
 ];
 
@@ -53,14 +72,22 @@ const demoScenario = (map: MapId, stand: StandIndex, k: number): HuntScenario =>
   crossings: DEMO_CROSSINGS[k % DEMO_CROSSINGS.length].map((c, i) => ({ ...c, id: `x_${map}_${stand}_${i}`, seed: 11 + 7 * k + i })),
 });
 const DEMO_SCENARIOS: HuntScenario[] = MAP_IDS.flatMap((map, mi) => ([0, 1, 2] as StandIndex[]).map((stand) => demoScenario(map, stand, mi * 3 + stand)));
-const DEMO_HUNT: Hunt = {
+const demoHunt = (id: string, name: string, description: string, maps: MapId[]): Hunt => ({
   schema: SCHEMA_HUNT,
-  id: 'hunt_demo',
-  name: 'Drückjagd 1 · Drei Reviere',
-  description: 'Herbst, Winter und Fichte – je drei Stände.',
-  scenarioIds: DEMO_SCENARIOS.map((s) => s.id),
+  id,
+  name,
+  description,
+  scenarioIds: DEMO_SCENARIOS.filter((s) => maps.includes(s.map)).map((s) => s.id),
   release: DEFAULT_RELEASE,
-};
+});
+const DEMO_HUNTS: Hunt[] = [
+  demoHunt('hunt_demo', 'Drückjagd 1 · Drei Reviere', 'Herbst, Winter und Fichte – je drei Stände.', ['buche_herbst', 'buche_winter', 'fichte']),
+  demoHunt('hunt_demo_2', 'Drückjagd 2 · Hang, Kiefer, Stangenholz', 'Buchenhang im Schnee, Kiefern mit Adlerfarn, Stangenholz im Raureif – je drei Stände.', [
+    'buche_hang_schnee',
+    'kiefer_farn',
+    'stangenholz_raureif',
+  ]),
+];
 
 // ---------------------------------------------------------------- storage
 const read = <T>(key: string): Record<string, T> => {
@@ -120,10 +147,14 @@ export const scenarioRepository = {
 export const huntRepository = {
   list(): (Hunt & { builtIn: boolean })[] {
     const own = Object.values(read<Hunt>(KEY_HUNTS)).sort((a, b) => a.name.localeCompare(b.name));
-    return [...own.map((h) => ({ ...h, builtIn: false })), ...(own.some((h) => h.id === DEMO_HUNT.id) ? [] : [{ ...structuredClone(DEMO_HUNT), builtIn: true }])];
+    const ids = new Set(own.map((h) => h.id));
+    return [...own.map((h) => ({ ...h, builtIn: false })), ...DEMO_HUNTS.filter((h) => !ids.has(h.id)).map((h) => ({ ...structuredClone(h), builtIn: true }))];
   },
   get(id: string): Hunt | undefined {
-    return read<Hunt>(KEY_HUNTS)[id] ?? (id === DEMO_HUNT.id ? structuredClone(DEMO_HUNT) : undefined);
+    const own = read<Hunt>(KEY_HUNTS)[id];
+    if (own) return own;
+    const b = DEMO_HUNTS.find((h) => h.id === id);
+    return b ? structuredClone(b) : undefined;
   },
   save(h: Hunt): Hunt {
     const saved = { ...h, meta: { ...h.meta, updatedAt: new Date().toISOString() } };
@@ -137,7 +168,7 @@ export const huntRepository = {
     delete all[id];
     write(KEY_HUNTS, all);
   },
-  isBuiltIn: (id: string) => id === DEMO_HUNT.id,
+  isBuiltIn: (id: string) => DEMO_HUNTS.some((h) => h.id === id),
 };
 
 export const createScenario = (map: MapId = DEFAULT_MAP, stand: StandIndex = 0): HuntScenario => ({

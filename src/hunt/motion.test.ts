@@ -42,3 +42,20 @@ describe('stands and maps', () => {
     expect(scenarioTracks(back, '16x9')[0].dir).toBe(-1);
   });
 });
+
+describe('gait parity with hunt.py gait_pose', () => {
+  it('poses a galloping animal exactly as Blender does', () => {
+    // reference values computed by hunt.py gait_pose(GAITS['gallop'], 'gallop', 0.95, -20, 20, 40, 8, 1, 1, 0.3, 0.25, 1.1, 2.2, 3.3, 2.37)
+    const a = { kind: 'keiler', size: 1, scale: 0.95, gait: 'gallop', t0: 1, x0: -20, x1: 20, y: 40, speed: 8, dir: 1, phase0: 0.3, surge: 0.25, sp: 1.1, wp: 2.2, vp: 3.3 } as const;
+    const p = poseAt({ ...a }, 2.37);
+    expect(p.x).toBeCloseTo(-9.720557, 5);
+    expect(p.y).toBeCloseTo(40.111789, 5);
+    expect(p.heading).toBeCloseTo(-0.019656, 5);
+    expect(p.body.bob).toBeCloseTo(-0.033459, 5);
+    expect(p.body.ry).toBeCloseTo(-0.025972, 5);
+    expect(p.neck).toBeCloseTo(0.059897, 5);
+    expect(p.legs.FL.up).toBeCloseTo(-0.645176, 5);
+    expect(p.legs.FR.lo).toBeCloseTo(1.272204, 5);
+    expect(p.legs.HL.up).toBeCloseTo(0.60741, 5);
+  });
+});

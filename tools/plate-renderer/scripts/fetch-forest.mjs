@@ -32,7 +32,7 @@ const MODELS = {
 };
 /** ambientCG bark (CC0), 2K: Bark005 smooth grey (beech), Bark014 scaly red-brown (spruce). */
 const AMBIENT = ['Bark005', 'Bark014'];
-const HDRIS = { autumn_forest_02: '4k', snowy_forest: '4k', schachen_forest: '4k' };
+const HDRIS = { autumn_forest_02: '4k', snowy_forest: '4k', schachen_forest: '4k', autumn_forest_03: '4k' };
 
 const get = async (url, file) => {
   if (existsSync(file)) return;
