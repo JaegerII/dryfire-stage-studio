@@ -1149,10 +1149,17 @@ def paint_coat(ob, rule, seed, lmul=1.0):
     return None
 
 
+# Fur level of detail: an animal 30–50 m away is 50–100 px tall — a fraction of the strands, each a little
+# thicker, covers it just the same (set per crossing by scenario_game; 1 = the close-up coat).
+FUR_MUL = 1.0
+
+
 def grow_fur(ob, count, rule, hair_m, seed, lmul=1.0):
     """Bristle curves on `ob`; rule(p, n, rng) -> (length, flow, lift, droop, root, tip) or None."""
     if EXPORT:
         return paint_coat(ob, rule, seed, lmul)
+    count = max(200, int(count * FUR_MUL))
+    thick = FUR_MUL ** -0.5
     rng = random.Random(seed)
     pos, cols, rads = [], [], []
     for p, n in sample_surface(ob, count, rng):
@@ -1180,7 +1187,7 @@ def grow_fur(ob, count, rule, hair_m, seed, lmul=1.0):
         mid = tuple(r_ * 0.6 + t_ * 0.4 for r_, t_ in zip(root, tip_c))
         for c in (root, root, mid if not dark else root, tip_c if not dark else mid):
             cols.append((*c, 1.0))
-        rr = rng.uniform(0.0006, 0.0009)
+        rr = rng.uniform(0.0006, 0.0009) * thick
         rads.extend((rr, rr * 0.85, rr * 0.6, rr * 0.25))
     hc = bpy.data.hair_curves.new(ob.name + '_fur')
     hc.add_curves([4] * (len(pos) // 4))
@@ -1742,20 +1749,32 @@ def crossing_line(d):
     return y, xc, half, look
 
 
+ACTIVE = []   # (from, until) in seconds: when animals of a crossing can be on stage
+
+
 def scenario_game(mats, sc_json):
     """All crossings of a scenario on one timeline. Each crossing: at (s), animals (classes, the lead
     animal first), gait, speed (m/s), distance (m from the stand), direction (ltr / rtl), seed."""
-    global SECONDS
+    global SECONDS, FUR_MUL
     SECONDS = float(sc_json['duration'])
     roots, n = [], 0
+    ACTIVE.clear()
+    # pixels per meter at 1 m distance (vertical), for the fur level of detail
+    px_m = H / (2 * math.tan(math.atan(math.tan(math.radians(HFOV / 2)) * H / W)))
     for c in sc_json['crossings']:
         rng = Mulberry(int(c.get('seed', 1)))
         y, xc, half, look = crossing_line(float(c['distance']))
+        tall = px_m / max(1.0, float(c['distance'])) * 0.9          # a keiler's height in pixels
+        FUR_MUL = min(1.0, max(0.08, (tall / 450) ** 2))
         # "from the left" as the hunter sees it: looking back down the lane, left is +x
         direction = (1 if c.get('direction', 'ltr') == 'ltr' else -1) * look
         x_start, x_end = xc - direction * half, xc + direction * half
         group = c['animals']
-        for kind, back, dy, size in rotte_layout(group, rng):
+        layout = rotte_layout(group, rng)
+        # on stage from the start until the last animal is through (+ a margin): other frames are empty
+        run = (2 * half + 1.0 + max(b for _, b, _, _ in layout)) / float(c['speed'])
+        ACTIVE.append((float(c['at']) - 0.2, float(c['at']) + run + 0.8))
+        for kind, back, dy, size in layout:
             n += 1
             root, body, legs = make_boar(mats, kind, seed=n, size=size)
             animate_boar(root, body, legs, t0=float(c['at']), x0=x_start - direction * back, x1=x_end + direction * 0.5,
@@ -1778,14 +1797,32 @@ def export_glb(path, objs):
 
 
 def export3d(sc):
-    """The lane for the studio's live 3D preview (public/3d/hunt): ground with its look baked into a
-    texture, the tree variants (a third of the leaves) + where every tree stands, the sky, a bark texture,
-    and one GLB per boar class (coat as vertex colours, legs as separate nodes for the gait)."""
+    """For the studio's live 3D preview (public/3d/hunt/<map>): the lane's ground (for the boars' feet) and,
+    with boars=1, one GLB per boar class (coat as vertex colours, legs as separate nodes for the gait).
+    full=1 also writes the old geometry preview: baked ground texture, tree variants (a third of the
+    leaves) + where every tree stands, sky, bark."""
     import numpy as np
     base = os.path.normpath(os.path.join(S.HERE, '..', '..', '..', 'public', '3d', 'hunt'))
     out = os.path.join(base, MAP)
     os.makedirs(out, exist_ok=True)
     kinds = build_forest()
+    if OPT.get('full') != '1':
+        # the live preview draws the rendered plates (previewplates): it only needs the ground for the
+        # boars' feet, no trees, ground texture or sky
+        g = ground(ground_material(fog=False), (-70, 95, -110, 235), 2.0)
+        g.name = 'lane_ground'
+        g.data.materials.clear()
+        export_glb(os.path.join(out, 'lane.glb'), [g])
+        print('GROUND', flush=True)
+        if OPT.get('boars') == '1':
+            mats = boar_materials()
+            for kind in BOAR_KINDS:
+                root, body, legs = make_boar(mats, kind, seed=1)
+                objs = [root] + list(root.children_recursive)
+                export_glb(os.path.join(base, f'boar_{kind}.glb'), objs)
+                for o in objs:
+                    bpy.data.objects.remove(o)
+        return
     # trees: every variant's wood and leaves, named <kind>_<i>_wood / _leaves
     vis = collection('export_trees', hidden=False)
     tree_objs = []
@@ -1886,6 +1923,69 @@ def thumbs(sc):
         print('THUMB', MAP, i + 1, flush=True)
 
 
+def preview_plates(sc):
+    """The live preview's backgrounds: per stand of the map, the rendered lane (JPEG) and its depth
+    (planar distance from the camera, 16 bit packed into the red and green channels of a PNG) —
+    public/3d/hunt/<map>/plate_<stand>_<16x9|9x16>.jpg / depth_….png. The studio draws the photo and
+    writes the depth, so its live 3D boars disappear behind trunks and bushes as in the render."""
+    import numpy as np
+    out = os.path.normpath(os.path.join(S.HERE, '..', '..', '..', 'public', '3d', 'hunt', MAP))
+    os.makedirs(out, exist_ok=True)
+    fmt = '16x9' if W >= H else '9x16'
+    cam = camera(sc)
+    stand(cam)
+    build_forest()
+    sc.view_layers[0].use_pass_z = True
+    ng = bpy.data.node_groups.new('hunt_comp', 'CompositorNodeTree')
+    sc.compositing_node_group = ng
+    rl = ng.nodes.new('CompositorNodeRLayers')
+    tmp = os.path.join(OUTDIR, 'preview_plates')
+    os.makedirs(tmp, exist_ok=True)
+
+    def file_out(name, kind, socket):
+        fo = ng.nodes.new('CompositorNodeOutputFile')
+        fo.directory = tmp
+        fo.file_name = name
+        fo.format.media_type = 'IMAGE'
+        fo.format.file_format = kind
+        if kind == 'JPEG':
+            fo.format.quality = 86
+        else:
+            fo.format.color_depth = '32'
+        fo.file_output_items.new('RGBA' if kind == 'JPEG' else 'FLOAT', socket)
+        ng.links.new(rl.outputs[socket], fo.inputs[socket])
+    file_out('plate', 'JPEG', 'Image')
+    file_out('depth', 'OPEN_EXR', 'Depth')
+    for i, (c, a) in enumerate(STANDS):
+        cam.location = c
+        S.look_at(cam, a)
+        cam.data.dof.focus_distance = (a - c).length
+        for f in os.listdir(tmp):
+            os.remove(os.path.join(tmp, f))
+        bpy.ops.render.render(write_still=False)
+        files = os.listdir(tmp)
+        plate = next(f for f in files if f.startswith('plate'))
+        os.replace(os.path.join(tmp, plate), os.path.join(out, f'plate_{i + 1}_{fmt}.jpg'))
+        im = bpy.data.images.load(os.path.join(tmp, next(f for f in files if f.startswith('depth'))))
+        w, h = im.size
+        d = np.empty(w * h * 4, np.float32)
+        im.pixels.foreach_get(d)
+        bpy.data.images.remove(im)
+        v = np.round(np.clip(d.reshape(-1, 4)[:, 0], 0, 999.98) / 1000 * 65535).astype(np.uint32)
+        rgba = np.zeros((w * h, 4), np.float32)
+        rgba[:, 0] = (v >> 8) / 255
+        rgba[:, 1] = (v & 255) / 255
+        rgba[:, 3] = 1
+        enc = bpy.data.images.new('depth_enc', w, h, alpha=False)
+        enc.colorspace_settings.name = 'Non-Color'
+        enc.pixels.foreach_set(rgba.ravel())
+        enc.filepath_raw = os.path.join(out, f'depth_{i + 1}_{fmt}.png')
+        enc.file_format = 'PNG'
+        enc.save()
+        bpy.data.images.remove(enc)
+        print('PREVIEW PLATE', MAP, i + 1, fmt, flush=True)
+
+
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
     sc = setup()
@@ -1900,6 +2000,9 @@ def main():
         return
     if JOB == 'thumbs':
         thumbs(sc)
+        return
+    if JOB == 'previewplates':
+        preview_plates(sc)
         return
     cam = camera(sc)
     stand(cam)
@@ -1940,6 +2043,10 @@ def main():
     os.makedirs(os.path.join(OUTDIR, 'game'), exist_ok=True)
     print('TOTAL', end - start + 1, flush=True)
     for f in range(start, end + 1):
+        if ACTIVE and not any(a <= f / FPS <= b for a, b in ACTIVE):
+            rects[str(f)] = None       # no crossing on: nothing to evaluate or render
+            print('EMPTY', f, flush=True)
+            continue
         sc.frame_set(f)
         x0, y0, x1, y1 = boar_rect(sc, cam, root)
         if x1 - x0 < 8 or y1 - y0 < 8 or x0 >= W or x1 <= 0:
@@ -1955,6 +2062,7 @@ def main():
         rects[str(f)] = [x0, y0, x1, y1]
         json.dump(rects, open(rp, 'w'))
         print('FRAME', f, rects[str(f)], flush=True)
+    json.dump(rects, open(rp, 'w'))
 
 
 main()

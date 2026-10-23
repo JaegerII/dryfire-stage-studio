@@ -38,7 +38,7 @@ export const HuntRenderPanel = ({
         <Select value={format} options={[{ value: '16x9', label: '16:9 · YouTube' }, { value: '9x16', label: '9:16 · Shorts' }]} onChange={onFormat} />
       </Row>
       <Row label="Qualität">
-        <Select value={quality} options={[{ value: 'preview', label: 'Vorschau (halbe Auflösung)' }, { value: 'final', label: 'Final (Full HD, 256 Samples)' }]} onChange={onQuality} />
+        <Select value={quality} options={[{ value: 'preview', label: 'Vorschau (halbe Auflösung)' }, { value: 'final', label: 'Final (Full HD, 160 Samples)' }]} onChange={onQuality} />
       </Row>
       {r.service && !r.service.ok && <p className="hint warn">Rendern geht nur, wenn das Studio lokal läuft (npm run dev). Die 3D-Vorschau geht überall.</p>}
       {r.service?.ok && !r.service.blender && <p className="hint warn">Blender nicht gefunden (Umgebungsvariable BLENDER setzen).</p>}

@@ -211,3 +211,15 @@ Offen: Ton (Horn, Hundelaut), Wind, Rot-/Damwild, Wintervariante, gekaufte Tierm
 - Blender: `hunt.py ... map=<id> stand=<0..2>`; `thumbs` (Stand-Vorschaubilder), `export3d map=<id> [boars=1]`
   (3D-Daten je Karte unter `public/3d/hunt/<map>/`). Neue Karte = Eintrag in maps.json + Look in `LOOKS` (hunt.py)
   und `LOOK` (HuntScene3D.ts), dann `thumbs` + `export3d`.
+
+## 10. Stand 23.10.2026 (nachts): realistischere Wälder, Foto-Vorschau, schnellerer Render
+
+- **Wälder:** Fichtenschneise mit fotogescannten Poly-Haven-Fichten (CC0) im Render; Buchen mit ambientCG-Fotorinde,
+  Wurzelanläufen, feinem Reisig im Winter; Baumstümpfe; Stände und erste 20 m Sicht freier.
+- **Live-Vorschau = Render-Look:** Die Kamera auf dem Stand steht fest, also zeigt die Vorschau als Hintergrund das
+  Blender-Bild des Stands (`hunt.py previewplates` → `public/3d/hunt/<map>/plate_<n>_<fmt>.jpg` + `depth_…png`, 16 bit
+  planare Tiefe in Rot/Grün). three.js schreibt die Tiefe in den Tiefenpuffer: die live laufenden Sauen verschwinden
+  hinter Stämmen und Büschen wie im Render. Baum-Geometrie wird für die Vorschau nicht mehr geladen (~22 MB statt ~60 MB).
+- **Schneller rendern:** Fell nach Entfernung (Bruchteil der Borsten, dicker), leere Bilder werden übersprungen,
+  Final mit 160 statt 256 Samples (Hintergrund und Wild gleich). Gemessen Fichte · Stand 3 (55 s, 1080p): vorher
+  hochgerechnet ~45–50 min, jetzt 27 min — die schweren Scan-Fichten bremsen, Buchen-Reviere sollten mehr profitieren.

@@ -24,7 +24,9 @@ const TOOLS = resolve('tools/plate-renderer');
 const OUT = join(TOOLS, 'out', 'hunt', 'studio');
 const BLENDER = process.env.BLENDER ?? 'D:/Tools/blender-5.2.2-windows-x64/blender.exe';
 const FORMATS = { '16x9': [1920, 1080], '9x16': [1080, 1920] };
-const QUALITY = { preview: { scale: 0.5, samples: 64 }, final: { scale: 1, samples: 256 } };
+// Final: 160 samples + denoiser — plate and animal crops must use the same settings (identical pixels
+// outside the animals); more samples hardly show at hunting distances but cost a lot.
+const QUALITY = { preview: { scale: 0.5, samples: 64 }, final: { scale: 1, samples: 160 } };
 const KINDS = new Set(['keiler', 'bache', 'ueberlaeufer', 'frischling', 'frischling_gestreift']);
 const MAPS = JSON.parse(readFileSync(resolve('src/hunt/maps.json'), 'utf8'));
 const KEY_RE = /^[\w-]{1,80}$/;
@@ -88,10 +90,10 @@ const startJob = async ({ key, scenario, format, quality }) => {
   const h = Math.round(fh * q.scale);
   const common = [`w=${w}`, `h=${h}`, `samples=${q.samples}`];
   // the empty lane: once per map, stand, format and quality
-  const plateDir = join(OUT, 'plates', `${scenario.map}_${scenario.stand + 1}_${format}_${quality}`);
+  const plateDir = join(OUT, 'plates', `${scenario.map}_${scenario.stand + 1}_${format}_${quality}_${q.samples}`);
   common.push(`map=${scenario.map}`, `stand=${scenario.stand}`);
   const dir = join(OUT, 'jobs', `${key}_${format}_${quality}`);
-  const hash = createHash('sha1').update(JSON.stringify(scenario)).digest('hex').slice(0, 12);
+  const hash = createHash('sha1').update(JSON.stringify([scenario, q])).digest('hex').slice(0, 12);
   job = { key: `${key}_${format}_${quality}`, phase: 'plate', done: 0, total: 0, error: null, started: Date.now(), finished: null, width: w, height: h, proc: null, cancelled: false };
   try {
     if (existsSync(join(dir, 'crops.json')) && existsSync(join(dir, 'hash')) && readFileSync(join(dir, 'hash'), 'utf8') === hash) {

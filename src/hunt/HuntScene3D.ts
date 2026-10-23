@@ -1,8 +1,10 @@
 /**
- * Live 3D preview of a driven hunt in three.js — the maps, trees and boars exported from the same
- * Blender scenes (hunt.py export3d → public/3d/hunt/<map>), seen through the chosen stand's camera.
- * Imperative and frame-exact like StageScene3D: show(scenario, t) + render(). The final video still
- * comes from Blender.
+ * Live 3D preview of a driven hunt in three.js. The camera on a stand never moves, so the background is
+ * the lane exactly as Blender renders it: per map, stand and format a photo plate plus its depth
+ * (hunt.py previewplates → public/3d/hunt/<map>/plate_<n>_<fmt>.jpg, depth_<n>_<fmt>.png). The plate is
+ * drawn with its depth written into the depth buffer, so the live boars (GLBs from the same Blender
+ * models, posed per frame) pass behind trunks and bushes as in the render. Imperative and frame-exact like
+ * StageScene3D: show(scenario, t) + render(). The final video still comes from Blender.
  *
  * Lane coordinates (x right, y down the lane, z up) → three.js: (x, z, −y).
  */
@@ -20,27 +22,48 @@ const glb = (file: string) => {
   if (!glbs.has(file)) glbs.set(file, loader.loadAsync(url(file)).then((g) => g.scene));
   return glbs.get(file)!;
 };
-const tex = (file: string) =>
-  new THREE.TextureLoader().loadAsync(url(file)).then((t) => {
-    t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  });
-
 /** Lane point → three.js. */
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, z, -y);
 
 /** Per map: haze, light and how the baked ground reads under the live light (matched by eye to the renders). */
 const LOOK: Record<MapId, { fog: string; density: number; sky: string; ground: string; hemi: number; tint: string; exposure: number }> = {
-  buche_herbst: { fog: '#9a9c94', density: 0.0042, sky: '#d7dbdc', ground: '#4f4436', hemi: 1.5, tint: '#d9cfc6', exposure: 1.15 },
-  buche_winter: { fog: '#c2c6c8', density: 0.0058, sky: '#e4e8ec', ground: '#9a9890', hemi: 1.35, tint: '#e6e8ea', exposure: 1.05 },
-  fichte: { fog: '#8d928a', density: 0.0048, sky: '#cfd5d6', ground: '#3e3a30', hemi: 1.6, tint: '#d6d0c8', exposure: 1.3 },
+  buche_herbst: { fog: '#9a9c94', density: 0.0042, sky: '#c9ced2', ground: '#3b3834', hemi: 1.0, tint: '#d9cfc6', exposure: 0.95 },
+  buche_winter: { fog: '#c2c6c8', density: 0.0058, sky: '#dfe4e8', ground: '#8e8e8a', hemi: 0.95, tint: '#e6e8ea', exposure: 0.95 },
+  fichte: { fog: '#8d928a', density: 0.0048, sky: '#c4cbcc', ground: '#34322c', hemi: 1.0, tint: '#d6d0c8', exposure: 1.05 },
 };
 
 interface MapScene {
-  group: THREE.Group;
+  /** The lane's ground, invisible: only for the boars' feet (raycast). */
   ground: THREE.Mesh | null;
-  sky: THREE.Texture;
 }
+
+/** The photo plate drawn as the background, writing the plate's depth (decoded from 16 bit in R + G). */
+const plateMaterial = () =>
+  new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3,
+    uniforms: { plate: { value: null }, depthTex: { value: null }, near: { value: 0.1 }, far: { value: 2000 } },
+    vertexShader: `
+      out vec2 vUv;
+      void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D plate;
+      uniform sampler2D depthTex;
+      uniform float near;
+      uniform float far;
+      in vec2 vUv;
+      out highp vec4 fragColor;
+      void main() {
+        vec4 e = texture(depthTex, vUv);
+        float m = (floor(e.r * 255.0 + 0.5) * 256.0 + floor(e.g * 255.0 + 0.5)) / 65535.0 * 1000.0;
+        float d = clamp(m, near * 1.01, far * 0.999);
+        float z = (far + near) / (far - near) - 2.0 * far * near / ((far - near) * d);
+        gl_FragDepth = z * 0.5 + 0.5;
+        fragColor = vec4(texture(plate, vUv).rgb, 1.0);
+      }`,
+    depthTest: true,
+    depthWrite: true,
+    fog: false,
+  });
 
 interface Animal {
   track: AnimalTrack;
@@ -68,11 +91,13 @@ export class HuntScene3D {
   readonly camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.1, 2000);
   private maps = new Map<MapId, Promise<MapScene>>();
   private loadedMaps = new Map<MapId, MapScene>();
+  private plates = new Map<string, Promise<{ plate: THREE.Texture; depth: THREE.Texture }>>();
+  private loadedPlates = new Map<string, { plate: THREE.Texture; depth: THREE.Texture }>();
+  private background = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), plateMaterial());
   private hemi = new THREE.HemisphereLight();
   private fog = new THREE.FogExp2('#9a9c94', 0.004);
   /** Animals per scenario (index into the list given to setScenarios). */
   private herds: { group: THREE.Group; animals: Animal[]; scenario: HuntScenario }[] = [];
-  private rail: THREE.Mesh;
   private format: HuntFormat = '16x9';
   private ray = new THREE.Raycaster();
   private current: MapId | null = null;
@@ -84,66 +109,47 @@ export class HuntScene3D {
     this.scene.fog = this.fog;
     const sun = new THREE.DirectionalLight('#fff4e6', 0.6);
     sun.position.set(-20, 40, 10);
-    this.scene.add(this.hemi, sun, this.camera);
-    // the stand's shooting rail along the bottom of the frame (camera space, like hunt.py stand())
-    this.rail = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.04, 0.14), new THREE.MeshLambertMaterial({ color: '#6c655a' }));
-    this.camera.add(this.rail);
+    this.background.frustumCulled = false;
+    this.background.renderOrder = -1;
+    this.scene.add(this.hemi, sun, this.camera, this.background);
   }
 
-  /** A map's lane, trees and sky (loaded once, kept). */
+  /** A map's ground (loaded once, kept) — only for where the boars put their feet. */
   loadMap(map: MapId) {
     if (!this.maps.has(map))
       this.maps.set(
         map,
-        (async () => {
-          const [lane, groundTex, trees, layout, sky] = await Promise.all([
-            glb(`${map}/lane.glb`),
-            tex(`${map}/ground.jpg`),
-            glb(`${map}/trees.glb`),
-            fetch(url(`${map}/trees.json`)).then((r) => r.json() as Promise<{ instances: [string, number, number, number, number, number, number][] }>),
-            tex(`${map}/sky.jpg`),
-          ]);
-          const group = new THREE.Group();
-          groundTex.flipY = false;
-          groundTex.anisotropy = 8;
+        glb(`${map}/lane.glb`).then((lane) => {
           let ground: THREE.Mesh | null = null;
-          const laneCopy = lane.clone(true);
-          laneCopy.traverse((o) => {
-            if ((o as THREE.Mesh).isMesh) {
-              ground = o as THREE.Mesh;
-              ground.material = new THREE.MeshLambertMaterial({ map: groundTex, color: LOOK[map].tint });
-            }
+          lane.traverse((o) => {
+            if ((o as THREE.Mesh).isMesh) ground = o as THREE.Mesh;
           });
-          group.add(laneCopy);
-          sky.mapping = THREE.EquirectangularReflectionMapping;
-          // trees: one InstancedMesh per variant mesh
-          const wood = new THREE.MeshLambertMaterial({ color: map === 'fichte' ? '#6e5d50' : '#8b877d' });
-          const leaves = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-          const byVariant = new Map<string, THREE.Matrix4[]>();
-          for (const [kind, i, x, y, z, rot, s] of layout.instances) {
-            const m = new THREE.Matrix4().compose(v3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot, 0)), new THREE.Vector3(s, s, s));
-            const key = `${kind}_${i}`;
-            if (!byVariant.has(key)) byVariant.set(key, []);
-            byVariant.get(key)!.push(m);
-          }
-          trees.traverse((o) => {
-            const mesh = o as THREE.Mesh;
-            if (!mesh.isMesh) return;
-            const list = byVariant.get(mesh.name.replace(/_(wood|leaves)$/, ''));
-            if (!list) return;
-            const inst = new THREE.InstancedMesh(mesh.geometry, mesh.name.endsWith('_leaves') ? leaves : wood, list.length);
-            list.forEach((m, j) => inst.setMatrixAt(j, m));
-            inst.frustumCulled = false;
-            group.add(inst);
-          });
-          group.visible = false;
-          this.scene.add(group);
-          const ms = { group, ground, sky };
+          const ms = { ground };
           this.loadedMaps.set(map, ms);
           return ms;
-        })(),
+        }),
       );
     return this.maps.get(map)!;
+  }
+
+  /** Photo plate + depth of one stand in the current format (cached). */
+  private plateOf(map: MapId, stand: number) {
+    const key = `${map}/${stand + 1}_${this.format}`;
+    if (!this.plates.has(key)) {
+      const load = (file: string) =>
+        new THREE.TextureLoader().loadAsync(url(`${map}/${file}`)).then((t) => {
+          t.colorSpace = THREE.NoColorSpace;
+          t.generateMipmaps = false;
+          t.minFilter = t.magFilter = file.startsWith('depth') ? THREE.NearestFilter : THREE.LinearFilter;
+          return t;
+        });
+      const p = Promise.all([load(`plate_${stand + 1}_${this.format}.jpg`), load(`depth_${stand + 1}_${this.format}.png`)]).then(([plate, depth]) => {
+        this.loadedPlates.set(key, { plate, depth });
+        return { plate, depth };
+      });
+      this.plates.set(key, p);
+    }
+    return this.plates.get(key)!;
   }
 
   setSize(w: number, h: number) {
@@ -153,12 +159,12 @@ export class HuntScene3D {
     const hfov = (HFOV[this.format] * Math.PI) / 180;
     this.camera.fov = (2 * Math.atan(Math.tan(hfov / 2) / this.camera.aspect) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
-    this.rail.position.set(0, -0.95 * Math.tan((this.camera.fov * Math.PI) / 360), -0.95);
   }
 
   /** Builds every scenario's animals (and loads their maps; boar models on first use). */
   async setScenarios(list: HuntScenario[]) {
     await Promise.all([...new Set(list.map((s) => s.map))].map((m) => this.loadMap(m)));
+    await Promise.all(list.map((s) => this.plateOf(s.map, s.stand).catch(() => null)));
     const kinds = [...new Set(list.flatMap((s) => s.crossings.flatMap((c) => c.animals)))];
     const models = new Map<GameClass, THREE.Group>(await Promise.all(kinds.map(async (k) => [k, await glb(`boar_${k}.glb`)] as const)));
     for (const h of this.herds) this.scene.remove(h.group);
@@ -191,10 +197,7 @@ export class HuntScene3D {
     if (!herd) return;
     const { map, stand } = herd.scenario;
     const ms = this.loadedMaps.get(map);
-    if (this.current !== map && ms) {
-      for (const [id, m] of this.loadedMaps) m.group.visible = id === map;
-      this.scene.background = ms.sky;
-      this.scene.backgroundIntensity = 0.75;
+    if (this.current !== map) {
       const look = LOOK[map];
       this.fog.color.set(look.fog);
       this.fog.density = look.density;
@@ -203,6 +206,15 @@ export class HuntScene3D {
       this.hemi.intensity = look.hemi;
       this.renderer.toneMappingExposure = look.exposure;
       this.current = map;
+    }
+    const plate = this.loadedPlates.get(`${map}/${stand + 1}_${this.format}`);
+    const u = (this.background.material as THREE.ShaderMaterial).uniforms;
+    this.background.visible = !!plate;
+    if (plate) {
+      u.plate.value = plate.plate;
+      u.depthTex.value = plate.depth;
+      u.near.value = this.camera.near;
+      u.far.value = this.camera.far;
     }
     const st = standView(map, stand);
     this.camera.position.copy(v3(st.x, st.y, st.eye));
