@@ -13,17 +13,27 @@ export const HUNT_FPS = 30;
 
 export class HuntRenderAborted extends Error {}
 
-/** Draw the program at time t. `crop` is the drive frame's loaded crop (or null). */
-export const drawHuntFrame = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, format: HuntFormat, frames: HuntFrames | null, t: number, crop: ImageBitmap | null) => {
+/**
+ * Draw the program at time t. The drive comes from the Blender render (`frames` + the frame's loaded
+ * `crop`) or, for the live preview, from `scene` (the three.js view, already rendered for this moment).
+ */
+export const drawHuntFrame = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, format: HuntFormat, frames: HuntFrames | null, t: number, crop: ImageBitmap | null, scene?: CanvasImageSource) => {
   const f = huntFrameAt(p, t);
   if (f.phase === 'intro') return drawBriefing(ctx, W, H, p, format, f.local);
   if (f.phase === 'end') return drawSummary(ctx, W, H, p, f.local);
   if (frames) frames.draw(ctx, W, H, Math.floor(f.time * HUNT_FPS), crop);
+  else if (scene) ctx.drawImage(scene, 0, 0, W, H);
   else {
     ctx.fillStyle = '#1b1d1a';
     ctx.fillRect(0, 0, W, H);
   }
   drawDriveHud(ctx, W, H, p, f);
+};
+
+/** Drive time (s) at program time t, or null outside the drive. */
+export const driveTimeAt = (p: HuntProgram, t: number) => {
+  const f = huntFrameAt(p, t);
+  return f.phase === 'drive' ? f.time : null;
 };
 
 /** The drive frame index shown at program time t, or -1 outside the drive. */

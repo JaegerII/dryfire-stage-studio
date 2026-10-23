@@ -44,6 +44,30 @@ SECONDS = float(OPT.get('seconds', 10))
 FOREST = os.path.join(S.TEX, 'forest')
 
 hex_rgba = S.hex_rgba
+# export3d: the lane, trees and animals as GLB for the studio's live 3D preview (public/3d/hunt)
+EXPORT = JOB == 'export3d'
+
+
+class Mulberry:
+    """mulberry32 — the same sequence as src/hunt/prng.ts, so the studio's live preview places a sounder
+    exactly where the render does (order, gaps, sizes, stride phases)."""
+
+    def __init__(self, seed):
+        self.a = int(seed) & 0xFFFFFFFF
+
+    def random(self):
+        M = 0xFFFFFFFF
+        self.a = (self.a + 0x6D2B79F5) & M
+        t = ((self.a ^ (self.a >> 15)) * (self.a | 1)) & M
+        t = ((t + (((t ^ (t >> 7)) * (t | 61)) & M)) & M) ^ t
+        return ((t ^ (t >> 14)) & M) / 4294967296
+
+    def uniform(self, a, b):
+        return a + (b - a) * self.random()
+
+    def gauss(self, mu, sigma):
+        u1, u2 = self.random(), self.random()
+        return mu + sigma * math.sqrt(-2 * math.log(max(u1, 1e-12))) * math.cos(2 * math.pi * u2)
 
 # ------------------------------------------------------------------ lane layout
 
@@ -138,7 +162,7 @@ def forest_maps(tid):
     return [os.path.join(FOREST, tid, f'{tid}_{k}.jpg') for k in ('diff', 'nor_gl', 'rough')]
 
 
-def ground_material():
+def ground_material(fog=True):
     """Leaf litter in the forest, moss + leaves on the verges, light gravel on the track (with a mossy
     centre strip), all keyed off the distance to the lane's centre line."""
     m, N, L, b = new_mat('ground')
@@ -264,7 +288,7 @@ def ground_material():
     L.new(out[1], nm.inputs['Color'])
     L.new(nm.outputs['Normal'], b.inputs['Normal'])
     L.new(out[2], b.inputs['Roughness'])
-    return fogify(m)
+    return fogify(m) if fog else m
 
 
 def bark_material():
@@ -339,7 +363,7 @@ def plain(name, color, rough=0.6):
     m, N, L, b = new_mat(name)
     b.inputs['Base Color'].default_value = hex_rgba(color)
     b.inputs['Roughness'].default_value = rough
-    return fogify(m)
+    return m if EXPORT else fogify(m)
 
 
 def world(hdri='autumn_forest_02', strength=1.0, rotation=0.0, sky_fog=0.2):
@@ -392,10 +416,10 @@ def mesh_from_bm(name, bm, mats, coll=None):
     return link(bpy.data.objects.new(name, me), coll)
 
 
-def ground(mat):
-    """Displaced grid, 1 m cells, over the whole forest block."""
+def ground(mat, rect=(-120, 120, -30, 300), step=1.0):
+    """Displaced grid over the forest block (render: 1 m cells, whole block)."""
     bm = bmesh.new()
-    x0, x1, y0, y1, step = -120, 120, -30, 300, 1.0
+    x0, x1, y0, y1 = rect
     nx, ny = int((x1 - x0) / step) + 1, int((y1 - y0) / step) + 1
     vs = [[bm.verts.new((x0 + i * step, y0 + j * step, ground_z(x0 + i * step, y0 + j * step)))
            for i in range(nx)] for j in range(ny)]
@@ -433,6 +457,8 @@ class Tree:
 
     def __init__(self, seed, leaf_size=0.085, spray=6, spacing=0.14, droop=(0.0, 0.03, 0.08, 0.12)):
         self.rng = random.Random(seed)
+        # export: a third of the leaves, a little bigger (own generator: the branching stays the same)
+        self.keep = random.Random(seed + 77) if EXPORT else None
         self.wood = bmesh.new()
         self.leaves = bmesh.new()
         self.leaf_size, self.spray, self.spacing, self.droop = leaf_size, spray, spacing, droop
@@ -484,10 +510,14 @@ class Tree:
                 side = nrm.cross(ax)
                 size = self.leaf_size * rng.uniform(0.7, 1.25)
                 c = p + ax * rng.uniform(0.0, 0.12) + side * rng.gauss(0, 0.04)
-                vs = [self.leaves.verts.new(c + (ax * u + side * v) * size) for u, v in LEAF]
-                self.leaves.faces.new(vs)
                 col = list(rng.choice(self.palette))
                 j = rng.uniform(0.8, 1.15)
+                if self.keep and self.keep.random() > 0.33:
+                    continue
+                if self.keep:
+                    size *= 1.6
+                vs = [self.leaves.verts.new(c + (ax * u + side * v) * size) for u, v in (LEAF[::2] if self.keep else LEAF)]
+                self.leaves.faces.new(vs)
                 self.cols.append((col[0] * j, col[1] * j, col[2] * j, 1.0))
             s += self.spacing * rng.uniform(0.7, 1.3)
 
@@ -628,6 +658,9 @@ def in_view_corridor(x, y):
     return along > 0 and abs(v.x * a.y - v.y * a.x) < 0.6 + along * 0.38
 
 
+INSTANCES = []   # (kind, variant, x, y, z, rot, scale) of every tree — exported for the live preview
+
+
 def build_forest():
     bark, leaves = bark_material(), leaf_material()
     world()
@@ -652,8 +685,10 @@ def build_forest():
                 continue
             if (Vector((x, y)) - CAM.xy).length < 2.5 or in_view_corridor(x, y):
                 continue
-            instance(rng.choice(kinds[kind]), (x, y, ground_z(x, y)), rng.uniform(0, 6.3),
-                     rng.uniform(*scale), forest)
+            src = rng.choice(kinds[kind])
+            rot, sc_ = rng.uniform(0, 6.3), rng.uniform(*scale)
+            instance(src, (x, y, ground_z(x, y)), rot, sc_, forest)
+            INSTANCES.append((kind, kinds[kind].index(src), round(x, 2), round(y, 2), round(ground_z(x, y), 3), round(rot, 3), round(sc_, 3)))
             placed += 1
 
     area = (-110, 110, -25, 290)
@@ -663,6 +698,8 @@ def build_forest():
     scatter('sap', 900, 4.0, 14, (-60, 80, -10, 220), (0.7, 1.3))
     scatter('sap', 700, 4.0, 999, area, (0.6, 1.2))
 
+    if EXPORT:
+        return kinds
     # dead wood, branches, moss from Poly Haven
     props = forest
     for mid, count, dmin, dmax, sc in (('dead_tree_trunk', 14, 5.5, 40, (0.9, 1.3)),
@@ -916,8 +953,36 @@ def sample_surface(ob, count, rng):
     return out
 
 
+def paint_coat(ob, rule, seed, lmul=1.0):
+    """Export: the coat as vertex colours (between root and tip colour, mottled), and the skin pushed out
+    by a third of the hair length so the furless model keeps the animal's outline."""
+    rng = random.Random(seed)
+    me = ob.data
+    for old in list(me.color_attributes):      # the statue brings a (white) colour layer of its own
+        me.color_attributes.remove(old)
+    ca = me.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
+    push = []
+    for v in me.vertices:
+        r = rule(v.co.copy(), v.normal.copy(), rng)
+        if not r:
+            ca.data[v.index].color = (0.03, 0.026, 0.024, 1.0)
+            push.append(0.0)
+            continue
+        L, _, _, _, root, tip = r
+        m = min(1.0, max(0.0, 0.42 + 0.35 * noise.noise(v.co * 40.0) + rng.uniform(-0.12, 0.12)))
+        ca.data[v.index].color = (*(a * (1 - m) + b * m for a, b in zip(root, tip)), 1.0)
+        push.append(L * lmul * 0.33)
+    for v, d in zip(me.vertices, push):
+        v.co += v.normal * d
+    me.color_attributes.active_color = ca
+    me.color_attributes.render_color_index = me.color_attributes.active_color_index
+    return None
+
+
 def grow_fur(ob, count, rule, hair_m, seed, lmul=1.0):
     """Bristle curves on `ob`; rule(p, n, rng) -> (length, flow, lift, droop, root, tip) or None."""
+    if EXPORT:
+        return paint_coat(ob, rule, seed, lmul)
     rng = random.Random(seed)
     pos, cols, rads = [], [], []
     for p, n in sample_surface(ob, count, rng):
@@ -1294,8 +1359,7 @@ def animate_boar(root, body, legs, t0, x0, x1, speed, y, gait='trot', phase0=0.0
     s = root.scale.x
     g = GAITS[gait]
     tail = bpy.data.objects.get(body.get('tail', ''))
-    rng = random.Random(seed)
-    sp = rng.uniform(0, 6.3)
+    sp = Mulberry(seed).random() * 6.3
     for f in range(frames + 1):
         t = f / FPS
         run = max(0.0, t - t0)
@@ -1496,7 +1560,7 @@ def scenario_game(mats, sc_json):
     SECONDS = float(sc_json['duration'])
     roots, n = [], 0
     for c in sc_json['crossings']:
-        rng = random.Random(int(c.get('seed', 1)))
+        rng = Mulberry(int(c.get('seed', 1)))
         d = float(c['distance'])
         y = d
         # from just outside the frame edge on one side to just outside the other (wider further away)
@@ -1515,6 +1579,104 @@ def scenario_game(mats, sc_json):
     return roots
 
 
+def export_glb(path, objs):
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs:
+        o.select_set(True)
+    args = dict(filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_lights=False,
+                export_cameras=False, export_yup=True, export_animations=False)
+    try:
+        bpy.ops.export_scene.gltf(**args, export_vertex_color='ACTIVE')
+    except TypeError:
+        bpy.ops.export_scene.gltf(**args)
+
+
+def export3d(sc):
+    """The lane for the studio's live 3D preview (public/3d/hunt): ground with its look baked into a
+    texture, the tree variants (a third of the leaves) + where every tree stands, the sky, a bark texture,
+    and one GLB per boar class (coat as vertex colours, legs as separate nodes for the gait)."""
+    import numpy as np
+    out = os.path.normpath(os.path.join(S.HERE, '..', '..', '..', 'public', '3d', 'hunt'))
+    os.makedirs(out, exist_ok=True)
+    kinds = build_forest()
+    # trees: every variant's wood and leaves, named <kind>_<i>_wood / _leaves
+    vis = collection('export_trees', hidden=False)
+    tree_objs = []
+    for kind, colls in kinds.items():
+        for i, c in enumerate(colls):
+            for o in list(c.objects):
+                o.name = f'{kind}_{i}_{"leaves" if o.name.endswith("_leaves") else "wood"}'
+                o.data.materials.clear()
+                vis.objects.link(o)
+                tree_objs.append(o)
+    export_glb(os.path.join(out, 'trees.glb'), tree_objs)
+    region = [t for t in INSTANCES if -70 <= t[2] <= 95 and -12 <= t[3] <= 230]
+    json.dump({'instances': region}, open(os.path.join(out, 'trees.json'), 'w'))
+    print('TREES', len(tree_objs), 'meshes', len(region), 'instances', flush=True)
+    for o in tree_objs:
+        o.hide_set(True)
+    # ground: 2 m cells over the visible block, its shader baked to a texture (no fog: three.js adds it)
+    rect = (-70, 95, -15, 235)
+    g = ground(ground_material(fog=False), rect, 2.0)
+    g.name = 'lane_ground'
+    me = g.data
+    uv = me.uv_layers.new(name='UVMap')
+    for loop in me.loops:
+        co = me.vertices[loop.vertex_index].co
+        uv.data[loop.index].uv = ((co.x - rect[0]) / (rect[1] - rect[0]), (co.y - rect[2]) / (rect[3] - rect[2]))
+    img = bpy.data.images.new('ground_bake', 2560, 4096, alpha=False)
+    m = g.material_slots[0].material
+    n = m.node_tree.nodes.new('ShaderNodeTexImage')
+    n.image = img
+    m.node_tree.nodes.active = n
+    sc.cycles.samples = 4
+    sc.render.bake.margin = 4
+    sc.render.bake.use_pass_direct = False
+    sc.render.bake.use_pass_indirect = False
+    sc.render.bake.use_pass_color = True
+    bpy.ops.object.select_all(action='DESELECT')
+    g.select_set(True)
+    bpy.context.view_layer.objects.active = g
+    bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'})
+    img.filepath_raw = os.path.join(out, 'ground.jpg')
+    img.file_format = 'JPEG'
+    img.save()
+    m.node_tree.nodes.remove(n)
+    g.data.materials.clear()
+    export_glb(os.path.join(out, 'lane.glb'), [g])
+    g.hide_set(True)
+    print('GROUND', flush=True)
+    # sky: the HDRI as an equirect JPG (display-referred), 2048 x 1024
+    env = next(nd for nd in sc.world.node_tree.nodes if nd.type == 'TEX_ENVIRONMENT')
+    sky = bpy.data.images.load(bpy.path.abspath(env.image.filepath), check_existing=False)
+    sky.scale(2048, 1024)
+    sc.render.image_settings.file_format = 'JPEG'
+    sc.render.image_settings.color_mode = 'RGB'
+    sc.render.image_settings.quality = 88
+    sky.save_render(os.path.join(out, 'sky.jpg'), scene=sc)
+    # bark: the smooth bark photo, desaturated and lightened like the shader
+    bark = bpy.data.images.load(forest_maps('trident_maple_bark')[0], check_existing=False)
+    bark.scale(1024, 1024)
+    px = np.empty(1024 * 1024 * 4, np.float32)
+    bark.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+    gray = px[:, :3].mean(axis=1, keepdims=True)
+    px[:, :3] = np.clip((gray + (px[:, :3] - gray) * 0.22) * 1.9, 0, 1)
+    bark.pixels.foreach_set(px.ravel())
+    bark.filepath_raw = os.path.join(out, 'bark.jpg')
+    bark.file_format = 'JPEG'
+    bark.save()
+    # boars: one GLB per class
+    mats = boar_materials()
+    for kind in BOAR_KINDS:
+        root, body, legs = make_boar(mats, kind, seed=1)
+        objs = [root] + list(root.children_recursive)
+        export_glb(os.path.join(out, f'boar_{kind}.glb'), objs)
+        print('BOAR', kind, len(objs), flush=True)
+        for o in objs:
+            bpy.data.objects.remove(o)
+
+
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
     sc = setup()
@@ -1523,6 +1685,9 @@ def main():
         return
     if JOB == 'gait':
         gait_check(sc)
+        return
+    if JOB == 'export3d':
+        export3d(sc)
         return
     cam = camera(sc)
     stand(cam)
@@ -1538,7 +1703,7 @@ def main():
     else:
         gait = OPT.get('gait', 'trot')
         speed = float(OPT.get('speed', 3.6 if gait == 'trot' else 8.0))
-        rng = random.Random(int(OPT.get('seed', 5)))
+        rng = Mulberry(int(OPT.get('seed', 5)))
         group = OPT['rotte'].split(',') if 'rotte' in OPT else [OPT.get('kind', 'keiler')]
         roots = []
         for i, (kind, back, dy, size) in enumerate(rotte_layout(group, rng)):

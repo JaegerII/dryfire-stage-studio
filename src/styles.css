@@ -566,3 +566,7 @@ button.brand { display: flex; align-items: center; gap: 10px; }
 .hunt-scenarios .card-main { flex: 1; display: grid; gap: 3px; }
 .hunt-scenarios .card-main span { color: var(--muted); font-size: 12px; }
 .render-box .p3-bar { width: 100%; }
+.hunt-player .hp-screen { position: relative; }
+.hunt-player .hp-error { position: absolute; left: 16px; bottom: 16px; color: var(--standby); font-size: 12px; }
+.hunt-player .hp-view { display: inline-flex; gap: 2px; margin-left: auto; }
+.hunt-player .hp-view button.on { border-color: var(--accent); color: #fff; }
