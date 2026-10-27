@@ -408,6 +408,9 @@ def make_materials():
     M.rubber_panel = pbr('rubber_panel', 'Rubber004', tile=0.5, tint='#2a2a2a', rough=0.9, normal=0.9, sat=0.0)
     M.tire_small = material('castor', '#151515', rough=0.7)
     M.table_top = material('table_top', '#b9bab5', rough=0.55)
+    # Euro pallet: light, slightly weathered softwood; the block ends darker
+    M.pallet = pbr('pallet', 'Wood058', tile=1.0, rotate=True, tint='#e8dcc2', rough=0.85, normal=0.6, sat=0.55, value=1.15)
+    M.pallet_end = pbr('pallet_end', 'Wood058', tile=0.6, tint='#cdbb98', rough=0.9, normal=0.6, sat=0.5, value=1.0)
     M.mag = material('mag', '#1b1c1e', rough=0.4, metal=0.6)
     M.mag_base = material('mag_base', '#c23a2a', rough=0.5)
     M.gun = material('gun_slide', '#2b2d30', rough=0.35, metal=0.8)
@@ -802,6 +805,46 @@ def rubber_stand(width=60, height=150):
             cylinder('castor', cm(3), cm(2.5), (x, y, cm(3)), (0, math.pi / 2, 0), M.tire_small, verts=16)
 
 
+def pallet(y=0.0):
+    """Euro pallet 120 × 80 × 14.4 cm (long side towards the shooter): 5 top boards, 3 stringers,
+    9 blocks, 3 bottom boards. y = its front edge."""
+    yc = y + 0.4
+    # bottom boards, blocks, stringers across, top boards along the front
+    for yy in (0.05, 0.4, 0.75):
+        box('pallet_bottom', (1.2, 0.1, 0.022), (0, y + yy, 0.011), M.pallet)
+    for xx in (-0.5275, 0.0, 0.5275):
+        for yy in (0.05, 0.4, 0.75):
+            box('pallet_block', (0.145, 0.1, 0.078), (xx, y + yy, 0.022 + 0.039), M.pallet_end, bevel=0.003)
+    for xx in (-0.5275, 0.0, 0.5275):
+        box('pallet_stringer', (0.145, 0.8, 0.022), (xx, yc, 0.1 + 0.011), M.pallet)
+    for i, yy in enumerate((0.0725, 0.24, 0.4, 0.56, 0.7275)):
+        w = 0.145 if i in (0, 4) else 0.1
+        box('pallet_top', (1.2, w, 0.022), (0, y + yy, 0.122 + 0.011), M.pallet, bevel=0.002)
+
+
+def target_box(on_pallet=True):
+    """Mobile indoor target: a black box with a rubber-lined front (60 × 40 × 95 cm) on a steel frame,
+    standing on a Euro pallet. The box front is at y = 0 (cards are fixed there by the editor)."""
+    z0 = 0.144 if on_pallet else 0.0
+    if on_pallet:
+        pallet(-0.2)
+    leg = 0.48
+    zb = z0 + leg
+    # frame: four square-tube legs, rails at the bottom and the top
+    for sx in (-1, 1):
+        for sy in (0.06, 0.34):
+            box('frame_leg', (0.04, 0.04, leg), (sx * 0.27, sy, z0 + leg / 2), M.coat, bevel=0.003)
+        box('frame_rail', (0.04, 0.32, 0.04), (sx * 0.27, 0.2, z0 + 0.06), M.coat, bevel=0.003)
+        box('frame_rail', (0.04, 0.32, 0.04), (sx * 0.27, 0.2, zb - 0.02), M.coat, bevel=0.003)
+    box('frame_cross', (0.58, 0.04, 0.04), (0, 0.34, z0 + 0.25), M.coat, bevel=0.003)
+    # the box: black panels, the front a rubber face with a thin black frame
+    w, d, h = 0.6, 0.4, 0.95
+    box('tbox_body', (w, d - 0.03, h), (0, 0.006 + 0.03 + (d - 0.03) / 2, zb + h / 2), M.wall_black, bevel=0.004)
+    box('tbox_face', (w - 0.03, 0.03, h - 0.03), (0, 0.006 + 0.015, zb + h / 2), M.rubber_panel, bevel=0.003)
+    for bx, bz, bw, bh in ((0, h - 0.008, w, 0.016), (0, 0.008, w, 0.016), (-(w / 2) + 0.008, h / 2, 0.016, h), (w / 2 - 0.008, h / 2, 0.016, h)):
+        box('tbox_edge', (bw, 0.034, bh), (bx, 0.006 + 0.017, zb + bz), M.coat)
+
+
 def table(start=False):
     """Folding table 120 × 60 cm, 75 cm high: light grey top, black steel legs. start=True: a pistol and
     two magazines lie on it (start position: pick up the gun, load from the table)."""
@@ -943,6 +986,8 @@ BUILDERS = {
     'barrel_lying': (barrel_lying, True),
     'rubber_stand': (lambda: rubber_stand(60, 150), True),
     'rubber_wall': (lambda: rubber_stand(120, 150), True),
+    'pallet': (lambda: pallet(-0.4), True),
+    'target_box_pallet': (lambda: target_box(True), True),
     'table': (lambda: table(False), True),
     'table_start': (lambda: table(True), True),
     'tire': (tire, True),

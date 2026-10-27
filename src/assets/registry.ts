@@ -51,6 +51,8 @@ import barrelSteel from './realistic/barrel_steel.webp';
 import barrelStack from './realistic/barrel_stack.webp';
 import barrelLying from './realistic/barrel_lying.webp';
 import rubberStand from './realistic/rubber_stand.webp';
+import pallet from './realistic/pallet.webp';
+import targetBoxPallet from './realistic/target_box_pallet.webp';
 import rubberWall from './realistic/rubber_wall.webp';
 import table from './realistic/table.webp';
 import tableStart from './realistic/table_start.webp';
@@ -123,6 +125,8 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   banner_west_arms: { type: 'banner_west_arms', category: 'banner', label: 'Banner West Arms', src: bannerWestArms, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
+  target_box_pallet: { type: 'target_box_pallet', category: 'other', label: 'Target Box on Pallet (mobile)', src: targetBoxPallet, viewW: 130, viewH: 165, groundY: 161, scoring: false, mount: { height: 0.81 } },
+  pallet: { type: 'pallet', category: 'other', label: 'Euro Pallet', src: pallet, viewW: 130, viewH: 26, groundY: 22, scoring: false, topHeight: 0.144 },
   rubber_stand: { type: 'rubber_stand', category: 'other', label: 'Rubber Target Stand (mobile)', src: rubberStand, viewW: 90, viewH: 189, groundY: 185, scoring: false, mount: { height: 0.95 } },
   rubber_wall: { type: 'rubber_wall', category: 'other', label: 'Rubber Target Wall (mobile, wide)', src: rubberWall, viewW: 150, viewH: 189, groundY: 185, scoring: false, mount: { height: 0.95 } },
   table: { type: 'table', category: 'other', label: 'Table', src: table, viewW: 140, viewH: 86, groundY: 82, scoring: false, topHeight: 0.75 },

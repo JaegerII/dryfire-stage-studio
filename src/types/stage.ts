@@ -42,7 +42,7 @@ export type BarrierType =
   | 'mesh_wall_black_short'
   | 'wall_black'
   | 'wall_black_window';
-export type OtherType = 'start_box' | 'crate' | 'crate_wide' | 'tire' | 'tire_stack' | 'rubber_stand' | 'rubber_wall' | 'table' | 'table_start';
+export type OtherType = 'start_box' | 'crate' | 'crate_wide' | 'tire' | 'tire_stack' | 'rubber_stand' | 'rubber_wall' | 'target_box_pallet' | 'pallet' | 'table' | 'table_start';
 export type BannerType = 'banner_forth_trace_black' | 'banner_forth_trace_white' | 'banner_west_arms';
 export type ObjectType = TargetType | BarrierType | OtherType | BannerType;
 

@@ -193,6 +193,34 @@
       "type": "barrel_steel",
       "x": 5.2,
       "d": 9.8
+    },
+    {
+      "id": "s_box1",
+      "type": "target_box_pallet",
+      "x": -4.2,
+      "d": 16.8,
+      "yaw": -8
+    },
+    {
+      "id": "s_box1c",
+      "type": "paper_card",
+      "x": -4.2,
+      "d": 16.8,
+      "yaw": -8,
+      "elevation": 0.81
+    },
+    {
+      "id": "s_box2",
+      "type": "target_box_pallet",
+      "x": 0.2,
+      "d": 13.2
+    },
+    {
+      "id": "s_box2c",
+      "type": "paper_card",
+      "x": 0.2,
+      "d": 13.2,
+      "elevation": 0.81
     }
   ]
 }
