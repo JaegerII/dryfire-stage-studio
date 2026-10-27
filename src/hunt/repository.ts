@@ -5,12 +5,10 @@
 import { newId } from '../utils/random';
 import { DEFAULT_MAP, MAPS, MAP_IDS, type MapId, type StandIndex, isMapId } from './maps';
 import { crossingWindow } from './rules';
-import { type Crossing, type Hunt, type HuntRelease, type HuntScenario, SCHEMA_HUNT } from './types';
+import { type Crossing, type Hunt, type HuntScenario, SCHEMA_HUNT } from './types';
 
 const KEY = 'dryfire-stage-studio.hunts.v1';
 const KEY_HUNTS = 'dryfire-stage-studio.huntmatches.v1';
-
-export const DEFAULT_RELEASE: HuntRelease = { keiler: false, bache: true, ueberlaeufer: true, frischling: true, gallop: true, maxDistance: 60 };
 
 export const newCrossing = (at: number, over: Partial<Crossing> = {}): Crossing => ({
   id: newId('x'),
@@ -67,7 +65,6 @@ const demoScenario = (map: MapId, stand: StandIndex, k: number): HuntScenario =>
   name: `${MAPS[map].short} · Stand ${stand + 1}`,
   map,
   stand,
-  release: DEFAULT_RELEASE,
   revealSeconds: 6,
   crossings: DEMO_CROSSINGS[k % DEMO_CROSSINGS.length].map((c, i) => ({ ...c, id: `x_${map}_${stand}_${i}`, seed: 11 + 7 * k + i })),
 });
@@ -78,7 +75,6 @@ const demoHunt = (id: string, name: string, description: string, maps: MapId[]):
   name,
   description,
   scenarioIds: DEMO_SCENARIOS.filter((s) => maps.includes(s.map)).map((s) => s.id),
-  release: DEFAULT_RELEASE,
 });
 const DEMO_HUNTS: Hunt[] = [
   demoHunt('hunt_demo', 'Drückjagd 1 · Drei Reviere', 'Herbst, Winter und Fichte – je drei Stände.', ['buche_herbst', 'buche_winter', 'fichte']),
@@ -101,15 +97,15 @@ const write = (key: string, all: Record<string, unknown>) => localStorage.setIte
 
 /** Older saves (schema 1: one lane, one stand) → map + stand. */
 export const normalizeScenario = (raw: unknown): HuntScenario => {
-  const r = (raw ?? {}) as Partial<HuntScenario> & { lane?: string };
+  // schema 1 had a lane instead of a map; earlier saves carried a shoot / don't-shoot release (dropped)
+  const { lane, release: _release, ...r } = (raw ?? {}) as Partial<HuntScenario> & { lane?: string; release?: unknown };
   return {
     ...(r as HuntScenario),
     schema: SCHEMA_HUNT,
     id: r.id || newId('hs'),
     name: r.name || 'Szenario',
-    map: isMapId(r.map) ? r.map : isMapId(r.lane) ? r.lane : DEFAULT_MAP,
+    map: isMapId(r.map) ? r.map : isMapId(lane) ? lane : DEFAULT_MAP,
     stand: ([0, 1, 2] as const).includes(r.stand as StandIndex) ? (r.stand as StandIndex) : 0,
-    release: { ...DEFAULT_RELEASE, ...r.release },
     crossings: Array.isArray(r.crossings) ? r.crossings : [],
     revealSeconds: typeof r.revealSeconds === 'number' ? r.revealSeconds : 6,
   };
@@ -177,13 +173,12 @@ export const createScenario = (map: MapId = DEFAULT_MAP, stand: StandIndex = 0):
   name: `${MAPS[map].short} · Stand ${stand + 1}`,
   map,
   stand,
-  release: DEFAULT_RELEASE,
   revealSeconds: 6,
   crossings: [newCrossing(4)],
   meta: {},
 });
 
-export const createHunt = (): Hunt => ({ schema: SCHEMA_HUNT, id: newId('hunt'), name: 'Neue Drückjagd', scenarioIds: [], release: DEFAULT_RELEASE });
+export const createHunt = (): Hunt => ({ schema: SCHEMA_HUNT, id: newId('hunt'), name: 'Neue Drückjagd', scenarioIds: [] });
 
 /** The hunt's scenarios that exist, in play order. */
 export const huntScenarios = (h: Hunt) => h.scenarioIds.map((id) => scenarioRepository.get(id)).filter((s): s is HuntScenario => !!s);

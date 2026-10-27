@@ -1,12 +1,12 @@
 import { useRef } from 'react';
 import { type StandIndex, laneX, standView } from './maps';
-import { HFOV, crossingLine, crossingWindow, judge } from './rules';
-import type { Crossing, HuntRelease, HuntScenario } from './types';
+import { HFOV, crossingLine, crossingWindow } from './rules';
+import type { Crossing, HuntScenario } from './types';
 
 /**
  * Top view of the map: forest, lane and gravel track (bending as on the map), the three stands (click to
- * change), the chosen stand's field of view (16:9 solid, 9:16 dashed), the maximum shooting distance, and
- * every crossing as an arrow across the lane. Drag a crossing to change its distance from the stand.
+ * change), the chosen stand's field of view (16:9 solid, 9:16 dashed) and every crossing as an arrow
+ * across the lane. Drag a crossing to change its distance from the stand.
  */
 /** Plan colours per map: forest floor; snow maps get a pale lane. */
 const PLAN_FOREST: Record<string, string> = { buche_winter: '#2a2e30', buche_hang_schnee: '#2a2e30', fichte: '#18201a', stangenholz_raureif: '#1e2220', kiefer_farn: '#251d16' };
@@ -19,7 +19,6 @@ const Y1 = 136;
 
 export const HuntPlan = ({
   scenario,
-  release,
   selected,
   onSelect,
   onChange,
@@ -27,7 +26,6 @@ export const HuntPlan = ({
   onCommit,
 }: {
   scenario: HuntScenario;
-  release: HuntRelease;
   selected: string | null;
   onSelect: (id: string) => void;
   onChange: (id: string, patch: Partial<Crossing>) => void;
@@ -101,16 +99,14 @@ export const HuntPlan = ({
         <polygon points={lane(1.5)} fill={SNOW.has(map) ? '#8a8e92' : '#5c5a52'} />
         <polygon points={wedge('9x16')} fill="none" stroke="rgba(237,237,230,0.22)" strokeWidth={0.25} strokeDasharray="1 1" />
         <polygon points={wedge('16x9')} fill="rgba(237,237,230,0.05)" stroke="rgba(237,237,230,0.35)" strokeWidth={0.25} />
-        <circle cx={st.x} cy={sy(st.y)} r={release.maxDistance} fill="none" stroke="rgba(255,49,49,0.55)" strokeWidth={0.3} strokeDasharray="1.5 1" />
         {scenario.crossings.map((c, i) => {
           const { y, xc, half } = crossingLine(map, stand, c.distance);
           const look = st.aim[1] >= st.y ? 1 : -1;
           const dir = (c.direction === 'ltr' ? 1 : -1) * look;
           const from = xc - dir * half;
           const to = xc + dir * half;
-          const free = judge(c, release).some((v) => v.free);
           const on = c.id === selected;
-          const col = free ? '#2bd96b' : '#ff3131';
+          const col = on ? '#ff3131' : '#d9d6cc';
           return (
             <g
               key={c.id}

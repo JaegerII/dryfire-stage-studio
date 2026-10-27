@@ -1,10 +1,11 @@
 /**
  * Driven hunt (Drückjagd): you sit on a stand at the edge of a forest lane, game crosses it, you
- * identify it (ansprechen), decide whether it is released (Freigabe), swing with it and take the shot —
- * or don't. Built like the IPSC match builder:
+ * identify it (ansprechen), swing with it, give it the lead (Vorhalt) and take the shot. There is no
+ * hit detection, so there is no shoot / don't-shoot rule either: any animal can be the target.
+ * Built like the IPSC match builder:
  *
  *   HuntScenario  ≙ stage: a map (Revier) + one of its three stands + crossings on one timeline
- *   Hunt          ≙ match: up to nine scenarios played as one session / one video, one release for all
+ *   Hunt          ≙ match: up to nine scenarios played as one session / one video
  *
  * The lane and the animals are rendered offline in Blender (tools/plate-renderer/blender/hunt.py) through
  * the local render service; the editor shows the same scene live in three.js.
@@ -52,19 +53,6 @@ export interface Crossing {
   seed: number;
 }
 
-/** The hunt master's release (Freigabe). */
-export interface HuntRelease {
-  keiler: boolean;
-  /** Only sows without young: a sow with piglets in the sounder is never released (parent protection). */
-  bache: boolean;
-  ueberlaeufer: boolean;
-  frischling: boolean;
-  /** Shots at fleeing game (gallop) allowed at all. */
-  gallop: boolean;
-  /** Maximum shooting distance, m. */
-  maxDistance: number;
-}
-
 /** A scenario (≙ stage): one stand on one map, crossings on one timeline. */
 export interface HuntScenario {
   schema: typeof SCHEMA_HUNT;
@@ -72,23 +60,20 @@ export interface HuntScenario {
   name: string;
   map: MapId;
   stand: StandIndex;
-  /** Release when the scenario plays on its own; inside a hunt the hunt's release applies. */
-  release: HuntRelease;
   crossings: Crossing[];
-  /** Seconds the answer card (identification, release, lead) stays up after each crossing; 0 = only at the end. */
+  /** Seconds the answer card (what it was, lead) stays up after each crossing; 0 = only at the end. */
   revealSeconds: number;
   notes?: string;
   meta?: { updatedAt?: string };
 }
 
-/** A driven hunt (≙ match): scenarios in play order with one release. */
+/** A driven hunt (≙ match): scenarios in play order. */
 export interface Hunt {
   schema: typeof SCHEMA_HUNT;
   id: string;
   name: string;
   description?: string;
   scenarioIds: string[];
-  release: HuntRelease;
   /** Briefing screen before the first scenario (default on). */
   intro?: boolean;
   archived?: boolean;

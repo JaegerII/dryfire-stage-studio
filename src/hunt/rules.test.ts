@@ -1,28 +1,10 @@
 import { describe as group, expect, it } from 'vitest';
-import { crossingWindow, describe, judge, leadCm, sounderOrder } from './rules';
-import type { Crossing, HuntRelease } from './types';
+import { crossingWindow, describe, leadCm, sounderOrder } from './rules';
+import type { Crossing } from './types';
 
-const release: HuntRelease = { keiler: false, bache: true, ueberlaeufer: true, frischling: true, gallop: true, maxDistance: 60 };
 const crossing = (over: Partial<Crossing>): Crossing => ({ id: 'c', at: 10, animals: ['ueberlaeufer'], gait: 'trot', speed: 3.6, distance: 35, direction: 'ltr', seed: 1, ...over });
 
-group('driven hunt release', () => {
-  it('never releases a sow leading piglets', () => {
-    const v = judge(crossing({ animals: ['frischling', 'bache', 'frischling', 'ueberlaeufer'] }), release);
-    expect(v[0]).toMatchObject({ kind: 'bache', free: false, lead: true });
-    expect(v.filter((a) => a.free).map((a) => a.kind)).toEqual(['frischling', 'frischling', 'ueberlaeufer']);
-  });
-
-  it('releases a single sow without young only if sows are released', () => {
-    expect(judge(crossing({ animals: ['bache'] }), release)[0].free).toBe(true);
-    expect(judge(crossing({ animals: ['bache'] }), { ...release, bache: false })[0].free).toBe(false);
-  });
-
-  it('applies distance and fleeing-game limits before the class', () => {
-    expect(judge(crossing({ distance: 70 }), release)[0].reason).toMatch(/zu weit/);
-    expect(judge(crossing({ gait: 'gallop' }), { ...release, gallop: false })[0].reason).toMatch(/flüchtig/);
-    expect(judge(crossing({ animals: ['keiler'] }), release)[0].free).toBe(false);
-  });
-
+group('driven hunt crossings', () => {
   it('orders a sounder lead first, then young, then yearlings', () => {
     expect(sounderOrder(['ueberlaeufer', 'frischling', 'bache'])).toEqual(['bache', 'frischling', 'ueberlaeufer']);
   });
@@ -39,10 +21,10 @@ group('driven hunt release', () => {
 group('hunt program', () => {
   it('plays briefing, a title card and the drive per scenario, then the summary', async () => {
     const { huntProgram, huntFrameAt, INTRO_SECONDS, TITLE_SECONDS } = await import('./program');
-    const { createScenario, DEFAULT_RELEASE } = await import('./repository');
+    const { createScenario } = await import('./repository');
     const a = createScenario('buche_herbst', 0);
     const b = createScenario('buche_winter', 2);
-    const p = huntProgram({ name: 'Test', release: DEFAULT_RELEASE, scenarios: [a, b], isHunt: true }, '16x9');
+    const p = huntProgram({ name: 'Test', scenarios: [a, b], isHunt: true }, '16x9');
     expect(p.segments.map((s) => s.kind)).toEqual(['intro', 'title', 'drive', 'title', 'drive', 'end']);
     expect(huntFrameAt(p, INTRO_SECONDS + TITLE_SECONDS + 1)).toMatchObject({ phase: 'drive', scenario: 0 });
     expect(huntFrameAt(p, p.segments[3].start + 1)).toMatchObject({ phase: 'title', scenario: 1 });

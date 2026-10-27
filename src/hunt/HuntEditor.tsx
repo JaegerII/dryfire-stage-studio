@@ -9,41 +9,18 @@ import { HuntRenderPanel } from './HuntRenderPanel';
 import { MAPS, MAP_IDS, type StandIndex, standThumb } from './maps';
 import { huntProgram } from './program';
 import type { RenderQuality } from './renderService';
-import { driveDuration, huntRepository, newCrossing, scenarioRepository } from './repository';
-import { crossingWindow, describe, judge, leadCm } from './rules';
-import { type Crossing, GAITS, GAME_CLASSES, GAME_ORDER, type GameClass, type Hunt, type HuntFormat, type HuntRelease, type HuntScenario } from './types';
+import { driveDuration, newCrossing, scenarioRepository } from './repository';
+import { crossingWindow, describe, leadCm, sounderOrder } from './rules';
+import { type Crossing, GAITS, GAME_CLASSES, GAME_ORDER, type GameClass, type Hunt, type HuntFormat, type HuntScenario } from './types';
 import { useHuntRender } from './useHuntRender';
 
 /** Animals as counts per class → the list Blender gets (sow / boar first: the sounder's lead). */
 const animalsFrom = (counts: Record<GameClass, number>): GameClass[] => GAME_ORDER.flatMap((k) => Array<GameClass>(counts[k]).fill(k));
 const countsOf = (animals: GameClass[]) => Object.fromEntries(GAME_ORDER.map((k) => [k, animals.filter((a) => a === k).length])) as Record<GameClass, number>;
 
-export const ReleaseFields = ({ release, onChange }: { release: HuntRelease; onChange: (r: HuntRelease) => void }) => (
-  <>
-    {(
-      [
-        ['keiler', 'Keiler'],
-        ['bache', 'Bache (nicht führend)'],
-        ['ueberlaeufer', 'Überläufer'],
-        ['frischling', 'Frischlinge'],
-        ['gallop', 'Flüchtiges Wild'],
-      ] as const
-    ).map(([k, label]) => (
-      <label key={k} className="check-row">
-        <input type="checkbox" checked={release[k]} onChange={(e) => onChange({ ...release, [k]: e.target.checked })} /> {label}
-      </label>
-    ))}
-    <Row label="Max. Entfernung">
-      <SliderField value={release.maxDistance} min={20} max={80} step={5} digits={0} onChange={(v) => onChange({ ...release, maxDistance: v })} />
-    </Row>
-    <p className="hint">Führende Bache und Leitbache sind nie frei.</p>
-  </>
-);
-
 /**
  * Scenario editor (≙ stage editor): map (Revier) and stand, crossings on a plan of the lane and a
- * timeline, the live 3D preview, Blender render and MP4. Inside a hunt the hunt's release applies and is
- * edited here for the whole hunt.
+ * timeline, the live 3D preview, Blender render and MP4.
  */
 export const HuntEditor = ({
   initial,
@@ -59,24 +36,20 @@ export const HuntEditor = ({
   nav?: { index: number; count: number; onPrev?: () => void; onNext?: () => void };
 }) => {
   const [s, setS] = useState(initial);
-  const [huntRelease, setHuntRelease] = useState(hunt?.release);
-  const [saved, setSaved] = useState(() => JSON.stringify([initial, hunt?.release]));
+  const [saved, setSaved] = useState(() => JSON.stringify(initial));
   const [selected, setSelected] = useState<string | null>(initial.crossings[0]?.id ?? null);
   const [format, setFormat] = useState<HuntFormat>('16x9');
   const [quality, setQuality] = useState<RenderQuality>('preview');
   const [driveT, setDriveT] = useState<number | null>(null);
-  const dirty = JSON.stringify([s, huntRelease]) !== saved;
+  const dirty = JSON.stringify(s) !== saved;
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
-  const release = huntRelease ?? s.release;
-  const setRelease = (r: HuntRelease) => (hunt ? setHuntRelease(r) : setS({ ...s, release: r }));
 
   const sel = s.crossings.find((c) => c.id === selected) ?? null;
   const patch = (id: string, p: Partial<Crossing>) => setS((x) => ({ ...x, crossings: x.crossings.map((c) => (c.id === id ? { ...c, ...p } : c)) }));
   const save = () => {
     const out = scenarioRepository.save({ ...s, crossings: [...s.crossings].sort((a, b) => a.at - b.at) });
-    if (hunt && huntRelease) huntRepository.save({ ...(huntRepository.get(hunt.id) ?? hunt), release: huntRelease });
     setS(out);
-    setSaved(JSON.stringify([out, huntRelease]));
+    setSaved(JSON.stringify(out));
   };
   const leave = (go: () => void) => () => {
     if (dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return;
@@ -90,11 +63,10 @@ export const HuntEditor = ({
   const program = useMemo(() => {
     const order = [...s.crossings].sort((a, b) => a.at - b.at);
     const leaveT = frames && !r.stale(s) ? [s.crossings.map((c) => frames.lastVisible(c.at, order.find((n) => n.at > c.at)?.at ?? 1e9))] : undefined;
-    return huntProgram({ name: s.name, release, scenarios: [s] }, format, leaveT);
-  }, [s, release, format, frames]);
+    return huntProgram({ name: s.name, scenarios: [s] }, format, leaveT);
+  }, [s, format, frames]);
   const duration = driveDuration(s);
 
-  const verdicts = sel ? judge(sel, release) : [];
   const counts = sel ? countsOf(sel.animals) : null;
   const tooClose = s.crossings.some((c) => {
     const next = s.crossings.filter((n) => n.at > c.at).sort((a, b) => a.at - b.at)[0];
@@ -162,10 +134,6 @@ export const HuntEditor = ({
           </div>
         </section>
         <section>
-          <h3>Freigabe{hunt ? ' (ganze Drückjagd)' : ''}</h3>
-          <ReleaseFields release={release} onChange={setRelease} />
-        </section>
-        <section>
           <h3>Auflösung</h3>
           <Row label="Karte (s)" hint="Wie lange nach jedem Anlauf die Auflösung steht; 0 = nur am Ende">
             <SliderField value={s.revealSeconds} min={0} max={12} step={1} digits={0} onChange={(v) => setS({ ...s, revealSeconds: v })} />
@@ -177,13 +145,12 @@ export const HuntEditor = ({
             {[...s.crossings]
               .sort((a, b) => a.at - b.at)
               .map((c) => {
-                const free = judge(c, release).filter((v) => v.free).length;
                 return (
                   <li key={c.id}>
                     <button className={c.id === selected ? 'on' : ''} onClick={() => setSelected(c.id)}>
                       <strong>{fmtTime(c.at)}</strong> {describe(c.animals)}
                       <span>
-                        {GAITS[c.gait].label} · {Math.round(c.distance)} m · {c.direction === 'ltr' ? 'von links' : 'von rechts'} · <em className={free ? 'go' : 'no'}>{free ? `${free} frei` : 'kein Schuss'}</em>
+                        {GAITS[c.gait].label} · {Math.round(c.distance)} m · {c.direction === 'ltr' ? 'von links' : 'von rechts'} · Vorhalt ≈ {leadCm(c)} cm
                       </span>
                     </button>
                   </li>
@@ -206,7 +173,7 @@ export const HuntEditor = ({
 
       <main className="hunt-center">
         <div className="hunt-top">
-          <HuntPlan scenario={s} release={release} selected={selected} onSelect={setSelected} onChange={patch} onStand={(k) => setS({ ...s, stand: k })} />
+          <HuntPlan scenario={s} selected={selected} onSelect={setSelected} onChange={patch} onStand={(k) => setS({ ...s, stand: k })} />
           <HuntPlayer program={program} format={format} frames={r.frames} onDriveTime={(d) => setDriveT(d ? d.time : null)} />
         </div>
         <HuntTimeline scenario={s} duration={duration} selected={selected} playhead={driveT} onSelect={setSelected} onChange={patch} />
@@ -251,15 +218,15 @@ export const HuntEditor = ({
               <button onClick={() => patch(sel.id, { seed: Math.floor(Math.random() * 1e6) })}>neu würfeln</button>
             </Row>
             <h4>Auflösung</h4>
-            <ul className="verdicts">
-              {verdicts.map((v, i) => (
-                <li key={i} className={v.free ? 'go' : 'no'}>
-                  <span>{v.free ? '✓' : '✕'} {GAME_CLASSES[v.kind].label}{v.lead ? ' (vorn)' : ''}</span>
-                  <em>{v.free ? 'frei' : v.reason}</em>
+            <ol className="verdicts">
+              {sounderOrder(sel.animals).map((k, i) => (
+                <li key={i}>
+                  <span>{GAME_CLASSES[k].label}</span>
+                  {i === 0 && sel.animals.length > 1 && <em>vorn</em>}
                 </li>
               ))}
-            </ul>
-            <p className="hint">Vorhalt ≈ {leadCm(sel)} cm · sichtbar ca. {(crossingWindow(sel).leave - crossingWindow(sel).enter).toFixed(1)} s</p>
+            </ol>
+            <p className="hint">Vorhalt ≈ {leadCm(sel)} cm vor das Blatt · sichtbar ca. {(crossingWindow(sel).leave - crossingWindow(sel).enter).toFixed(1)} s</p>
             <div className="inline">
               <button
                 onClick={() => {

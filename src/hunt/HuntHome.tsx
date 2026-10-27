@@ -54,7 +54,7 @@ export const HuntHome = ({ onHome, onOpenHunt, onOpenScenario }: { onHome: () =>
             {shown.map((h) => {
               const list = huntScenarios(h);
               const first = list[0];
-              const p = huntProgram({ name: h.name, release: h.release, scenarios: list, isHunt: true }, '16x9');
+              const p = huntProgram({ name: h.name, scenarios: list, isHunt: true }, '16x9');
               return (
                 <article key={h.id} className={`match-card${h.archived ? ' archived' : ''}`}>
                   <button className="card-main" onClick={() => onOpenHunt(h.id)} title="Drückjagd öffnen">

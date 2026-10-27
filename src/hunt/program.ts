@@ -1,14 +1,14 @@
 /**
  * Timeline of a driven-hunt video — one scenario or a whole hunt (≙ match):
- *   briefing (release, safety, distance to the screen)
+ *   briefing (safety, procedure, distance to the screen)
  *   → per scenario: title card (map, stand) → the drive (after each crossing an answer card:
- *     what it was, released or not, lead)
+ *     what it was, the lead)
  *   → summary.
  */
 import { MAPS, standView } from './maps';
 import { crossingWindow } from './rules';
 import { driveDuration } from './repository';
-import type { HuntFormat, HuntRelease, HuntScenario } from './types';
+import type { HuntFormat, HuntScenario } from './types';
 
 export const INTRO_SECONDS = 14;
 export const TITLE_SECONDS = 4;
@@ -26,7 +26,6 @@ export interface HuntSegment {
 
 export interface HuntProgram {
   name: string;
-  release: HuntRelease;
   scenarios: HuntScenario[];
   /** A whole hunt: title cards between the scenarios. */
   isHunt: boolean;
@@ -47,7 +46,7 @@ export type HuntFrame =
  * else estimated.
  */
 export const huntProgram = (
-  o: { name: string; release: HuntRelease; scenarios: HuntScenario[]; isHunt?: boolean; intro?: boolean },
+  o: { name: string; scenarios: HuntScenario[]; isHunt?: boolean; intro?: boolean },
   format: HuntFormat,
   leaveTimes?: (number | null)[][],
 ): HuntProgram => {
@@ -72,7 +71,7 @@ export const huntProgram = (
     push('drive', Math.max(drive, Math.max(0, ...r.map((x) => x.until)) + 0.5), si);
   });
   push('end', END_SECONDS);
-  return { name: o.name, release: o.release, scenarios: o.scenarios, isHunt: !!o.isHunt, segments, reveals, end: t };
+  return { name: o.name, scenarios: o.scenarios, isHunt: !!o.isHunt, segments, reveals, end: t };
 };
 
 export const segmentAt = (p: HuntProgram, t: number) => p.segments.find((s) => t < s.end) ?? p.segments[p.segments.length - 1];

@@ -1,25 +1,13 @@
 /**
- * Release decisions and crossing timing for the driven hunt.
- *
- * Release (Freigabe) per animal, in this order of reasons:
- *   too far → fleeing game not released → leading sow (a sow with piglets in the sounder: parent
- *   protection, § 22 (4) BJagdG; the lead sow is never shot) → the class's release.
- * Timing mirrors hunt.py: animals start just outside one frame edge and run to just outside the other.
+ * Crossing timing and the lead for the driven hunt. Timing mirrors hunt.py: animals start just outside
+ * one frame edge and run to just outside the other.
  */
 import { type MapId, type StandIndex, laneX, standView } from './maps';
-import { type Crossing, GAME_CLASSES, type GameClass, type HuntFormat, type HuntRelease } from './types';
+import { type Crossing, GAME_CLASSES, type GameClass, type HuntFormat } from './types';
 
 export const HFOV: Record<HuntFormat, number> = { '16x9': 42, '9x16': 30 };
 /** Mean bullet speed over 30–60 m for the lead estimate (m/s). */
 export const BULLET_SPEED = 800;
-
-export interface AnimalVerdict {
-  kind: GameClass;
-  free: boolean;
-  reason: string;
-  /** The animal leading the sounder. */
-  lead: boolean;
-}
 
 /** Order as the sounder runs: the lead sow / boar in front, piglets close behind, yearlings strung out. */
 export const sounderOrder = (animals: GameClass[]): GameClass[] => {
@@ -28,21 +16,6 @@ export const sounderOrder = (animals: GameClass[]): GameClass[] => {
   const rank = (k: GameClass) => (GAME_CLASSES[k].young ? 1 : k === 'ueberlaeufer' ? 2 : 0);
   const rest = animals.filter((_, i) => i !== li).sort((a, b) => rank(a) - rank(b));
   return [animals[li], ...rest];
-};
-
-export const judge = (c: Crossing, r: HuntRelease): AnimalVerdict[] => {
-  const order = sounderOrder(c.animals);
-  const young = order.some((k) => GAME_CLASSES[k].young);
-  return order.map((kind, i) => {
-    const lead = i === 0 && order.length > 1;
-    const v = (free: boolean, reason: string): AnimalVerdict => ({ kind, free, reason, lead });
-    if (c.distance > r.maxDistance) return v(false, `zu weit (${Math.round(c.distance)} m > ${r.maxDistance} m)`);
-    if (c.gait === 'gallop' && !r.gallop) return v(false, 'flüchtig – kein Schuss freigegeben');
-    if (kind === 'bache' && young) return v(false, lead ? 'Leitbache, führend – Elterntierschutz' : 'führende Bache – Elterntierschutz');
-    if (kind === 'bache' && lead) return v(false, 'Leitbache – nie schießen');
-    const released = { keiler: r.keiler, bache: r.bache, ueberlaeufer: r.ueberlaeufer, frischling: r.frischling, frischling_gestreift: r.frischling }[kind];
-    return v(released, released ? 'frei' : 'nicht freigegeben');
-  });
 };
 
 /** Lead (Vorhalt) in cm for a broadside shot: speed × bullet flight time. */

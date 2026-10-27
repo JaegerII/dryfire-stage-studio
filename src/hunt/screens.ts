@@ -5,7 +5,7 @@
 import { hudUnit } from '../stage3d/hud';
 import { MAPS, standView } from './maps';
 import { COUNTDOWN, type HuntFrame, type HuntProgram, INTRO_SECONDS, scenarioPlace } from './program';
-import { HFOV, describe, judge, leadCm } from './rules';
+import { HFOV, describe, leadCm, sounderOrder } from './rules';
 import { GAITS, GAME_CLASSES, type HuntFormat } from './types';
 
 const C = { bg: '#050605', text: '#edede6', muted: '#949888', faint: '#5a625b', accent: '#ff3131', go: '#2bd96b', card: 'rgba(12, 13, 12, 0.86)', line: 'rgba(237, 237, 230, 0.14)' };
@@ -24,12 +24,6 @@ const fade = (local: number, total?: number) => Math.min(1, local / 0.5, total =
 
 /** How far to stand from the picture for true angular size: × picture width. */
 export const viewDistanceFactor = (format: HuntFormat) => 1 / (2 * Math.tan((HFOV[format] * Math.PI) / 360));
-
-const tick = (ctx: CanvasRenderingContext2D, ok: boolean, x: number, y: number, u: number) => {
-  ctx.fillStyle = ok ? C.go : C.accent;
-  font(ctx, 800, 2.6 * u);
-  ctx.fillText(ok ? '✓' : '✕', x, y);
-};
 
 export const drawBriefing = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, format: HuntFormat, local: number) => {
   const u = hudUnit(W, H);
@@ -59,56 +53,28 @@ export const drawBriefing = (ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.fillRect(x0, y, 10 * u, 0.5 * u);
   y += 7 * u;
 
-  const r = p.release;
-  const left: [string, boolean][] = [
-    ['Keiler', r.keiler],
-    ['Bache (nicht führend)', r.bache],
-    ['Überläufer', r.ueberlaeufer],
-    ['Frischlinge', r.frischling],
-    ['Flüchtiges Wild', r.gallop],
-  ];
-  const col = (title: string, x: number, yy: number) => {
-    ctx.fillStyle = C.muted;
-    font(ctx, 800, 1.8 * u);
-    spaced(ctx, title, x, yy, 0.4 * u);
-    return yy + 4.6 * u;
-  };
-  let yl = col('FREIGABE', x0, y);
-  for (const [label, ok] of left) {
-    tick(ctx, ok, x0, yl, u);
-    ctx.fillStyle = ok ? C.text : C.muted;
-    font(ctx, 600, 2.4 * u);
-    ctx.fillText(label, x0 + 4 * u, yl);
-    yl += 4 * u;
-  }
-  ctx.fillStyle = C.text;
-  font(ctx, 600, 2.4 * u);
-  ctx.fillText(`Schussentfernung max. ${r.maxDistance} m`, x0 + 4 * u, yl);
-  yl += 4 * u;
-  ctx.fillStyle = C.accent;
-  font(ctx, 700, 2.1 * u);
-  ctx.fillText('Nie: führende Bache · Leitbache', x0 + 4 * u, yl);
-
-  const x1 = tall ? x0 : x0 + 66 * u;
-  let yr = col('SICHERHEIT & ABLAUF', x1, tall ? yl + 9 * u : y);
+  ctx.fillStyle = C.muted;
+  font(ctx, 800, 1.8 * u);
+  spaced(ctx, 'SICHERHEIT & ABLAUF', x0, y, 0.4 * u);
+  let yr = y + 4.6 * u;
   const k = viewDistanceFactor(format).toFixed(1).replace('.', ',');
   for (const line of [
     'Waffe entladen: Patronenlager & Magazin prüfen',
     'Nur ins Schussfeld, auf Kugelfang achten',
-    'Erst ansprechen, dann mitschwingen, dann Schuss',
+    'Ansprechen, mitschwingen, Vorhalt nehmen, Schuss',
     `Abstand zum Bild: ${k} × Bildbreite (Größe 1:1)`,
-    'Nach jedem Anlauf: Auflösung mit Freigabe & Vorhalt',
+    'Nach jedem Anlauf: Auflösung mit Wild & Vorhaltmaß',
   ]) {
     ctx.fillStyle = C.text;
-    font(ctx, 600, 2.3 * u);
-    ctx.fillText(line, x1, yr, (tall ? 86 : 58) * u);
-    yr += 4 * u;
+    font(ctx, 600, 2.4 * u);
+    ctx.fillText(line, x0, yr, (tall ? 86 : 124) * u);
+    yr += 4.2 * u;
   }
 
   // countdown into the drive
   const left_s = INTRO_SECONDS - local;
   if (left_s <= COUNTDOWN) {
-    const yy = Math.max(yl, yr) + (tall ? 12 : 9) * u;
+    const yy = yr + (tall ? 12 : 9) * u;
     ctx.fillStyle = C.accent;
     font(ctx, 800, 2.2 * u);
     spaced(ctx, 'DAS TREIBEN BEGINNT', x0, yy, 0.5 * u);
@@ -128,20 +94,19 @@ const card = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
   ctx.fillRect(x, y, 0.6 * u, h);
 };
 
-/** Answer card after a crossing: what it was, released or not (and why), lead. */
+/** Answer card after a crossing: what it was (in running order, the leading animal marked) and the lead. */
 export const drawReveal = (ctx: CanvasRenderingContext2D, W: number, H: number, p: HuntProgram, scenario: number, index: number, local: number) => {
   const s = p.scenarios[scenario];
   const c = s.crossings[index];
-  const verdicts = judge(c, p.release);
+  const order = sounderOrder(c.animals);
   const u = hudUnit(W, H);
-  const rows = verdicts.length;
+  const rows = order.length > 1 ? order.length : 0;
   const w = Math.min(W - 6 * u, 74 * u);
-  const h = (15 + rows * 3.6 + 6) * u;
+  const h = (15 + rows * 3.4 + 7) * u;
   const x = (W - w) / 2;
   const y = H - h - 9 * u;
-  const total = s.revealSeconds;
   ctx.save();
-  ctx.globalAlpha = fade(local, total);
+  ctx.globalAlpha = fade(local, s.revealSeconds);
   card(ctx, x, y, w, h, u);
   const px = x + 3.4 * u;
   let yy = y + 5 * u;
@@ -153,29 +118,23 @@ export const drawReveal = (ctx: CanvasRenderingContext2D, W: number, H: number, 
   ctx.fillStyle = C.text;
   font(ctx, 800, 3 * u);
   ctx.fillText(describe(c.animals), px, yy, w - 7 * u);
-  yy += 5 * u;
-  for (const v of verdicts) {
-    tick(ctx, v.free, px, yy, u);
-    ctx.fillStyle = v.free ? C.text : C.muted;
-    font(ctx, 600, 2.2 * u);
-    ctx.fillText(`${GAME_CLASSES[v.kind].label}${v.lead ? ' (vorn)' : ''}`, px + 3.6 * u, yy);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = v.free ? C.go : C.accent;
-    font(ctx, 700, 1.9 * u);
-    ctx.fillText(v.free ? 'FREI' : v.reason, x + w - 3 * u, yy, w * 0.55);
-    ctx.textAlign = 'left';
-    yy += 3.6 * u;
+  yy += 4.6 * u;
+  if (rows) {
+    for (const [i, kind] of order.entries()) {
+      ctx.fillStyle = i === 0 ? C.text : C.muted;
+      font(ctx, 600, 2.1 * u);
+      ctx.fillText(`${i + 1}. ${GAME_CLASSES[kind].label}${i === 0 ? ' – vorn' : ''}`, px, yy, w - 7 * u);
+      yy += 3.4 * u;
+    }
+    yy += 1 * u;
   }
-  yy += 1.4 * u;
-  const free = verdicts.filter((v) => v.free).length;
+  ctx.fillStyle = C.go;
+  font(ctx, 800, 2.4 * u);
+  ctx.fillText(`Vorhalt ≈ ${leadCm(c)} cm vor das Blatt`, px, yy + 1 * u, w - 7 * u);
+  ctx.textAlign = 'right';
   ctx.fillStyle = C.muted;
   font(ctx, 600, 1.9 * u);
-  ctx.fillText(
-    free ? `Vorhalt ≈ ${leadCm(c)} cm vor das Blatt${free > 1 && rows > 1 ? ' · in der Rotte von hinten nach vorn' : ''}` : 'Kein Schuss – richtig war: Waffe unten lassen',
-    px,
-    yy,
-    w - 7 * u,
-  );
+  ctx.fillText(`${c.speed.toFixed(1).replace('.', ',')} m/s · ${Math.round(c.speed * 3.6)} km/h`, x + w - 3 * u, yy + 1 * u);
   ctx.restore();
 };
 
@@ -226,15 +185,13 @@ export const drawSummary = (ctx: CanvasRenderingContext2D, W: number, H: number,
   ctx.save();
   ctx.globalAlpha = fade(local);
   // one line per crossing (a single scenario) or per scenario (a hunt)
-  const rows: { n: string; text: string; free: number; total: number }[] = p.isHunt
-    ? p.scenarios.map((s, i) => {
-        const v = s.crossings.flatMap((c) => judge(c, p.release));
-        return { n: `${i + 1}`, text: `${s.name} · ${s.crossings.length} Anläufe`, free: v.filter((a) => a.free).length, total: s.crossings.length };
-      })
-    : p.scenarios[0].crossings.map((c, i) => {
-        const v = judge(c, p.release);
-        return { n: `${i + 1}`, text: `${describe(c.animals)} · ${GAITS[c.gait].label} · ${Math.round(c.distance)} m`, free: v.filter((a) => a.free).length, total: 1 };
-      });
+  const rows: { n: string; text: string; right: string }[] = p.isHunt
+    ? p.scenarios.map((s, i) => ({ n: `${i + 1}`, text: `${s.name} · ${MAPS[s.map].short}`, right: `${s.crossings.length} Anläufe` }))
+    : p.scenarios[0].crossings.map((c, i) => ({
+        n: `${i + 1}`,
+        text: `${describe(c.animals)} · ${GAITS[c.gait].label} · ${Math.round(c.distance)} m`,
+        right: `Vorhalt ≈ ${leadCm(c)} cm`,
+      }));
   const w = Math.min(W - 8 * u, 110 * u);
   const x = (W - w) / 2;
   let y = H / 2 - ((rows.length * 4.4 + 16) * u) / 2;
@@ -255,9 +212,9 @@ export const drawSummary = (ctx: CanvasRenderingContext2D, W: number, H: number,
     font(ctx, 600, 2.2 * u);
     ctx.fillText(r.text, x + 4 * u, y, w * 0.62);
     ctx.textAlign = 'right';
-    ctx.fillStyle = r.free ? C.go : C.accent;
+    ctx.fillStyle = C.go;
     font(ctx, 800, 2 * u);
-    ctx.fillText(r.free ? `${r.free} × FREI` : 'KEIN SCHUSS', x + w, y);
+    ctx.fillText(r.right, x + w, y);
     ctx.textAlign = 'left';
     y += 4.4 * u;
   }

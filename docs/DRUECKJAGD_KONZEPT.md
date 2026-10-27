@@ -234,3 +234,10 @@ Offen: Ton (Horn, Hundelaut), Wind, Rot-/Damwild, Wintervariante, gekaufte Tierm
   Kiefernwald mit Adlerfarn, Nadel-Stangenholz · Raureif. Beispiel „Drückjagd 2“ mit je drei Ständen;
   sechs Anlauf-Muster statt drei.
 - Render-Dienst: Renders werden neu erstellt, sobald sich `hunt.py` ändert.
+
+## 12. Keine Freigabe-Bewertung mehr
+
+Es gibt keine Trefferauswertung, also auch kein „darf / darf nicht“: Jedes Stück kann Ziel sein, das Ansprechen
+gehört zur Übung, die Bewertung macht der Schütze selbst. Entfernt: Freigabe-Einstellungen, ✓/✕ und Gründe in
+Auflösungskarte und Zusammenfassung, Freigabe-Spalte im Briefing, Maximalentfernung im Plan, „x frei“ in den Listen.
+Die Auflösungskarte zeigt Wild (Reihenfolge, vorderes Stück), Gangart, Entfernung, Tempo und das Vorhaltmaß.

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { BrandMark } from '../components/BrandMark';
 import { newId } from '../utils/random';
-import { ReleaseFields } from './HuntEditor';
 import { fmtTime } from './HuntPlan';
 import { HuntPlayer } from './HuntPlayer';
 import { HuntRenderPanel } from './HuntRenderPanel';
@@ -9,13 +8,13 @@ import { MAPS, MAP_IDS, type MapId, standThumb } from './maps';
 import { huntProgram } from './program';
 import type { RenderQuality } from './renderService';
 import { createScenario, huntRepository, huntScenarios, scenarioRepository } from './repository';
-import { judge } from './rules';
+import { leadCm } from './rules';
 import { type Hunt, type HuntFormat, MAX_SCENARIOS } from './types';
 import { useHuntRender } from './useHuntRender';
 
 /**
  * One driven hunt (≙ match page): up to nine scenarios in play order (add, reorder, open, remove), the
- * release for the whole hunt, and the whole hunt played / rendered / exported as one video.
+ * whole hunt played / rendered / exported as one video.
  */
 export const HuntMatchPage = ({ huntId, onHome, onOpenHunt, onOpenScenario }: { huntId: string; onHome: () => void; onOpenHunt: (id: string) => void; onOpenScenario: (id: string) => void }) => {
   const [hunt, setHunt] = useState<Hunt | undefined>(() => huntRepository.get(huntId));
@@ -32,7 +31,7 @@ export const HuntMatchPage = ({ huntId, onHome, onOpenHunt, onOpenScenario }: { 
       const order = [...s.crossings].sort((a, b) => a.at - b.at);
       return s.crossings.map((c) => f.lastVisible(c.at, order.find((n) => n.at > c.at)?.at ?? 1e9));
     });
-    return huntProgram({ name: hunt?.name ?? '', release: hunt?.release ?? scenarios[0]?.release, scenarios, isHunt: true, intro: hunt?.intro }, format, leave);
+    return huntProgram({ name: hunt?.name ?? '', scenarios, isHunt: true, intro: hunt?.intro }, format, leave);
   }, [hunt, scenarios, format, r.frames]);
 
   if (!hunt)
@@ -105,14 +104,14 @@ export const HuntMatchPage = ({ huntId, onHome, onOpenHunt, onOpenScenario }: { 
                 [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
                 save({ ...hunt, scenarioIds: ids });
               };
-              const free = s ? s.crossings.flatMap((c) => judge(c, hunt.release)).filter((v) => v.free).length : 0;
+              const leads = s?.crossings.map(leadCm) ?? [];
               return (
                 <li key={`${id}-${i}`}>
                   <span className="order">{i + 1}</span>
                   {s ? <img src={standThumb(s.map, s.stand)} alt="" /> : <span className="missing-thumb" />}
                   <button className="meta linkish" disabled={!s} onClick={() => onOpenScenario(id)} title="Szenario bearbeiten">
                     <strong>{s?.name ?? id}</strong>
-                    <span>{s ? `${MAPS[s.map].label} · Stand ${s.stand + 1} · ${s.crossings.length} Anläufe · ${free} frei` : 'Szenario nicht gefunden'}</span>
+                    <span>{s ? `${MAPS[s.map].label} · Stand ${s.stand + 1} · ${s.crossings.length} Anläufe · Vorhalt ${Math.min(...leads)}–${Math.max(...leads)} cm` : 'Szenario nicht gefunden'}</span>
                   </button>
                   <div className="inline">
                     <button disabled={i === 0} onClick={() => move(-1)} title="Nach oben">↑</button>
@@ -154,8 +153,6 @@ export const HuntMatchPage = ({ huntId, onHome, onOpenHunt, onOpenScenario }: { 
           </div>
           {full && <p className="hint">Höchstens {MAX_SCENARIOS} Szenarien pro Drückjagd.</p>}
 
-          <h3>Freigabe (ganze Drückjagd)</h3>
-          <ReleaseFields release={hunt.release} onChange={(release) => save({ ...hunt, release })} />
         </section>
 
         <section className="hunt-page-right">
