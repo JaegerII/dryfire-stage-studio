@@ -483,7 +483,8 @@ export class StageScene3D {
       if (!src) return;
       const g = src.clone(true);
       g.position.set(o.x, o.elevation ?? 0, -o.d);
-      g.rotation.y = -(o.yaw ?? 0) * DEG;
+      // turn around the vertical last: tilt / roll lean the object in its own frame
+      g.rotation.set(-(o.tilt ?? 0) * DEG, -(o.yaw ?? 0) * DEG, -(o.roll ?? 0) * DEG, 'YXZ');
       const s = o.scale ?? 1;
       g.scale.set(o.flip ? -s : s, s, s);
       g.traverse((n) => {
@@ -725,7 +726,7 @@ export class StageScene3D {
       const inWindow = !rep || !sw || (clock >= (sw.from ?? -Infinity) && clock < (sw.until ?? Infinity));
       mv.node.visible = m.visible && inWindow;
       // swing: tilt in the object's own plane around its foot (+ = top to the right)
-      mv.node.rotation.z = -m.rot * DEG;
+      mv.node.rotation.z = -(m.rot + (mv.o.roll ?? 0)) * DEG;
       // steel: the plate tips backwards (away from the shooter) around its lower edge
       for (const p of mv.tips) p.rotation.x = -m.fall * 1.45;
     }

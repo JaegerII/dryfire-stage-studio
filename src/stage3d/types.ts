@@ -25,6 +25,10 @@ export interface StageObject3D {
   motion?: Motion;
   /** Turn around the vertical axis in degrees (clockwise seen from above); 0 = front faces the start side. */
   yaw?: number;
+  /** Lean forward (+, top towards downrange) / back (−) in degrees. */
+  tilt?: number;
+  /** Lean sideways in degrees (+ = top to the right, seen from the start side). */
+  roll?: number;
   elevation?: number;
   /** Size multiplier (1 = true size). */
   scale?: number;
@@ -49,6 +53,10 @@ export interface ShooterPosition {
   x: number;
   d: number;
   heading: number;
+  /** Look up (+) / down (−) in degrees, e.g. down through a low window. Default 0 = level. */
+  pitch?: number;
+  /** Eye height in meters (default EYE_HEIGHT standing; ~1.2 crouched, ~1.0 kneeling). */
+  eye?: number;
 }
 
 /** The move from one position to the next. */

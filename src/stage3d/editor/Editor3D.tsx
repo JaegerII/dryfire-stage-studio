@@ -180,6 +180,10 @@ export const Editor3D = ({ initial, onExit, matchName, stageNav, onDirtyChange }
         const step = (e.shiftKey ? 5 : 15) * (e.key.toLowerCase() === 'q' ? -1 : 1);
         if (selection.kind === 'objects') update((s) => patchObjects(s, selection.ids, (o) => ({ yaw: ((o.yaw ?? 0) + step + 540) % 360 - 180 })));
         if (selection.kind === 'position') update((s) => patchPosition(s, selection.index, { heading: s.positions[selection.index].heading + step }));
+      } else if ((e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'f') && selection?.kind === 'position') {
+        // look up / down at the selected position
+        const step = (e.shiftKey ? 1 : 5) * (e.key.toLowerCase() === 'f' ? -1 : 1);
+        update((s) => patchPosition(s, selection.index, { pitch: Math.max(-80, Math.min(60, (s.positions[selection.index].pitch ?? 0) + step)) || undefined }));
       } else if (e.key.startsWith('Arrow') && selection?.kind === 'objects') {
         e.preventDefault();
         const st = e.shiftKey ? 0.5 : 0.05;
@@ -322,7 +326,13 @@ export const Editor3D = ({ initial, onExit, matchName, stageNav, onDirtyChange }
           snap={snap}
           onDropAsset={(type, x, d) => add(type, x, d)}
         />
-        <Preview3D stage={stage} position={povIndex} mode={mode} onMode={setMode} />
+        <Preview3D
+          stage={stage}
+          position={povIndex}
+          mode={mode}
+          onMode={setMode}
+          onLook={(heading, pitch) => update((s) => patchPosition(s, Math.min(povIndex, s.positions.length - 1), { heading, pitch: pitch || undefined }))}
+        />
         {tool === 'position' && <div className="toast">Click the floor to place shooting position {stage.positions.length + 1} · Esc cancels</div>}
         {toast && <div className="toast">{toast}</div>}
       </main>

@@ -602,10 +602,10 @@ def zipties(x, z_top=MESH_T, count=6):
         box('ziptie', (cm(10), cm(0.4), cm(0.5)), (cm(x), cm(-5.2), cm(z)), M.ziptie)
 
 
-def frame(x, z, w, h, y=-5.5):
+def frame(x, z, w, h, y=-5.5, mat=None):
     """Wooden 5 cm frame around an opening (x, z = bottom-left, cm)."""
     for bx, bz, bw, bh in ((x - 5, z + h, w + 10, 5), (x - 5, z - 5, w + 10, 5), (x - 5, z, 5, h), (x + w, z, 5, h)):
-        box('frame', (cm(bw), cm(2.5), cm(bh)), (cm(bx + bw / 2), cm(y), cm(bz + bh / 2)), M.pine_h, bevel=cm(0.2))
+        box('frame', (cm(bw), cm(2.5), cm(bh)), (cm(bx + bw / 2), cm(y), cm(bz + bh / 2)), mat or M.pine_h, bevel=cm(0.2))
 
 
 def straight_wall(width):
@@ -723,6 +723,37 @@ def black_mesh_wall(width):
     """Black safety-net partition (as in many indoor ranges): black net, black posts."""
     half = width / 2
     mesh_panel('mesh', [rect(-half, MESH_B, half, MESH_T)], mat=M.mesh_black)
+    for s in (-1, 1):
+        post(s * half, mat=M.coat)
+        wall_foot(s * half)
+        zipties(s * (half - 4.5))
+
+
+def rect_with_holes(x0, z0, x1, z1, holes):
+    """Rectangle minus non-overlapping rectangular holes (x0, z0, x1, z1), as rectangles: vertical strips
+    between the hole edges, each split around the holes it crosses."""
+    xs = sorted({x0, x1, *(v for h in holes for v in (h[0], h[2]))})
+    out = []
+    for a, b in zip(xs, xs[1:]):
+        cut = sorted((h[1], h[3]) for h in holes if h[0] <= a and h[2] >= b)
+        z = z0
+        for lo, hi in cut:
+            if lo > z:
+                out.append(rect(a, z, b, lo))
+            z = max(z, hi)
+        if z < z1:
+            out.append(rect(a, z, b, z1))
+    return out
+
+
+def black_net(width, holes=()):
+    """Black net partition with openings: holes = (x, z, w, h) cm, each in a black 5 cm frame
+    (window, low window to look down through, vertical port)."""
+    half = width / 2
+    cut = [(x - 5, z - 5, x + w + 5, z + h + 5) for x, z, w, h in holes]
+    mesh_panel('mesh', rect_with_holes(-half, MESH_B, half, MESH_T, cut), mat=M.mesh_black)
+    for x, z, w, h in holes:
+        frame(x, z, w, h, mat=M.coat)
     for s in (-1, 1):
         post(s * half, mat=M.coat)
         wall_foot(s * half)
@@ -1096,6 +1127,10 @@ BUILDERS = {
     'mesh_wall_black_short': (lambda: black_mesh_wall(90), True),
     'wall_black': (lambda: black_wall(120), True),
     'wall_black_window': (lambda: black_wall(120, (-30, 115, 60, 55)), True),
+    'mesh_wall_black_window': (lambda: black_net(240, [(-37.5, 100, 75, 60)]), True),
+    'mesh_wall_black_low': (lambda: black_net(240, [(-40, 55, 80, 45)]), True),
+    'mesh_wall_black_port': (lambda: black_net(200, [(-42, 30, 30, 135)]), True),
+    'mesh_wall_black_openings': (lambda: black_net(300, [(-125, 105, 60, 50), (-30, 50, 70, 45), (85, 30, 30, 135)]), True),
     'barrel_steel': (barrel_steel, True),
     'barrel_stack': (barrel_stack, True),
     'barrel_lying': (barrel_lying, True),

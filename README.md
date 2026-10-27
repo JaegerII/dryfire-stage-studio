@@ -31,8 +31,9 @@ Links of the former 3D beta (`#/3d/edit/…`, `#/3d/play/…`) still lead to the
 
 ## Stages
 
-A stage is a floor plan in meters: objects (`x` right of the centre line, `d` downrange, `yaw`, height, size,
-mirroring, motion), shooter **positions** (`x`, `d`, `heading`) and **legs** between them (`after` = seconds at the
+A stage is a floor plan in meters: objects (`x` right of the centre line, `d` downrange, `yaw`, `tilt`, `roll`, height,
+size, mirroring, motion), shooter **positions** (`x`, `d`, `heading`, optional `pitch` = look up / down and `eye` = eye
+height) and **legs** between them (`after` = seconds at the
 previous position, `duration`, `reload`, optional `via` corner points). Par = all waits + moves + `finalTime`.
 Repetitions, reset time and standby delay as before.
 
@@ -42,7 +43,8 @@ Repetitions, reset time and standby delay as before.
   (limestone hillside like the Slovak Open: bright limestone gravel, earth berms with dry grass, a steep slope with
   bushes, rock outcrops and trees). Built-in stage *Slovak Open – Hillside* (`stage_701`) shows it off.
 * **Objects:** paper targets (full, mini, hard cover, cards, stacks, swinger), no-shoots, steel (popper, plate, rack),
-  orange mesh / black net / solid black partition walls (also with window), wood wall, drums (blue, black steel, two
+  orange mesh / black net / solid black partition walls (also with window), **black nets with openings** (window, low
+  window to kneel and look down through, vertical port, or all three in one 3 m net), wood wall, drums (blue, black steel, two
   stacked, lying), barrel barricade, boxes, car tyres (single or two stacked), **rubber-covered mobile target stands**
   (indoor; narrow and wide), **target boxes on Euro pallets**, Euro pallets and **tables** (plain, or the start table with
   pistol and magazines). Range dressing: stage signs (1–3), green windscreen fence, tyre walls, red fault lines, white
@@ -58,20 +60,22 @@ Repetitions, reset time and standby delay as before.
 * **Built-in indoor stages with the mobile rubber targets:** *Glockstore 270 Bay* (Indoor Range 05: targets left, ahead and
   right, turning to both sides) and *Swiss Tactical Indoor* (Indoor Range 06: black partitions, through a window, wide
   rubber walls, steel to finish). More built-in stages with the range dressing: *Tyre Wall Bay*, *Green Fence Lane*, *Pallet
-  Box Hall*.
+  Box Hall*, and *Black Net Openings* (kneel and look down through a low window, then a high window and a port).
 * **Top-view editor:** plan of the range in meters next to a live 3D view (from the selected shooting box, or the
   briefing view from above).
   * **Environment** at the top of the left panel. Objects that do not fit the new room are pulled inside; outdoors the
     room is the bay between the berms (hatched in the plan).
   * Click or drag targets / walls from the library onto the plan; drag to move, the round handle behind an object turns
-    it (5° steps, Shift = free), Q / E turn by 15°, arrows nudge, Ctrl+D duplicates, Del deletes. Select a box first to
+    it (5° steps, Shift = free), Q / E turn by 15°, *Tilt* / *Lean sideways* lean it forward / back / sideways, arrows nudge, Ctrl+D duplicates, Del deletes. Select a box first to
     put a card / steel on top of it.
   * **Drag on the empty floor** to select several objects (Shift adds), **right-drag** pans, the wheel zooms.
   * **Groups:** Ctrl+G groups the selection, Ctrl+Shift+G ungroups; clicking one member selects the whole group.
   * **Behaviour:** falling steel (activators), swingers, slides, bobs, pop-ups, appear / disappear, started by the beep
     or by an activator. **Up from / Down at** limits an object to part of the run (seconds after the beep).
   * **+ Position** (P), then click the floor: the next shooting box (START → P2 → P3 …). Drag the box, drag the handle in
-    front of it to set where the shooter looks; *Stay (s)* = time at that box.
+    front of it to set where the shooter looks; *Stay (s)* = time at that box. **Look up / down** (R / F, 5° steps) and
+    **Stance** (standing, crouched, kneeling, prone) per box, e.g. kneel and look down through a low window. In the
+    *View from …* preview, **drag to look around**: it sets the box's turn and up / down.
   * Click a path: *Go after*, *Move takes*, *Reload*. Double-click a path to add a corner point, drag it, double-click
     it to remove it.
   * **Brightness** (stage properties → Camera): darker / lighter range and targets, saved with the stage and used in

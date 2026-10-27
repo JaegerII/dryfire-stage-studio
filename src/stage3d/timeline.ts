@@ -67,6 +67,10 @@ export interface ShooterState {
   x: number;
   d: number;
   heading: number;
+  /** Look up (+) / down (−), degrees (ShooterPosition.pitch). */
+  pitch: number;
+  /** Eye height, meters. */
+  eye: number;
   /** Index of the leg being walked, or −1 when standing. */
   leg: number;
   /** 0..1 of the leg's time. */
@@ -164,7 +168,7 @@ export const moveProfile = (raw: number) => {
   return { u: lerp(PROFILE.u[i], PROFILE.u[i + 1], k), v: PROFILE.v(t), a: lerp(PROFILE.a[i], PROFILE.a[i + 1], k) };
 };
 
-export const standing = (p: { x: number; d: number; heading: number }): ShooterState => ({ x: p.x, d: p.d, heading: p.heading, leg: -1, legProgress: 0, speed: 0, accel: 0, dist: 0, reloading: false });
+export const standing = (p: { x: number; d: number; heading: number; pitch?: number; eye?: number }): ShooterState => ({ x: p.x, d: p.d, heading: p.heading, pitch: p.pitch ?? 0, eye: p.eye ?? EYE_HEIGHT, leg: -1, legProgress: 0, speed: 0, accel: 0, dist: 0, reloading: false });
 
 /** Where the shooter is `t` seconds after the start beep (clamped to the par window). */
 export const shooterAt = (s: Stage3D, t: number): ShooterState => {
@@ -185,7 +189,10 @@ export const shooterAt = (s: Stage3D, t: number): ShooterState => {
       const ahead = alongPath(pts, Math.min(1, u + 0.4 / Math.max(0.5, len)));
       const moveDir = Math.hypot(ahead.x - at.x, ahead.d - at.d) > 1e-4 ? (Math.atan2(ahead.x - at.x, ahead.d - at.d) * 180) / Math.PI : p.heading;
       const base = lerpAngle(p.heading, next.heading, smooth(u));
-      return { ...at, heading: lerpAngle(base, moveDir, 0.42 * v), leg: i, legProgress: raw, speed: v, accel: a, dist: u * len, reloading: leg.reload };
+      // look up / down and stance change with the move; while walking the eyes stay nearer the level
+      const pitch = lerp(p.pitch ?? 0, next.pitch ?? 0, smooth(u)) * (1 - 0.6 * v);
+      const eye = lerp(p.eye ?? EYE_HEIGHT, next.eye ?? EYE_HEIGHT, smooth(u));
+      return { ...at, heading: lerpAngle(base, moveDir, 0.42 * v), pitch, eye, leg: i, legProgress: raw, speed: v, accel: a, dist: u * len, reloading: leg.reload };
     }
     clock += leg.duration;
   }
@@ -248,10 +255,10 @@ export const povPose = (st: ShooterState, _t: number, shake = DEFAULT_SHAKE): Ca
   const h = (st.heading * Math.PI) / 180;
   return {
     x: st.x + Math.cos(h) * sway,
-    y: EYE_HEIGHT + bob,
+    y: st.eye + bob,
     z: -st.d + Math.sin(h) * sway,
     yaw: st.heading + k * 0.25 * v * Math.sin(ph / 2 + 0.4),
-    pitch: -4 + k * (0.3 * v * Math.sin(ph + 0.9) - 1.1 * brake - 0.6 * push),
+    pitch: Math.max(-85, Math.min(85, -4 + st.pitch + k * (0.3 * v * Math.sin(ph + 0.9) - 1.1 * brake - 0.6 * push))),
     roll: k * 0.55 * v * Math.sin(ph / 2),
     fov: POV_FOV,
     fade: 0,
@@ -377,7 +384,7 @@ export const startTablePitch = (s: Stage3D): number | null => {
     const side = Math.abs((o.x - p.x) * Math.cos(h) - (o.d - p.d) * Math.sin(h));
     if (ahead < 0.3 || ahead > 2 || side > 1) continue;
     // a point a little beyond the table: the table sits in the lower half of the view, under the range commands
-    const pitch = -(Math.atan2(EYE_HEIGHT - 0.75, ahead + 1.0) * 180) / Math.PI;
+    const pitch = -(Math.atan2((p.eye ?? EYE_HEIGHT) - 0.75, ahead + 1.0) * 180) / Math.PI;
     best = best === null ? pitch : Math.max(best, pitch);
   }
   return best === null ? null : Math.max(-50, best);

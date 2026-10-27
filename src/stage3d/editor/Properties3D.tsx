@@ -2,7 +2,7 @@ import { ASSETS } from '../../assets/registry';
 import { NumberField, Row, SliderField } from '../../components/fields';
 import { MotionFields } from './MotionFields';
 import { STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
-import { buildVideoTimeline } from '../timeline';
+import { EYE_HEIGHT, buildVideoTimeline } from '../timeline';
 import { type Stage3D, parTime3D, shakeOf } from '../types';
 import { type Selection, groupObjects, patchLeg, patchObjects, patchPosition, ungroupObjects } from './ops';
 
@@ -13,6 +13,14 @@ interface Props {
   onDelete: () => void;
   onDuplicate: () => void;
 }
+
+/** Eye heights for the stance select. */
+const STANCES: [number, string][] = [
+  [EYE_HEIGHT, 'Standing'],
+  [1.25, 'Crouched'],
+  [1.0, 'Kneeling'],
+  [0.35, 'Prone'],
+];
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
@@ -41,6 +49,8 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
           </>
         )}
         <Row label="Turn (°)" hint="Clockwise seen from above. Q / E turn by 15° (Shift: 5°)"><NumberField value={o.yaw ?? 0} step={5} digits={1} onChange={(yaw) => set({ yaw })} /></Row>
+        <Row label="Tilt (°)" hint="Lean forward (+, top away from the shooter) or back (−)"><NumberField value={o.tilt ?? 0} min={-90} max={90} step={5} digits={1} onChange={(tilt) => set({ tilt: tilt || undefined })} /></Row>
+        <Row label="Lean sideways (°)" hint="+ = top to the right, − = to the left"><NumberField value={o.roll ?? 0} min={-90} max={90} step={5} digits={1} onChange={(roll) => set({ roll: roll || undefined })} /></Row>
         <Row label="Elevation (m)" hint="Height above the floor — e.g. 0.6 for a card on a box"><NumberField value={o.elevation ?? 0} min={0} max={3} step={0.05} digits={2} onChange={(e) => set({ elevation: e || undefined })} /></Row>
         <Row label="Scale"><NumberField value={o.scale ?? 1} min={0.3} max={3} step={0.05} digits={2} onChange={(sc) => set({ scale: sc === 1 ? undefined : sc })} /></Row>
         <Row label="Mirror"><input type="checkbox" checked={!!o.flip} onChange={(e) => set({ flip: e.target.checked || undefined })} /></Row>
@@ -98,6 +108,15 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
         <Row label="Across (m)"><NumberField value={p.x} step={0.05} digits={2} onChange={(x) => set({ x })} /></Row>
         <Row label="Downrange (m)"><NumberField value={p.d} step={0.05} digits={2} onChange={(d) => set({ d })} /></Row>
         <Row label="Looks (°)" hint="0 = straight downrange, + = to the right. Drag the round handle in front of the box."><NumberField value={p.heading} step={5} digits={1} onChange={(heading) => set({ heading })} /></Row>
+        <Row label="Look up / down (°)" hint="− = down (e.g. through a low window), + = up. R / F change it by 5°.">
+          <NumberField value={p.pitch ?? 0} min={-80} max={60} step={5} digits={1} onChange={(pitch) => set({ pitch: pitch || undefined })} />
+        </Row>
+        <Row label="Stance" hint="Eye height at this position">
+          <select value={String(p.eye ?? EYE_HEIGHT)} onChange={(e) => { const eye = +e.target.value; set({ eye: eye === EYE_HEIGHT ? undefined : eye }); }}>
+            {!STANCES.some(([v]) => v === (p.eye ?? EYE_HEIGHT)) && <option value={String(p.eye)}>{p.eye} m</option>}
+            {STANCES.map(([v, l]) => <option key={v} value={String(v)}>{l}</option>)}
+          </select>
+        </Row>
         {i < stage.legs.length && (
           <Row label="Stay (s)" hint="Seconds at this position before moving on (after the beep / after arriving)">
             <NumberField value={stage.legs[i].after} min={0} max={60} step={0.5} digits={1} onChange={(after) => onUpdate((s) => patchLeg(s, i, { after }))} />

@@ -47,6 +47,10 @@ import meshWallBlack from './realistic/mesh_wall_black.webp';
 import meshWallBlackShort from './realistic/mesh_wall_black_short.webp';
 import wallBlack from './realistic/wall_black.webp';
 import wallBlackWindow from './realistic/wall_black_window.webp';
+import meshWallBlackWindow from './realistic/mesh_wall_black_window.webp';
+import meshWallBlackLow from './realistic/mesh_wall_black_low.webp';
+import meshWallBlackPort from './realistic/mesh_wall_black_port.webp';
+import meshWallBlackOpenings from './realistic/mesh_wall_black_openings.webp';
 import barrelSteel from './realistic/barrel_steel.webp';
 import barrelStack from './realistic/barrel_stack.webp';
 import barrelLying from './realistic/barrel_lying.webp';
@@ -130,6 +134,10 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   mesh_wall_black_short: { type: 'mesh_wall_black_short', category: 'barrier', label: 'Short Black Net Wall', src: meshWallBlackShort, viewW: 130, viewH: 189, groundY: 185, scoring: false },
   wall_black: { type: 'wall_black', category: 'barrier', label: 'Black Partition Wall', src: wallBlack, viewW: 150, viewH: 194, groundY: 190, scoring: false },
   wall_black_window: { type: 'wall_black_window', category: 'barrier', label: 'Black Partition with Window', src: wallBlackWindow, viewW: 150, viewH: 194, groundY: 190, scoring: false },
+  mesh_wall_black_window: { type: 'mesh_wall_black_window', category: 'barrier', label: 'Black Net with Window', src: meshWallBlackWindow, viewW: 280, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_black_low: { type: 'mesh_wall_black_low', category: 'barrier', label: 'Black Net with Low Window', src: meshWallBlackLow, viewW: 280, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_black_port: { type: 'mesh_wall_black_port', category: 'barrier', label: 'Black Net with Port', src: meshWallBlackPort, viewW: 240, viewH: 189, groundY: 185, scoring: false },
+  mesh_wall_black_openings: { type: 'mesh_wall_black_openings', category: 'barrier', label: 'Black Net with 3 Openings', src: meshWallBlackOpenings, viewW: 340, viewH: 189, groundY: 185, scoring: false },
   barrel_barricade: { type: 'barrel_barricade', category: 'barrier', label: 'Barrel Barricade', src: barrelBarricade, viewW: 220, viewH: 154, groundY: 150, scoring: false },
   banner_forth_trace_black: { type: 'banner_forth_trace_black', category: 'banner', label: 'Banner FORTH TRACE (black)', src: bannerForthTraceBlack, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },
   banner_forth_trace_white: { type: 'banner_forth_trace_white', category: 'banner', label: 'Banner FORTH TRACE (white)', src: bannerForthTraceWhite, viewW: 160, viewH: 54, groundY: 50, scoring: false, defaultElevation: 1.0, banner: true },

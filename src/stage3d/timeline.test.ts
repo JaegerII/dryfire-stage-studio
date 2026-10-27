@@ -72,6 +72,16 @@ describe('movement feel', () => {
     expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(0.03);
   });
 
+  it('looks up / down and kneels as set per position', () => {
+    const low = { ...stage, positions: stage.positions.map((p, i) => (i === 1 ? { ...p, pitch: -20, eye: 1 } : p)) };
+    const last = low.legs[0].after + low.legs[0].duration + 0.5;
+    const there = povPose(shooterAt(low, last), 0);
+    expect(there.y).toBe(1);
+    expect(there.pitch).toBe(-24);
+    // standing at the start: level eyes at standing height
+    expect(povPose(shooterAt(low, 0.5), 0).pitch).toBe(-4);
+  });
+
   it('scales the head movement with the shake setting (0 = steady)', () => {
     const range = (shake: number) => {
       const ys = Array.from({ length: 60 }, (_, k) => povPose(shooterAt(stage, 4.2 + k * 0.04), 0, shake));
