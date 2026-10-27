@@ -97,6 +97,8 @@ def uv_unwrap(ob, margin=0.004):
 def bake(ob, size, kind, samples, path):
     """Bake into a new image (via an active image node in every material of `ob`), save it, return it.
     size = edge length or (width, height)."""
+    if REUSE and os.path.exists(path):
+        return bpy.data.images.load(path)
     w, h = size if isinstance(size, tuple) else (size, size)
     img = bpy.data.images.new(f'{ob.name}_{kind}', w, h, alpha=False, float_buffer=kind == 'COMBINED')
     for slot in ob.material_slots:
@@ -135,12 +137,15 @@ def bake(ob, size, kind, samples, path):
     return bpy.data.images.load(path)
 
 
-def baked_material(name, img, rough=0.6, metal=0.0):
+def baked_material(name, img, rough=0.6, metal=0.0, clamp=False):
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     b = m.node_tree.nodes['Principled BSDF']
     t = m.node_tree.nodes.new('ShaderNodeTexImage')
     t.image = img
+    if clamp:
+        # tiles of one picture: no wrapping at their edges (glTF: CLAMP_TO_EDGE)
+        t.extension = 'EXTEND'
     m.node_tree.links.new(t.outputs['Color'], b.inputs['Base Color'])
     b.inputs['Roughness'].default_value = rough
     b.inputs['Metallic'].default_value = metal
@@ -372,6 +377,11 @@ GRASS_GAIN = {
 MID = (-210, 210, -195, 225)
 FAR = (-2000, 2000, -2000, 3950)
 OUTDOOR_SAMPLES = int(os.environ.get('OUTDOOR_SAMPLES', '256'))
+# REUSE_RENDERS=1: take the ground / backdrop renders and bakes already in out/bake (re-package only)
+REUSE = os.environ.get('REUSE_RENDERS') == '1'
+# no texture larger than this in the app: browsers fail to decode / upload ~45+ megapixel images
+# (the surface then shows up white), so the 8K bay is split into tiles
+MAX_TEX = 4096
 
 
 def base_name(o):
@@ -430,6 +440,8 @@ def render_rect(rect, rx, ry, path, samples, tilt=None):
 def render_top(rect, px, path, samples, tilt=None):
     """The ground of `rect` from straight above (or the front view, see render_rect); px = pixels along
     the longer side. Returns the image."""
+    if REUSE and os.path.exists(path):
+        return bpy.data.images.load(path)
     import numpy as np
     x0, x1, y0, y1 = rect
     mpp = max(x1 - x0, y1 - y0) / px
@@ -578,6 +590,46 @@ def grass_gain(gain):
         nt.links.new(g.outputs['Result'], b.inputs['Base Color'])
 
 
+def split_image(img, rect, max_px=MAX_TEX):
+    """A top-down picture of `rect` as tiles no larger than max_px: [(sub_rect, image)]."""
+    import numpy as np
+    W, H = img.size
+    nx, ny = math.ceil(W / max_px), math.ceil(H / max_px)
+    if nx * ny == 1:
+        return [(rect, img)]
+    x0, x1, y0, y1 = rect
+    px = np.empty(W * H * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(H, W, 4)
+    tiles = []
+    base = os.path.splitext(bpy.path.abspath(img.filepath))[0]
+    for i in range(nx):
+        for j in range(ny):
+            a0, a1, b0, b1 = i * W // nx, (i + 1) * W // nx, j * H // ny, (j + 1) * H // ny
+            t = bpy.data.images.new(f'{img.name}_{i}{j}', a1 - a0, b1 - b0, alpha=False)
+            t.pixels.foreach_set(px[b0:b1, a0:a1].ravel())
+            path = f'{base}_t{i}{j}.jpg'
+            t.filepath_raw = path
+            t.file_format = 'JPEG'
+            t.save()
+            sub = (x0 + (x1 - x0) * a0 / W, x0 + (x1 - x0) * a1 / W, y0 + (y1 - y0) * b0 / H, y0 + (y1 - y0) * b1 / H)
+            tiles.append((sub, bpy.data.images.load(path)))
+    return tiles
+
+
+def keep_faces_in(ob, rect):
+    """Drops the faces whose centre lies outside rect (x0, x1, y0, y1)."""
+    import bmesh
+    x0, x1, y0, y1 = rect
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    drop = [f for f in bm.faces if not (x0 <= f.calc_center_median().x < x1 and y0 <= f.calc_center_median().y < y1)]
+    bmesh.ops.delete(bm, geom=drop, context='FACES')
+    bm.to_mesh(ob.data)
+    bm.free()
+    return len(ob.data.polygons)
+
+
 def export_outdoor(pid):
     cfg = OUTDOOR[pid]
     S.reset()
@@ -653,12 +705,23 @@ def export_outdoor(pid):
         for m in list(o.modifiers):
             o.modifiers.remove(m)
         o.data = originals.get(o.name, o.data)
+    near_tiles = split_image(imgs['near'], near)
     if berms:
-        ob = join(berms, 'berms')
-        ob.data.materials.clear()
-        ob.data.materials.append(baked_material('baked_berms', imgs['near'], rough=1.0))
-        uv_rect(ob, near)
-        parts.append(ob)
+        whole = join(berms, 'berms')
+        whole.data.materials.clear()
+        # one piece per tile of the bay's picture (each face goes with the tile its centre is in)
+        for k, (sub, img) in enumerate(near_tiles):
+            ob = whole.copy()
+            ob.data = whole.data.copy()
+            ob.name = f'berms_{k}'
+            S.link(ob)
+            if not keep_faces_in(ob, sub if len(near_tiles) > 1 else (-1e9, 1e9, -1e9, 1e9)):
+                bpy.data.objects.remove(ob)
+                continue
+            ob.data.materials.append(baked_material(f'baked_berms_{k}', img, rough=1.0, clamp=len(near_tiles) > 1))
+            uv_rect(ob, sub)
+            parts.append(ob)
+        bpy.data.objects.remove(whole)
 
     if backdrop:
         for o in backdrop:
@@ -670,8 +733,12 @@ def export_outdoor(pid):
         uv_front(ob, bd_rect, bd['tilt'])
         parts.append(ob)
 
+    for k, (sub, img) in enumerate(near_tiles):
+        g = ground_mesh(f'ground_near_{k}', sub, None, img)
+        if len(near_tiles) > 1:
+            g.data.materials[0].node_tree.nodes['Image Texture'].extension = 'EXTEND'
+        parts.append(g)
     parts += [
-        ground_mesh('ground_near', near, None, imgs['near']),
         ground_mesh('ground_mid', MID, near, imgs['mid']),
         ground_mesh('ground_far', FAR, MID, imgs['far']),
     ]
