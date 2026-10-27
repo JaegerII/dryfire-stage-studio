@@ -308,6 +308,12 @@ export class StageScene3D {
     });
     const eg = (this.envGroup = new THREE.Group());
     this.scene.add(eg);
+    // the previous range's textures leave the graphics memory now (a range is up to ~0.5 GB there);
+    // the cached model keeps the images, so going back to it simply uploads them again
+    for (const m of this.hallMats) {
+      m.map?.dispose();
+      m.dispose();
+    }
     this.hallMats = [];
     const hall = env.clone(true);
     hall.traverse((n) => {
@@ -373,6 +379,8 @@ export class StageScene3D {
     // the ground reaches the horizon (~4 km) outdoors
     this.camera.far = outdoor ? 6000 : 300;
     this.camera.updateProjectionMatrix();
+    const oldSky = this.scene.background;
+    if (oldSky instanceof THREE.Texture && oldSky !== sky) oldSky.dispose();
     this.scene.background = sky ?? new THREE.Color('#050605');
     this.envBrightness = light.brightness ?? 1;
     this.applyBrightness();
@@ -759,6 +767,15 @@ export class StageScene3D {
       // cached models are shared with other scenes (preview, render): only free our own geometry
       if (m.isMesh && m.userData.own) m.geometry.dispose();
     });
+    // the range's textures, sky and reflections leave the graphics memory with the scene (the editor
+    // preview, the player and every MP4 render have their own); cached models upload them again when needed
+    for (const m of this.hallMats) {
+      m.map?.dispose();
+      m.dispose();
+    }
+    this.hallMats = [];
+    if (this.scene.background instanceof THREE.Texture) this.scene.background.dispose();
+    this.scene.environment?.dispose();
     this.renderer.dispose();
   }
 }
