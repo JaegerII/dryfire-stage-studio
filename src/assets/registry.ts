@@ -52,6 +52,17 @@ import barrelStack from './realistic/barrel_stack.webp';
 import barrelLying from './realistic/barrel_lying.webp';
 import rubberStand from './realistic/rubber_stand.webp';
 import pallet from './realistic/pallet.webp';
+import stageSign1 from './realistic/stage_sign_1.webp';
+import stageSign2 from './realistic/stage_sign_2.webp';
+import stageSign3 from './realistic/stage_sign_3.webp';
+import fenceGreen from './realistic/fence_green.webp';
+import tireWall from './realistic/tire_wall.webp';
+import faultLine from './realistic/fault_line.webp';
+import sawhorse from './realistic/sawhorse.webp';
+import bush from './realistic/bush.webp';
+import rock from './realistic/rock.webp';
+import sandbags from './realistic/sandbags.webp';
+import cone from './realistic/cone.webp';
 import targetBoxPallet from './realistic/target_box_pallet.webp';
 import rubberWall from './realistic/rubber_wall.webp';
 import table from './realistic/table.webp';
@@ -126,6 +137,17 @@ export const ASSETS: Record<ObjectType, AssetDef> = {
   start_box: { type: 'start_box', category: 'other', label: 'Start Box', src: startBox, viewW: 108, viewH: 36, groundY: 32, scoring: false },
   crate: { type: 'crate', category: 'other', label: 'Box (60 cm)', src: crate, viewW: 76, viewH: 76, groundY: 72, scoring: false, topHeight: 0.6 },
   target_box_pallet: { type: 'target_box_pallet', category: 'other', label: 'Target Box on Pallet (mobile)', src: targetBoxPallet, viewW: 130, viewH: 165, groundY: 161, scoring: false, mount: { height: 0.81 } },
+  stage_sign_1: { type: 'stage_sign_1', category: 'other', label: 'Stage Sign 1', src: stageSign1, viewW: 60, viewH: 120, groundY: 116, scoring: false },
+  stage_sign_2: { type: 'stage_sign_2', category: 'other', label: 'Stage Sign 2', src: stageSign2, viewW: 60, viewH: 120, groundY: 116, scoring: false },
+  stage_sign_3: { type: 'stage_sign_3', category: 'other', label: 'Stage Sign 3', src: stageSign3, viewW: 60, viewH: 120, groundY: 116, scoring: false },
+  fence_green: { type: 'fence_green', category: 'barrier', label: 'Green Windscreen Fence (2 m)', src: fenceGreen, viewW: 220, viewH: 194, groundY: 190, scoring: false },
+  tire_wall: { type: 'tire_wall', category: 'barrier', label: 'Tyre Wall (stacked)', src: tireWall, viewW: 210, viewH: 90, groundY: 86, scoring: false, topHeight: 0.79 },
+  fault_line: { type: 'fault_line', category: 'other', label: 'Fault Line (red lath, 3 m)', src: faultLine, viewW: 320, viewH: 16, groundY: 12, scoring: false },
+  sawhorse: { type: 'sawhorse', category: 'barrier', label: 'White Wooden Barricade', src: sawhorse, viewW: 140, viewH: 104, groundY: 100, scoring: false },
+  bush: { type: 'bush', category: 'other', label: 'Bush', src: bush, viewW: 160, viewH: 130, groundY: 126, scoring: false },
+  rock: { type: 'rock', category: 'other', label: 'Rock', src: rock, viewW: 120, viewH: 70, groundY: 66, scoring: false },
+  sandbags: { type: 'sandbags', category: 'barrier', label: 'Sandbag Wall', src: sandbags, viewW: 140, viewH: 60, groundY: 56, scoring: false, topHeight: 0.43 },
+  cone: { type: 'cone', category: 'other', label: 'Traffic Cone', src: cone, viewW: 50, viewH: 60, groundY: 56, scoring: false },
   pallet: { type: 'pallet', category: 'other', label: 'Euro Pallet', src: pallet, viewW: 130, viewH: 26, groundY: 22, scoring: false, topHeight: 0.144 },
   rubber_stand: { type: 'rubber_stand', category: 'other', label: 'Rubber Target Stand (mobile)', src: rubberStand, viewW: 90, viewH: 189, groundY: 185, scoring: false, mount: { height: 0.95 } },
   rubber_wall: { type: 'rubber_wall', category: 'other', label: 'Rubber Target Wall (mobile, wide)', src: rubberWall, viewW: 150, viewH: 189, groundY: 185, scoring: false, mount: { height: 0.95 } },

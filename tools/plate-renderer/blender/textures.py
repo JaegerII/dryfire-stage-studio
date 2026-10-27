@@ -145,6 +145,21 @@ def barrier_mesh(w_cm=60, h_cm=50, name='barrier_mesh', color=(255, 118, 18), st
     img.save(os.path.join(OUT, f'{name}.png'))
 
 
+def stage_sign(n):
+    """White board "STAGE n" (50 × 35 cm), black letters, a thin black border."""
+    W, H = 1000, 700
+    img = Image.new('RGB', (W, H), (246, 246, 242))
+    d = ImageDraw.Draw(img)
+    d.rectangle((10, 10, W - 11, H - 11), outline=(20, 20, 20), width=8)
+    font_path = os.path.join(os.environ.get('WINDIR', 'C:/Windows'), 'Fonts', 'arialbd.ttf')
+    big = ImageFont.truetype(font_path, 190)
+    num = ImageFont.truetype(font_path, 330)
+    for text, f, y in (('STAGE', big, 60), (str(n), num, 270)):
+        w = d.textlength(text, font=f)
+        d.text(((W - w) / 2, y), text, font=f, fill=(15, 15, 15))
+    img.save(os.path.join(OUT, f'stage_sign_{n}.png'))
+
+
 def popper_paint():
     S = 1024
     img = Image.new('RGB', (S, S), (206, 206, 200))
@@ -170,4 +185,6 @@ if __name__ == '__main__':
     barrier_mesh()
     barrier_mesh(name='barrier_mesh_black', color=(30, 31, 32), streaks=((60, 62, 64, 30), (8, 8, 8, 30)))
     popper_paint()
+    for n in (1, 2, 3):
+        stage_sign(n)
     print('generated textures in', OUT)

@@ -44,7 +44,9 @@ Repetitions, reset time and standby delay as before.
 * **Objects:** paper targets (full, mini, hard cover, cards, stacks, swinger), no-shoots, steel (popper, plate, rack),
   orange mesh / black net / solid black partition walls (also with window), wood wall, drums (blue, black steel, two
   stacked, lying), barrel barricade, boxes, car tyres (single or two stacked), **rubber-covered mobile target stands**
-  (indoor; narrow and wide) and **tables** (plain, or the start table with pistol and magazines).
+  (indoor; narrow and wide), **target boxes on Euro pallets**, Euro pallets and **tables** (plain, or the start table with
+  pistol and magazines). Range dressing: stage signs (1–3), green windscreen fence, tyre walls, red fault lines, white
+  wooden barricade, bushes, rocks, sandbag walls, traffic cones.
   * Select a box, table or drum and add a card / steel: it goes on top. Select a rubber target stand and add a card:
     it is fixed to the stand's front.
 * **Start condition** (stage properties, presets or own text, e.g. *Pistol unloaded on the table, magazines on the
@@ -55,7 +57,8 @@ Repetitions, reset time and standby delay as before.
   the editor) only; during the run there are just the slats.
 * **Built-in indoor stages with the mobile rubber targets:** *Glockstore 270 Bay* (Indoor Range 05: targets left, ahead and
   right, turning to both sides) and *Swiss Tactical Indoor* (Indoor Range 06: black partitions, through a window, wide
-  rubber walls, steel to finish).
+  rubber walls, steel to finish). More built-in stages with the range dressing: *Tyre Wall Bay*, *Green Fence Lane*, *Pallet
+  Box Hall*.
 * **Top-view editor:** plan of the range in meters next to a live 3D view (from the selected shooting box, or the
   briefing view from above).
   * **Environment** at the top of the left panel. Objects that do not fit the new room are pulled inside; outdoors the

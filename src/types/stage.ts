@@ -41,8 +41,12 @@ export type BarrierType =
   | 'mesh_wall_black'
   | 'mesh_wall_black_short'
   | 'wall_black'
-  | 'wall_black_window';
-export type OtherType = 'start_box' | 'crate' | 'crate_wide' | 'tire' | 'tire_stack' | 'rubber_stand' | 'rubber_wall' | 'target_box_pallet' | 'pallet' | 'table' | 'table_start';
+  | 'wall_black_window'
+  | 'fence_green'
+  | 'tire_wall'
+  | 'sawhorse'
+  | 'sandbags';
+export type OtherType = 'start_box' | 'crate' | 'crate_wide' | 'tire' | 'tire_stack' | 'rubber_stand' | 'rubber_wall' | 'target_box_pallet' | 'pallet' | 'stage_sign_1' | 'stage_sign_2' | 'stage_sign_3' | 'fault_line' | 'bush' | 'rock' | 'cone' | 'table' | 'table_start';
 export type BannerType = 'banner_forth_trace_black' | 'banner_forth_trace_white' | 'banner_west_arms';
 export type ObjectType = TargetType | BarrierType | OtherType | BannerType;
 

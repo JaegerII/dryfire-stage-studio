@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "repetitions": 5,
+  "resetTime": 5,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "camera": {
+    "shake": 0.8
+  },
+  "id": "stage_707",
+  "name": "Pallet Box Hall",
+  "environment": "indoor_05",
+  "description": "Mobile target boxes on pallets around the hall: two from the start over the sandbags, left through the cones with a reload, finish on the right behind the fault line.",
+  "start": "Hands relaxed at the sides, pistol loaded and holstered",
+  "positions": [
+    {
+      "id": "pb_start",
+      "label": "START",
+      "x": 0,
+      "d": 1,
+      "heading": 0
+    },
+    {
+      "id": "pb_p2",
+      "label": "P2",
+      "x": -4,
+      "d": 5,
+      "heading": -25
+    },
+    {
+      "id": "pb_p3",
+      "label": "P3",
+      "x": 4.2,
+      "d": 6,
+      "heading": 25
+    }
+  ],
+  "legs": [
+    {
+      "after": 3,
+      "duration": 2.6,
+      "reload": true
+    },
+    {
+      "after": 3,
+      "duration": 3.4,
+      "reload": false,
+      "via": [
+        {
+          "x": 0,
+          "d": 4.4
+        }
+      ]
+    }
+  ],
+  "finalTime": 3.5,
+  "objects": [
+    {
+      "id": "pb_box1",
+      "type": "target_box_pallet",
+      "x": -1.6,
+      "d": 9
+    },
+    {
+      "id": "pb_box1c",
+      "type": "paper_card",
+      "x": -1.6,
+      "d": 9,
+      "elevation": 0.81
+    },
+    {
+      "id": "pb_box2",
+      "type": "target_box_pallet",
+      "x": 1.6,
+      "d": 9.5
+    },
+    {
+      "id": "pb_box2c",
+      "type": "paper_card",
+      "x": 1.6,
+      "d": 9.5,
+      "elevation": 0.81
+    },
+    {
+      "id": "pb_box3",
+      "type": "target_box_pallet",
+      "x": -7,
+      "d": 10,
+      "yaw": -25
+    },
+    {
+      "id": "pb_box3c",
+      "type": "paper_card",
+      "x": -7,
+      "d": 10,
+      "elevation": 0.81,
+      "yaw": -25
+    },
+    {
+      "id": "pb_box4",
+      "type": "target_box_pallet",
+      "x": -5,
+      "d": 13,
+      "yaw": -12
+    },
+    {
+      "id": "pb_box4c",
+      "type": "paper_hc_half_card",
+      "x": -5,
+      "d": 13,
+      "elevation": 0.81,
+      "yaw": -12
+    },
+    {
+      "id": "pb_box5",
+      "type": "target_box_pallet",
+      "x": 7,
+      "d": 11,
+      "yaw": 25
+    },
+    {
+      "id": "pb_box5c",
+      "type": "paper_card",
+      "x": 7,
+      "d": 11,
+      "elevation": 0.81,
+      "yaw": 25
+    },
+    {
+      "id": "pb_box6",
+      "type": "target_box_pallet",
+      "x": 5,
+      "d": 14,
+      "yaw": 12
+    },
+    {
+      "id": "pb_box6c",
+      "type": "no_shoot_overlay",
+      "x": 5,
+      "d": 14,
+      "elevation": 0.81,
+      "yaw": 12
+    },
+    {
+      "id": "pb_rs",
+      "type": "rubber_stand",
+      "x": 3.4,
+      "d": 15.5
+    },
+    {
+      "id": "pb_rsc",
+      "type": "paper_card",
+      "x": 3.4,
+      "d": 15.5,
+      "elevation": 0.95
+    },
+    {
+      "id": "pb_sand",
+      "type": "sandbags",
+      "x": 0,
+      "d": 3.4
+    },
+    {
+      "id": "pb_cone0",
+      "type": "cone",
+      "x": -2.2,
+      "d": 2.6
+    },
+    {
+      "id": "pb_cone1",
+      "type": "cone",
+      "x": -2.7,
+      "d": 3.2
+    },
+    {
+      "id": "pb_cone2",
+      "type": "cone",
+      "x": -3.2,
+      "d": 3.8
+    },
+    {
+      "id": "pb_cone3",
+      "type": "cone",
+      "x": -3.7,
+      "d": 4.4
+    },
+    {
+      "id": "pb_fault",
+      "type": "fault_line",
+      "x": 2.8,
+      "d": 7.2,
+      "yaw": 90
+    },
+    {
+      "id": "pb_wall",
+      "type": "wall_black",
+      "x": -2.6,
+      "d": 6.6,
+      "yaw": 25
+    },
+    {
+      "id": "pb_drum",
+      "type": "barrel_steel",
+      "x": 6.2,
+      "d": 6.4
+    }
+  ]
+}

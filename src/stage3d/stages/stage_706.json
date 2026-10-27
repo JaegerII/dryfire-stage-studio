@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "repetitions": 5,
+  "resetTime": 5,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "camera": {
+    "shake": 0.8
+  },
+  "id": "stage_706",
+  "name": "Green Fence Lane",
+  "environment": "outdoor_01",
+  "description": "A gravel lane along a green windscreen fence: targets and a popper between the tyres, advance down the lane with a reload, finish past the white barricade.",
+  "start": "Wrists above the shoulders, pistol loaded and holstered",
+  "positions": [
+    {
+      "id": "gf_start",
+      "label": "START",
+      "x": -1,
+      "d": 0.5,
+      "heading": 0
+    },
+    {
+      "id": "gf_p2",
+      "label": "P2",
+      "x": -0.6,
+      "d": 6,
+      "heading": 5
+    }
+  ],
+  "legs": [
+    {
+      "after": 3.5,
+      "duration": 3,
+      "reload": true
+    }
+  ],
+  "finalTime": 4,
+  "objects": [
+    {
+      "id": "gf_fence0",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 2,
+      "yaw": 90
+    },
+    {
+      "id": "gf_fence1",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 4,
+      "yaw": 90
+    },
+    {
+      "id": "gf_fence2",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 6,
+      "yaw": 90
+    },
+    {
+      "id": "gf_fence3",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 8,
+      "yaw": 90
+    },
+    {
+      "id": "gf_fence4",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 10,
+      "yaw": 90
+    },
+    {
+      "id": "gf_fence5",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 12,
+      "yaw": 90
+    },
+    {
+      "id": "gf_fence6",
+      "type": "fence_green",
+      "x": 3.6,
+      "d": 14,
+      "yaw": 90
+    },
+    {
+      "id": "gf_t1",
+      "type": "paper_full",
+      "x": -2.6,
+      "d": 9.5
+    },
+    {
+      "id": "gf_t2",
+      "type": "paper_full",
+      "x": -0.2,
+      "d": 10.5
+    },
+    {
+      "id": "gf_t3",
+      "type": "paper_full",
+      "x": 2,
+      "d": 9.8
+    },
+    {
+      "id": "gf_popper",
+      "type": "steel_popper",
+      "x": 0.8,
+      "d": 8.6
+    },
+    {
+      "id": "gf_tyre1",
+      "type": "tire",
+      "x": 0.8,
+      "d": 7.9
+    },
+    {
+      "id": "gf_tyre2",
+      "type": "tire_stack",
+      "x": 0.9,
+      "d": 8.9
+    },
+    {
+      "id": "gf_tyre3",
+      "type": "tire",
+      "x": -0.4,
+      "d": 4.6
+    },
+    {
+      "id": "gf_t4",
+      "type": "paper_full",
+      "x": -1.6,
+      "d": 13.8
+    },
+    {
+      "id": "gf_t5",
+      "type": "paper_full",
+      "x": 1.4,
+      "d": 14.2
+    },
+    {
+      "id": "gf_saw",
+      "type": "sawhorse",
+      "x": -4.4,
+      "d": 5.2,
+      "yaw": -70
+    },
+    {
+      "id": "gf_rock1",
+      "type": "rock",
+      "x": -6,
+      "d": 3.2
+    },
+    {
+      "id": "gf_rock2",
+      "type": "rock",
+      "x": -6.6,
+      "d": 6.4,
+      "yaw": 40
+    },
+    {
+      "id": "gf_rock3",
+      "type": "rock",
+      "x": -6.2,
+      "d": 9.6,
+      "yaw": -30
+    },
+    {
+      "id": "gf_bush",
+      "type": "bush",
+      "x": -7.2,
+      "d": 12.6
+    },
+    {
+      "id": "gf_sign",
+      "type": "stage_sign_2",
+      "x": -3.6,
+      "d": -0.4,
+      "yaw": -15
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "repetitions": 5,
+  "resetTime": 5,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "camera": {
+    "shake": 0.8
+  },
+  "id": "stage_705",
+  "name": "Tyre Wall Bay",
+  "environment": "outdoor_02",
+  "description": "Club range with a wall of stacked tyres as backstop. Three targets over tyres from the box, move left with a reload, popper and two targets past the sandbags.",
+  "start": "Hands relaxed at the sides, pistol loaded and holstered",
+  "positions": [
+    {
+      "id": "tw_start",
+      "label": "START",
+      "x": 1.5,
+      "d": 1,
+      "heading": 0
+    },
+    {
+      "id": "tw_p2",
+      "label": "P2",
+      "x": -2.5,
+      "d": 3,
+      "heading": -10
+    }
+  ],
+  "legs": [
+    {
+      "after": 4,
+      "duration": 2.6,
+      "reload": true
+    }
+  ],
+  "finalTime": 4,
+  "objects": [
+    {
+      "id": "tw_wall0",
+      "type": "tire_wall",
+      "x": -6.4,
+      "d": 13.5,
+      "yaw": -2
+    },
+    {
+      "id": "tw_wall1",
+      "type": "tire_wall",
+      "x": -4.3,
+      "d": 13.5,
+      "yaw": 3
+    },
+    {
+      "id": "tw_wall2",
+      "type": "tire_wall",
+      "x": -2.2,
+      "d": 13.5,
+      "yaw": -2
+    },
+    {
+      "id": "tw_wall3",
+      "type": "tire_wall",
+      "x": -0.1,
+      "d": 13.5,
+      "yaw": 3
+    },
+    {
+      "id": "tw_wall4",
+      "type": "tire_wall",
+      "x": 2,
+      "d": 13.5,
+      "yaw": -2
+    },
+    {
+      "id": "tw_wall5",
+      "type": "tire_wall",
+      "x": 4.1,
+      "d": 13.5,
+      "yaw": 3
+    },
+    {
+      "id": "tw_wall6",
+      "type": "tire_wall",
+      "x": 6.2,
+      "d": 13.5,
+      "yaw": -2
+    },
+    {
+      "id": "tw_t1",
+      "type": "paper_full",
+      "x": -1,
+      "d": 10
+    },
+    {
+      "id": "tw_tyre1",
+      "type": "tire",
+      "x": -1,
+      "d": 9.4
+    },
+    {
+      "id": "tw_t2",
+      "type": "paper_full",
+      "x": 2,
+      "d": 10.6
+    },
+    {
+      "id": "tw_tyre2",
+      "type": "tire",
+      "x": 2,
+      "d": 10
+    },
+    {
+      "id": "tw_t3",
+      "type": "paper_full",
+      "x": 5,
+      "d": 9.8,
+      "yaw": 10
+    },
+    {
+      "id": "tw_tyre3",
+      "type": "tire",
+      "x": 5,
+      "d": 9.2
+    },
+    {
+      "id": "tw_sand",
+      "type": "sandbags",
+      "x": -3.4,
+      "d": 6
+    },
+    {
+      "id": "tw_popper",
+      "type": "steel_popper",
+      "x": -5.2,
+      "d": 11.2
+    },
+    {
+      "id": "tw_t4",
+      "type": "paper_full",
+      "x": -6.4,
+      "d": 9.6,
+      "yaw": -12
+    },
+    {
+      "id": "tw_tyre4",
+      "type": "tire",
+      "x": -6.4,
+      "d": 9
+    },
+    {
+      "id": "tw_ns",
+      "type": "no_shoot",
+      "x": -3.6,
+      "d": 11.6
+    },
+    {
+      "id": "tw_fault",
+      "type": "fault_line",
+      "x": -1,
+      "d": 4.2,
+      "yaw": 90
+    },
+    {
+      "id": "tw_sign",
+      "type": "stage_sign_1",
+      "x": 6.8,
+      "d": 0.5,
+      "yaw": 20
+    }
+  ]
+}

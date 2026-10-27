@@ -408,6 +408,15 @@ def make_materials():
     M.rubber_panel = pbr('rubber_panel', 'Rubber004', tile=0.5, tint='#2a2a2a', rough=0.9, normal=0.9, sat=0.0)
     M.tire_small = material('castor', '#151515', rough=0.7)
     M.table_top = material('table_top', '#b9bab5', rough=0.55)
+    M.sign_edge = material('sign_edge', '#e8e8e4', rough=0.6)
+    M.fence_fabric = pbr('fence_fabric', 'Fabric030', tile=0.4, tint='#4cc47a', rough=0.9, normal=0.6, sat=1.0, value=1.3)
+    M.rust = pbr('rust', 'PaintedMetal004', tile=0.5, color=False, tint='#7a3b22', rough=0.8, normal=0.4, metal=0.3)
+    M.fault = pbr('fault', 'Wood058', tile=0.8, rotate=True, tint='#c3271f', rough=0.7, normal=0.4, sat=0.2, value=0.9)
+    M.white_wood = pbr('white_wood', 'Wood058', tile=0.8, rotate=True, tint='#f2f0ea', rough=0.75, normal=0.4, sat=0.1, value=1.6)
+    M.sandbag = pbr('sandbag', 'Fabric030', tile=0.3, tint='#c4b088', rough=0.95, normal=0.8, sat=0.6)
+    M.cone = material('cone', '#ff5a14', rough=0.5)
+    M.cone_band = material('cone_band', '#f4f4f0', rough=0.3)
+    M.cone_base = material('cone_base', '#151515', rough=0.7)
     # Euro pallet: light, slightly weathered softwood; the block ends darker
     M.pallet = pbr('pallet', 'Wood058', tile=1.0, rotate=True, tint='#e8dcc2', rough=0.85, normal=0.6, sat=0.55, value=1.15)
     M.pallet_end = pbr('pallet_end', 'Wood058', tile=0.6, tint='#cdbb98', rough=0.9, normal=0.6, sat=0.5, value=1.0)
@@ -845,6 +854,112 @@ def target_box(on_pallet=True):
         box('tbox_edge', (bw, 0.034, bh), (bx, 0.006 + 0.017, zb + bz), M.coat)
 
 
+# ---- range dressing: signs, fences, tyre walls, fault lines, barricades, plants, rocks, sandbags, cones
+
+
+def stage_sign(n):
+    """'STAGE n' board (50 × 35 cm) on a steel post with a foot plate."""
+    box('sign_post', (0.04, 0.04, 1.12), (0, 0.03, 0.56), M.coat, bevel=0.003)
+    box('sign_foot', (0.3, 0.3, 0.015), (0, 0.03, 0.0075), M.coat)
+    slab('sign', [(-0.25, 0.78), (0.25, 0.78), (0.25, 1.13), (-0.25, 1.13)], 0.012, image_material(f'stage_sign_{n}', os.path.join(GEN, f'stage_sign_{n}.png'), rough=0.6), M.sign_edge)
+
+
+def fence_green(width=2.0):
+    """Green windscreen fabric on steel posts with rust-red feet (as around many outdoor bays)."""
+    h = 1.8
+    box('fence_fabric', (width, 0.008, h), (0, 0, 0.06 + h / 2), M.fence_fabric)
+    for x in (-width / 2, 0, width / 2):
+        box('fence_post', (0.05, 0.05, h + 0.1), (x, 0.03, (h + 0.1) / 2), M.coat, bevel=0.004)
+        box('fence_foot', (0.06, 0.7, 0.04), (x, 0.03, 0.02), M.rust)
+    box('fence_rail', (width, 0.03, 0.03), (0, 0.03, h + 0.05), M.coat)
+
+
+def tire_wall(cols=3, rows=4):
+    """Old tyres stacked into a wall (the backstop of many club ranges): cols × rows."""
+    for c in range(cols):
+        for r in range(rows):
+            tire(r * 0.198, turn=0.3 * c + 0.7 * r, name='tire')
+    # tire() builds at the origin: spread the columns
+    tires = [o for o in bpy.context.scene.objects if o.name.startswith('tire')]
+    for i, o in enumerate(tires):
+        o.location.x = (i // rows - (cols - 1) / 2) * 0.64
+
+
+def fault_line(length=3.0):
+    """Red wooden fault line on the floor (5 × 5 cm)."""
+    box('fault', (length, 0.05, 0.05), (0, 0, 0.025), M.fault, bevel=0.004)
+
+
+def sawhorse():
+    """White wooden barricade: a beam on two A-frames (as a low barrier / fault line marker)."""
+    w = 1.2
+    box('beam', (w, 0.08, 0.1), (0, 0, 0.88), M.white_wood, bevel=0.005)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            leg = box('leg', (0.05, 0.05, 0.98), (sx * (w / 2 - 0.12), sy * 0.2, 0.45), M.white_wood, bevel=0.004)
+            leg.rotation_euler = (math.radians(sy * 13), 0, 0)
+        box('brace', (0.04, 0.42, 0.04), (sx * (w / 2 - 0.12), 0, 0.3), M.white_wood)
+
+
+def bush_prop():
+    """A green shrub, about 1.3 m wide."""
+    m = leaf_material('shrub', ['#2f4a1c', '#3d5a22', '#4d6b2a', '#5d7a33', '#3a5520'])
+    rnd = random.Random(4)
+    for i in range(5):
+        r = rnd.uniform(0.35, 0.55)
+        blob(f'shrub{i}', (rnd.uniform(-0.4, 0.4), rnd.uniform(-0.2, 0.25), r * 0.8 + rnd.uniform(0, 0.25)), r, m, squash=0.85, seed=i * 3.1)
+
+
+def rock_prop():
+    """A limestone boulder (~ 80 cm), half sunk into the ground."""
+    from mathutils import noise
+    r = 0.42
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=r, location=(0, 0.1, r * 0.45))
+    ob = bpy.context.active_object
+    ob.name = 'rock'
+    for v in ob.data.vertices:
+        q = v.co / r
+        n = 0.35 * (1 - abs(noise.noise(Vector((q.x * 1.3 + 2, q.y * 1.3, q.z * 1.3))))) + 0.12 * noise.noise(Vector((q.x * 4, q.y * 4 + 2, q.z * 4)))
+        v.co *= 0.75 + n
+    ob.scale = (1.25, 0.9, 0.75)
+    ob.data.materials.append(rock_material('boulder'))
+    bpy.ops.object.shade_smooth()
+
+
+def sandbags(width=1.2, rows=3):
+    """A low wall of sandbags (staggered rows)."""
+    bag_l, bag_d, bag_h = 0.5, 0.3, 0.15
+    for r in range(rows):
+        n = round(width / bag_l) - (r % 2)
+        for i in range(n):
+            x = (i - (n - 1) / 2) * bag_l
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0.15, bag_h / 2 + r * (bag_h - 0.01)))
+            ob = bpy.context.active_object
+            ob.name = 'sandbag'
+            ob.scale = (bag_l * 0.98, bag_d, bag_h)
+            bev = ob.modifiers.new('round', 'BEVEL')
+            bev.width = 0.3
+            bev.segments = 4
+            ob.data.materials.append(M.sandbag)
+            bpy.ops.object.shade_smooth()
+
+
+def cone():
+    """Orange traffic cone, 50 cm, with a white reflective band and a black base."""
+    box('cone_base', (0.36, 0.36, 0.03), (0, 0, 0.015), M.cone_base, bevel=0.01)
+    prof = [(0.0, 0.03), (0.15, 0.03), (0.035, 0.5), (0.0, 0.5)]
+    bm = bmesh.new()
+    vs = [bm.verts.new((r, 0, z)) for r, z in prof]
+    es = [bm.edges.new((vs[i], vs[i + 1])) for i in range(len(vs) - 1)]
+    bmesh.ops.spin(bm, geom=vs + es, cent=(0, 0, 0), axis=(0, 0, 1), steps=32, angle=math.tau, use_duplicate=False)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        f.smooth = True
+    mesh_obj('cone', bm, [M.cone])
+    cylinder('cone_band', 0.088, 0.07, (0, 0, 0.3), (0, 0, 0), M.cone_band, verts=32)
+
+
 def table(start=False):
     """Folding table 120 × 60 cm, 75 cm high: light grey top, black steel legs. start=True: a pistol and
     two magazines lie on it (start position: pick up the gun, load from the table)."""
@@ -987,6 +1102,17 @@ BUILDERS = {
     'rubber_stand': (lambda: rubber_stand(60, 150), True),
     'rubber_wall': (lambda: rubber_stand(120, 150), True),
     'pallet': (lambda: pallet(-0.4), True),
+    'stage_sign_1': (lambda: stage_sign(1), True),
+    'stage_sign_2': (lambda: stage_sign(2), True),
+    'stage_sign_3': (lambda: stage_sign(3), True),
+    'fence_green': (fence_green, True),
+    'tire_wall': (tire_wall, True),
+    'fault_line': (fault_line, True),
+    'sawhorse': (sawhorse, True),
+    'bush': (bush_prop, True),
+    'rock': (rock_prop, True),
+    'sandbags': (sandbags, True),
+    'cone': (cone, True),
     'target_box_pallet': (lambda: target_box(True), True),
     'table': (lambda: table(False), True),
     'table_start': (lambda: table(True), True),
@@ -1836,8 +1962,8 @@ def rock_material(name='rock'):
     # cracks: dark where the voronoi edge distance is small
     crack = N.new('ShaderNodeMapRange')
     crack.inputs['From Min'].default_value = 0.0
-    crack.inputs['From Max'].default_value = 0.03
-    crack.inputs['To Min'].default_value = 0.72
+    crack.inputs['From Max'].default_value = 0.02
+    crack.inputs['To Min'].default_value = 0.88
     crack.inputs['To Max'].default_value = 1.0
     L.new(vo.outputs['Distance'], crack.inputs['Value'])
     mul = N.new('ShaderNodeMix')
