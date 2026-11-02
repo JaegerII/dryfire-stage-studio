@@ -55,9 +55,12 @@ const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small:
   ctx.save();
   ctx.globalAlpha = alpha;
   font(ctx, 900, 7.6 * u);
-  const bigW = ctx.measureText(big).width + big.length * 0.09 * 7.6 * u;
-  const w = Math.max(52 * u, bigW + 12 * u);
-  const h = count === undefined ? 17 * u : 27 * u;
+  const bigW = ctx.measureText(big.toUpperCase()).width + big.length * 0.09 * 7.6 * u;
+  // the small line is letter-spaced wide: the card fits both, with room on the sides
+  font(ctx, 600, 1.8 * u);
+  const smallW = ctx.measureText(small.toUpperCase()).width + small.length * 0.34 * 1.8 * u;
+  const w = Math.min(W - 4 * u, Math.max(52 * u, bigW + 12 * u, smallW + 12 * u));
+  const h = count === undefined ? 18.5 * u : 28.5 * u;
   const x = (W - w) / 2;
   const y = (H - h) / 2;
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
@@ -73,16 +76,16 @@ const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small:
   ctx.textBaseline = 'alphabetic';
   font(ctx, 600, 1.8 * u);
   ctx.fillStyle = C.sage;
-  spaced(ctx, small.toUpperCase(), W / 2, y + 4.6 * u, 0.34 * 1.8 * u);
+  spaced(ctx, small.toUpperCase(), W / 2, y + 5.2 * u, 0.34 * 1.8 * u);
   font(ctx, 900, 7.6 * u);
   ctx.fillStyle = color;
-  spaced(ctx, big.toUpperCase(), W / 2, y + 12 * u, 0.09 * 7.6 * u);
+  spaced(ctx, big.toUpperCase(), W / 2, y + 13.4 * u, 0.09 * 7.6 * u);
   ctx.fillStyle = rule;
-  ctx.fillRect(W / 2 - 3 * u, y + 14 * u, 6 * u, 0.35 * u);
+  ctx.fillRect(W / 2 - 3 * u, y + 15.4 * u, 6 * u, 0.35 * u);
   if (count !== undefined) {
     font(ctx, 900, 8 * u);
     ctx.fillStyle = C.text;
-    ctx.fillText(count, W / 2, y + 24 * u);
+    ctx.fillText(count, W / 2, y + 25.4 * u);
   }
   ctx.restore();
 };
