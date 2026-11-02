@@ -18,6 +18,8 @@ export interface StageTiming {
   repetitions: number;
   /** Par time of each rep (a par ladder); unset = parTime for every rep. */
   pars?: number[];
+  /** Extra seconds of reset before each rep (e.g. a new level of a par ladder is announced). */
+  breaks?: number[];
   /** Seconds of reset / preparation before every rep (and after the last). */
   resetTime: number;
   /** Random delay after "STAND BY" before the start beep, seconds. */
@@ -55,7 +57,7 @@ export const buildSchedule = (stage: StageTiming, opts: ScheduleOptions): Schedu
   let t = opts.lead;
   for (let i = 1; i <= stage.repetitions; i++) {
     const prepStart = t;
-    const standbyStart = prepStart + stage.resetTime;
+    const standbyStart = prepStart + stage.resetTime + (stage.breaks?.[i - 1] ?? 0);
     const startBeep = standbyStart + opts.voiceLead + min + rand() * Math.max(0, max - min);
     const par = stage.pars?.[i - 1] ?? stage.parTime;
     const endBeep = startBeep + par;
@@ -109,4 +111,5 @@ export const estimateDuration = (stage: StageTiming, lead: number, voiceLead: nu
   lead +
   stage.repetitions * (stage.resetTime + voiceLead + (stage.standbyDelay.min + stage.standbyDelay.max) / 2) +
   (stage.pars ? stage.pars.reduce((a, b) => a + b, 0) : stage.repetitions * stage.parTime) +
-  stage.resetTime;
+  stage.resetTime +
+  (stage.breaks ? stage.breaks.reduce((a, b) => a + b, 0) : 0);

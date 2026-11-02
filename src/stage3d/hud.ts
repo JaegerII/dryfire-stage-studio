@@ -90,6 +90,71 @@ const commandCard = (ctx: CanvasRenderingContext2D, W: number, H: number, small:
   ctx.restore();
 };
 
+/**
+ * Par ladder, between two levels: LEVEL UP, the new level, the new par big (it pops in) with how
+ * much faster it is, and the ladder's steps (done, now, to come). `local` = seconds since it appeared.
+ */
+const levelUpCard = (ctx: CanvasRenderingContext2D, W: number, H: number, level: number, pars: number[], local: number) => {
+  const u = hudUnit(W, H);
+  const par = pars[level - 1];
+  const prev = pars[level - 2] ?? par;
+  const a = Math.min(1, local / 0.3);
+  const pop = 1 + 0.3 * Math.max(0, 1 - local / 0.35) ** 2;
+  const w = Math.min(W - 4 * u, 74 * u);
+  const h = 44 * u;
+  const x = (W - w) / 2;
+  const y = (H - h) / 2;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 6 * u;
+  ctx.fillStyle = C.card;
+  roundRect(ctx, x, y, w, h, 1.6 * u);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = C.accent;
+  ctx.lineWidth = 0.25 * u;
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  font(ctx, 800, 2.2 * u);
+  ctx.fillStyle = C.accent;
+  spaced(ctx, 'LEVEL UP', W / 2, y + 5.6 * u, 0.4 * 2.2 * u);
+  font(ctx, 900, 4.6 * u);
+  ctx.fillStyle = C.text;
+  spaced(ctx, `LEVEL ${level} / ${pars.length}`, W / 2, y + 11.6 * u, 0.06 * 4.6 * u);
+  font(ctx, 700, 1.8 * u);
+  ctx.fillStyle = C.sage;
+  spaced(ctx, 'NEW PAR TIME', W / 2, y + 16.4 * u, 0.34 * 1.8 * u);
+  // the new par, popping in
+  ctx.save();
+  ctx.translate(W / 2, y + 27.4 * u);
+  ctx.scale(pop, pop);
+  font(ctx, 900, 11 * u);
+  ctx.fillStyle = C.accent;
+  ctx.fillText(`${par.toFixed(2)} s`, 0, 0);
+  ctx.restore();
+  font(ctx, 700, 2.1 * u);
+  ctx.fillStyle = C.muted;
+  ctx.fillText(`${prev.toFixed(2)} s → ${par.toFixed(2)} s  ·  ${(prev - par).toFixed(2)} s faster`, W / 2, y + 32.6 * u, w - 6 * u);
+  // the steps of the ladder
+  const n = pars.length;
+  const gap = 0.8 * u;
+  const bw = Math.min(8 * u, (w - 8 * u - gap * (n - 1)) / n);
+  const bh = 3.2 * u;
+  const bx = W / 2 - (n * bw + (n - 1) * gap) / 2;
+  const by = y + 36.6 * u;
+  for (let i = 0; i < n; i++) {
+    const now = i === level - 1;
+    ctx.fillStyle = now ? C.accent : i < level - 1 ? 'rgba(237, 237, 230, 0.35)' : 'rgba(237, 237, 230, 0.08)';
+    ctx.fillRect(bx + i * (bw + gap), by, bw, bh);
+    font(ctx, 800, 1.5 * u);
+    ctx.fillStyle = now ? C.text : i < level - 1 ? '#0b0c0b' : '#5a625b';
+    ctx.fillText(`L${i + 1}`, bx + i * (bw + gap) + bw / 2, by + 2.2 * u);
+  }
+  ctx.restore();
+};
+
 const pill = (ctx: CanvasRenderingContext2D, u: number, text: string, cx: number, cy: number, color: string, alpha: number) => {
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -304,7 +369,7 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     // MAKE READY counts down to the first STANDBY (on through "Are you ready?")
     const count = r.phase === 'ready' && Number.isFinite(r.untilStandby) ? String(Math.max(1, Math.ceil(r.untilStandby))) : undefined;
     if (cue === 'ready') commandCard(ctx, W, H, rep, 'Make Ready', C.sage, C.accent, 1, count);
-    else if (cue === 'reset' && levelUp) commandCard(ctx, W, H, `Level ${next} / ${ladder!.pars.length} · faster`, `Par ${ladder!.pars[next - 1].toFixed(2)} s`, C.accent, C.accent);
+    else if (cue === 'reset' && levelUp) levelUpCard(ctx, W, H, next, ladder!.pars, r.sinceStart - (r.par + 1));
     else if (cue === 'reset') commandCard(ctx, W, H, rep, 'Reset', C.sage);
     else if (cue === 'ask') commandCard(ctx, W, H, rep, 'Are you ready?', C.text, C.accent, 1, count);
     else if (cue === 'standby') commandCard(ctx, W, H, rep, 'Standby', C.standby, C.standby);

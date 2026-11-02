@@ -12,6 +12,9 @@ import { DEFAULT_SHAKE, type Stage3D, parTime3D, repPars, repsOf, shakeOf } from
 
 export const EYE_HEIGHT = 1.6;
 
+/** Par ladder: extra seconds of reset before the first rep of a new level (the new par is announced). */
+export const LEVEL_BREAK = 4;
+
 export interface VideoTiming {
   /** Title over the top view before the path is drawn. */
   intro: number;
@@ -50,7 +53,7 @@ export const stageTiming = (s: Stage3D): StageTiming => ({
   id: s.id,
   parTime: parTime3D(s),
   repetitions: repsOf(s),
-  ...(s.ladder?.pars.length ? { pars: repPars(s) } : {}),
+  ...(s.ladder?.pars.length ? { pars: repPars(s), breaks: repPars(s).map((_, i) => (i > 0 && i % s.ladder!.repsPerLevel === 0 ? LEVEL_BREAK : 0)) } : {}),
   resetTime: s.resetTime,
   standbyDelay: s.standbyDelay,
 });

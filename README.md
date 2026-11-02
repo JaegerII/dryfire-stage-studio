@@ -56,7 +56,9 @@ Repetitions, reset time and standby delay as before.
   The HUD shows PAR and LEVEL, between two levels a card announces the next one (*Level 3 / 6 · faster, Par 1.25 s*), the
   title card shows the ladder as steps, and the end screen asks which level the viewer made. Positions, moves and target
   motion run faster / slower with the level's par. Match-wide repetitions do not change a ladder. Built-in: *Match 08 –
-  Par Ladder* (draw, reload, three targets, two–reload–two; 6 levels × 2 reps each, 10 s title cards, about 9 min).
+  Par Ladder* (draw, reload, three targets, two–reload–two; 6 levels × 2 reps each, 10 s title cards, about 10:30 min).
+  Before every new level the reset is 4 s longer (`LEVEL_BREAK`) and a *Level up* card shows the new par big, how much
+  faster it is and the steps of the ladder.
 * **Title card per stage** (stage properties → Timing → *Title card (s)*): how long the stage's title card shows in a
   match — longer for a drill whose instructions should be read; unticked = the match's *Stage title card* setting.
 * **Start condition** (stage properties, presets or own text, e.g. *Pistol unloaded on the table, magazines on the
