@@ -1,7 +1,7 @@
 /**
  * Program: what one video / one session plays — a single stage, or a whole match:
  *
- *   [FORTH TRACE logo] → [safety] → per stage: title card ("Stage 2 / 3") →
+ *   [FORTH TRACE logo] → [safety] → [how it works] → per stage: title card ("Stage 2 / 3") →
  *   briefing from above → camera flight into the start box → MAKE READY → all reps →
  *   … → MATCH COMPLETE (TRAINING COMPLETE for a single stage)
  *
@@ -18,12 +18,19 @@ import type { Stage3D } from './types';
 export const MATCH_TIMING = {
   brand: 5,
   safety: 7,
+  /** "How it works": the benchmark (par ladders) or how to set up a dry-fire stage at home. */
+  explainer: 16,
   /** Stage title card ("Stage 2 / 3"). */
   title: 4,
   /** MAKE READY at the start box before the first rep. */
   lead: 2,
 };
 export type MatchTiming = typeof MATCH_TIMING;
+
+/** benchmark: how a par ladder works · dryfire: the screen is only part of the stage, paper targets in the room. */
+export type ExplainerKind = 'benchmark' | 'dryfire';
+/** A match with a par ladder is a benchmark. */
+export const explainerFor = (stages: Stage3D[]): ExplainerKind => (stages.some((s) => s.ladder?.pars.length) ? 'benchmark' : 'dryfire');
 export const resolveTiming = (t?: Partial<MatchTiming>): MatchTiming => ({ ...MATCH_TIMING, ...t });
 
 /** TRAINING / MATCH COMPLETE at the end. */
@@ -31,6 +38,7 @@ const OUTRO = 3;
 
 export type ProgramSegment =
   | { kind: 'brand' | 'safety' | 'complete'; start: number; end: number }
+  | { kind: 'explainer'; variant: ExplainerKind; start: number; end: number }
   | { kind: 'title'; stageIndex: number; start: number; end: number }
   | { kind: 'stage'; stageIndex: number; start: number; end: number; tl: VideoTimeline };
 
@@ -73,6 +81,7 @@ export const buildProgram = (stagesIn: Stage3D[], o: ProgramOptions): Program =>
   if (isMatch && (o.settings?.intro ?? true)) {
     if (T.brand > 0) segments.push({ kind: 'brand', start: t, end: (t += T.brand) });
     if (T.safety > 0) segments.push({ kind: 'safety', start: t, end: (t += T.safety) });
+    if (T.explainer > 0) segments.push({ kind: 'explainer', variant: explainerFor(stages), start: t, end: (t += T.explainer) });
   }
   stages.forEach((stage, stageIndex) => {
     const title = stage.titleTime ?? T.title;

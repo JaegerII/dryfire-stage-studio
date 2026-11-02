@@ -9,7 +9,7 @@ import { MARK_PATH, MARK_VIEWBOX } from '../assets/brand/mark';
 import topoUrl from '../assets/brand/topo.svg';
 import { ASSETS } from '../assets/registry';
 import { drawHud, type HudOptions, hudUnit } from './hud';
-import type { Program, ProgramFrame } from './program';
+import type { ExplainerKind, Program, ProgramFrame } from './program';
 import type { Stage3D } from './types';
 import { parTime3D, repsOf } from './types';
 
@@ -138,6 +138,230 @@ const safetyScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local
     font(ctx, 500, 2.5 * u);
     ctx.fillStyle = C.text;
     ctx.fillText(r, x + 4.5 * u, y, narrow ? 2 * half - 4.5 * u : 61 * u);
+  });
+  ctx.restore();
+};
+
+// ------------------------------------------------------------------ "how it works"
+
+const ease = (x: number) => 1 - (1 - Math.max(0, Math.min(1, x))) ** 3;
+/** 0..1 over half a second from t0. */
+const appear = (local: number, t0: number) => ease((local - t0) / 0.5);
+
+const EXPLAINER: Record<ExplainerKind, { label: string; title: string; steps: (n: number) => [string, string][] }> = {
+  benchmark: {
+    label: 'BENCHMARK',
+    title: 'How the benchmark works',
+    steps: (n) => [
+      ['Every drill is a ladder', `${n} levels – the par time gets shorter every level.`],
+      ['Make the par twice', 'Two clean reps inside the par and you move up a level.'],
+      ["Miss it? That's your level", 'Keep going for practice – your score is the last level you made.'],
+      ['Post your level', 'Tell us in the comments – and beat it next week.'],
+    ],
+  },
+  dryfire: {
+    label: 'HOW IT WORKS',
+    title: 'Your room is the range',
+    steps: () => [
+      ['The screen is your stage', 'Put the TV in front of a safe backstop – it shows the targets, the commands and the time.'],
+      ['But only part of it', 'Tape paper targets to the walls left and right and engage them too.'],
+      ['Move like on the range', 'Step to the positions, reload on the move, use doorways as ports.'],
+      ['Unloaded. Always.', 'No live ammunition in the room – check before every session.'],
+    ],
+  },
+};
+
+/** Benchmark graphic: the ladder's bars step down; a marker climbs, misses one level and shows the score. */
+const ladderGraphic = (ctx: CanvasRenderingContext2D, u: number, gx: number, gy: number, gw: number, gh: number, local: number, pars: number[]) => {
+  const n = pars.length;
+  const gap = 1.2 * u;
+  const bw = (gw - gap * (n - 1)) / n;
+  const base = gy + gh;
+  const top = gy + 9 * u;
+  const max = pars[0];
+  const min = Math.min(...pars);
+  // the climb: one level per 1.1 s from 7.5 s, it fails at `miss` and stops at the level before
+  const miss = Math.max(1, Math.min(n, n - 1));
+  const climb = Math.min(miss, Math.floor((local - 7.5) / 1.1) + 1);
+  const failed = local >= 7.5 + (miss - 1) * 1.1 + 0.7;
+  ctx.textAlign = 'center';
+  pars.forEach((p, i) => {
+    const a = appear(local, 1 + i * 0.18);
+    if (a <= 0) return;
+    // shorter par = shorter bar, but never flat
+    const h = (base - top) * (0.35 + 0.65 * (max === min ? 1 : (p - min) / (max - min))) * a;
+    const x = gx + i * (bw + gap);
+    const made = climb > i + 1 || (climb === i + 1 && i + 1 < miss);
+    const now = climb === i + 1;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = now && failed ? 'rgba(255, 49, 49, 0.18)' : made ? 'rgba(43, 217, 107, 0.22)' : now ? 'rgba(255, 49, 49, 0.3)' : 'rgba(237, 237, 230, 0.08)';
+    ctx.fillRect(x, base - h, bw, h);
+    ctx.fillStyle = made ? C.go : now ? C.accent : C.faint;
+    ctx.fillRect(x, base - h, bw, 0.4 * u);
+    font(ctx, 800, Math.min(2.6 * u, bw * 0.3));
+    ctx.fillStyle = C.text;
+    ctx.fillText(p.toFixed(2), x + bw / 2, base - h - 1.2 * u);
+    font(ctx, 700, 1.7 * u);
+    ctx.fillStyle = now ? C.accent : C.muted;
+    ctx.fillText(`L${i + 1}`, x + bw / 2, base + 3 * u);
+    if (now && failed) {
+      // missed: a red cross over the bar
+      ctx.strokeStyle = C.accent;
+      ctx.lineWidth = 0.6 * u;
+      const cx = x + bw / 2;
+      const cy = base - h / 2;
+      const r = Math.min(bw, h) * 0.28;
+      ctx.beginPath();
+      ctx.moveTo(cx - r, cy - r);
+      ctx.lineTo(cx + r, cy + r);
+      ctx.moveTo(cx + r, cy - r);
+      ctx.lineTo(cx - r, cy + r);
+      ctx.stroke();
+    }
+  });
+  ctx.globalAlpha = 1;
+  font(ctx, 700, 1.7 * u);
+  ctx.fillStyle = C.muted;
+  ctx.textAlign = 'left';
+  spaced(ctx, 'PAR TIME PER LEVEL', gx, gy + 2 * u, 0.22);
+  // the score
+  const sa = appear(local, 7.5 + (miss - 1) * 1.1 + 1.3);
+  if (sa > 0 && miss > 1) {
+    ctx.globalAlpha = sa;
+    font(ctx, 900, 3 * u);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = C.go;
+    ctx.fillText(`YOUR LEVEL: ${miss - 1}`, gx + gw, gy + 2.4 * u);
+    ctx.globalAlpha = 1;
+  }
+};
+
+/** Set-up graphic, seen from above: the screen on the front wall, paper targets on the side walls, the shooter moving. */
+const roomGraphic = (ctx: CanvasRenderingContext2D, u: number, gx: number, gy: number, gw: number, gh: number, local: number) => {
+  const ra = appear(local, 0.6);
+  ctx.globalAlpha = ra;
+  ctx.strokeStyle = 'rgba(237, 237, 230, 0.35)';
+  ctx.lineWidth = 0.35 * u;
+  ctx.strokeRect(gx, gy, gw, gh);
+  font(ctx, 700, 1.6 * u);
+  ctx.fillStyle = C.faint;
+  ctx.textAlign = 'left';
+  spaced(ctx, 'YOUR ROOM', gx + 1.2 * u, gy + gh - 1.4 * u, 0.22);
+  // the shooter: two boxes, moving between them after 6 s
+  const boxY = gy + gh * 0.78;
+  const bx0 = gx + gw * 0.36;
+  const bx1 = gx + gw * 0.64;
+  const k = local < 6.5 ? 0 : (1 - Math.cos(((local - 6.5) / 3) * Math.PI)) / 2;
+  const sx = bx0 + (bx1 - bx0) * k;
+  const shooterA = appear(local, 5.6);
+  // lines of sight: to the screen, then to the paper targets
+  const screen = { x: gx + gw / 2, y: gy + 2.4 * u };
+  const papers = [
+    { x: gx + 1.6 * u, y: gy + gh * 0.32 },
+    { x: gx + gw - 1.6 * u, y: gy + gh * 0.32 },
+  ];
+  const sight = (to: { x: number; y: number }, a: number) => {
+    if (a <= 0) return;
+    ctx.globalAlpha = a * 0.7;
+    ctx.setLineDash([1.2 * u, 1 * u]);
+    ctx.strokeStyle = C.accent;
+    ctx.lineWidth = 0.25 * u;
+    ctx.beginPath();
+    ctx.moveTo(sx, boxY);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  sight(screen, shooterA * appear(local, 6));
+  papers.forEach((p, i) => sight(p, shooterA * appear(local, 7 + i * 0.5)));
+  // the screen on the front wall
+  const sa = appear(local, 1.2);
+  ctx.globalAlpha = sa;
+  const sw = gw * 0.36;
+  ctx.shadowColor = 'rgba(160, 200, 255, 0.6)';
+  ctx.shadowBlur = 3 * u * sa;
+  ctx.fillStyle = '#cfe0ff';
+  ctx.fillRect(screen.x - sw / 2, gy + 0.8 * u, sw, 1.8 * u);
+  ctx.shadowBlur = 0;
+  font(ctx, 800, 1.7 * u);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.text;
+  spaced(ctx, 'SCREEN', screen.x, gy + 6 * u, 0.22);
+  // paper targets on the side walls (pop in)
+  papers.forEach((p, i) => {
+    const a = appear(local, 3.4 + i * 0.35);
+    if (a <= 0) return;
+    ctx.globalAlpha = a;
+    const s = 1 + 0.4 * (1 - a);
+    const tw = 1.4 * u * s;
+    const th = 5 * u * s;
+    ctx.fillStyle = '#c9a26b';
+    ctx.fillRect(p.x - tw / 2, p.y - th / 2, tw, th);
+    font(ctx, 800, 1.6 * u);
+    ctx.fillStyle = '#e6c89a';
+    ctx.textAlign = i === 0 ? 'left' : 'right';
+    spaced(ctx, 'PAPER', p.x + (i === 0 ? 2.2 : -2.2) * u, p.y + 0.6 * u, 0.22);
+  });
+  // shooting boxes and the shooter
+  ctx.globalAlpha = shooterA;
+  ctx.strokeStyle = 'rgba(237, 237, 230, 0.6)';
+  ctx.lineWidth = 0.25 * u;
+  for (const x of [bx0, bx1]) ctx.strokeRect(x - 2.4 * u, boxY - 2.4 * u, 4.8 * u, 4.8 * u);
+  ctx.fillStyle = C.go;
+  ctx.beginPath();
+  ctx.arc(sx, boxY, 1.3 * u, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+};
+
+/** "How it works" after the safety screen: a graphic and four steps appearing one after the other. */
+const explainerScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number, kind: ExplainerKind, stages: Stage3D[]) => {
+  const { u, oy } = block(W, H);
+  const narrow = W < 150 * u;
+  const pars = stages.find((s) => s.ladder?.pars.length)?.ladder?.pars ?? [2, 1.8, 1.6, 1.4, 1.2, 1];
+  const ex = EXPLAINER[kind];
+  background(ctx, W, H);
+  ctx.save();
+  ctx.translate(0, oy);
+  ctx.textBaseline = 'alphabetic';
+  // header
+  const ha = appear(local, 0);
+  ctx.globalAlpha = ha;
+  ctx.textAlign = 'center';
+  font(ctx, 700, 2.3 * u);
+  ctx.fillStyle = C.accent;
+  spaced(ctx, ex.label, W / 2, 14 * u, 0.3);
+  font(ctx, 900, (narrow ? 5.6 : 7) * u);
+  ctx.fillStyle = C.text;
+  ctx.fillText(ex.title, W / 2, 23 * u - (1 - ha) * 2 * u, W * 0.92);
+  ctx.globalAlpha = 1;
+  // graphic left (on a tall frame: on top), steps right (below)
+  const gw = narrow ? Math.min(W - 8 * u, 70 * u) : 70 * u;
+  const gh = narrow ? 30 * u : 48 * u;
+  const gx = narrow ? (W - gw) / 2 : W / 2 - 76 * u;
+  const gy = narrow ? 29 * u : 33 * u;
+  if (kind === 'benchmark') ladderGraphic(ctx, u, gx, gy, gw, gh, local, pars);
+  else roomGraphic(ctx, u, gx, gy, gw, gh, local);
+  const steps = ex.steps(pars.length);
+  const sx = narrow ? (W - gw) / 2 : W / 2 + 4 * u;
+  const sw = narrow ? gw : 72 * u;
+  steps.forEach(([title, text], i) => {
+    const a = appear(local, 1.4 + i * 2.2);
+    if (a <= 0) return;
+    const y = (narrow ? 66 * u + i * 8.5 * u : 36 * u + i * 13 * u) + (1 - a) * 1.5 * u;
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'left';
+    font(ctx, 900, 2.6 * u);
+    ctx.fillStyle = C.accent;
+    ctx.fillText(`0${i + 1}`, sx, y);
+    font(ctx, 800, 3 * u);
+    ctx.fillStyle = C.text;
+    ctx.fillText(title, sx + 5 * u, y, sw - 5 * u);
+    font(ctx, 500, (narrow ? 2 : 2.2) * u);
+    ctx.fillStyle = C.muted;
+    wrap(ctx, text, sw - 5 * u)
+      .slice(0, narrow ? 1 : 2)
+      .forEach((l, k) => ctx.fillText(l, sx + 5 * u, y + (3.6 + k * 3) * u));
   });
   ctx.restore();
 };
@@ -288,6 +512,7 @@ export const drawProgramHud = (
   if (seg.kind === 'stage' && pf.frame) return drawHud(ctx, W, H, pf.frame, stage, project, o);
   if (seg.kind === 'brand') return brandScreen(ctx, W, H, pf.local);
   if (seg.kind === 'safety') return safetyScreen(ctx, W, H, pf.local);
+  if (seg.kind === 'explainer') return explainerScreen(ctx, W, H, pf.local, seg.variant, p.stages);
   if (seg.kind === 'title') return titleScreen(ctx, W, H, pf.local, stage, seg.stageIndex, p.stages.length, p.matchName);
   const reps = p.stages.reduce((n, s) => n + repsOf(s), 0);
   // par ladders: ask for the level reached (the comment prompt of a YouTube video)

@@ -12,6 +12,8 @@ export interface MatchTimingSettings {
   brand?: number;
   /** Safety screen. */
   safety?: number;
+  /** "How it works" explainer after the safety screen (benchmark / dry-fire set-up). */
+  explainer?: number;
   /** Title card before every stage ("Stage 2 / 3"). */
   title?: number;
   /** MAKE READY lead-in while the camera pushes into the stage. */
