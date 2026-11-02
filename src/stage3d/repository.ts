@@ -19,6 +19,8 @@ export interface Stage3DSummary {
   environment: Stage3D['environment'];
   repetitions: number;
   par: number;
+  /** Par ladder: the par of every level. */
+  ladder?: number[];
   positions: number;
   objects: number;
   builtIn: boolean;
@@ -43,6 +45,7 @@ const summary = (s: Stage3D, builtIn: boolean, overrides = false): Stage3DSummar
   environment: s.environment,
   repetitions: s.repetitions,
   par: parTime3D(s),
+  ...(s.ladder?.pars.length ? { ladder: s.ladder.pars } : {}),
   positions: s.positions.length,
   objects: s.objects.length,
   builtIn,
@@ -109,13 +112,17 @@ export function normalizeStage3D(raw: unknown): Stage3D {
     };
   });
   const sd = (r.standbyDelay ?? {}) as Record<string, unknown>;
+  const lr = (r.ladder ?? {}) as Record<string, unknown>;
+  const ladderPars = Array.isArray(lr.pars) ? (lr.pars as unknown[]).map((p) => num(p, NaN)).filter((p) => p > 0).map((p) => Math.max(0.2, p)) : [];
+  const ladder = ladderPars.length ? { pars: ladderPars, repsPerLevel: Math.max(1, Math.round(num(lr.repsPerLevel, 2))) } : undefined;
   return {
     schemaVersion: SCHEMA_3D,
     id: typeof r.id === 'string' && r.id ? r.id : newId('stage3d'),
     name: typeof r.name === 'string' && r.name ? r.name : 'New 3D Stage',
     description: typeof r.description === 'string' ? r.description : undefined,
     environment: typeof r.environment === 'string' && isEnv3D(r.environment) ? r.environment : 'indoor_01',
-    repetitions: Math.max(1, Math.round(num(r.repetitions, 3))),
+    repetitions: ladder ? ladder.pars.length * ladder.repsPerLevel : Math.max(1, Math.round(num(r.repetitions, 3))),
+    ...(ladder ? { ladder } : {}),
     resetTime: Math.max(0, num(r.resetTime, 4)),
     standbyDelay: { min: Math.max(0, num(sd.min, 1)), max: Math.max(num(sd.min, 1), num(sd.max, 2)) },
     objects,

@@ -104,7 +104,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
             {match.stageIds.map((id, i) => {
               const stored = stages.find((x) => x.id === id);
               // what the match actually plays (its "for all stages" repetitions applied)
-              const s = stored && { ...stored, repetitions: match.settings?.overrides?.repetitions ?? stored.repetitions };
+              const s = stored && { ...stored, repetitions: (!stored.ladder && match.settings?.overrides?.repetitions) || stored.repetitions };
               const move = (d: number) => {
                 const ids = [...match.stageIds];
                 [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
@@ -116,7 +116,7 @@ export const MatchPage = ({ matchId, onHome, onOpenMatch, onOpenStage, onPlaySta
                   {s ? <img src={ENVIRONMENTS[s.environment].src} alt="" /> : <span className="missing-thumb" />}
                   <button className="meta linkish" disabled={!s} onClick={() => onOpenStage(id)} title="Edit stage">
                     <strong>{s?.name ?? id}</strong>
-                    <span>{s ? `par ${s.par.toFixed(1)} s · ${s.repetitions} reps · ${s.positions} position${s.positions > 1 ? 's' : ''} · ${ENVIRONMENTS[s.environment].label}` : 'Stage not found'}</span>
+                    <span>{s ? `${s.ladder ? `par ladder ${s.ladder[0].toFixed(2)} → ${s.ladder[s.ladder.length - 1].toFixed(2)} s` : `par ${s.par.toFixed(1)} s`} · ${s.repetitions} reps · ${s.positions} position${s.positions > 1 ? 's' : ''} · ${ENVIRONMENTS[s.environment].label}` : 'Stage not found'}</span>
                   </button>
                   <button disabled={i === 0} onClick={() => move(-1)} title="Move up">↑</button>
                   <button disabled={i === match.stageIds.length - 1} onClick={() => move(1)} title="Move down">↓</button>

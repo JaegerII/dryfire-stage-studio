@@ -87,6 +87,12 @@ export interface Stage3D {
   legs: Leg[];
   /** Seconds at the last position until the end beep. */
   finalTime: number;
+  /**
+   * Par ladder: the reps run level by level, each level with a shorter par (e.g. 2.0 → 1.8 → 1.6 s),
+   * `repsPerLevel` reps each — repetitions = pars.length × repsPerLevel. The positions, moves and
+   * target motion are authored for the stage's own par and run faster / slower with the level's par.
+   */
+  ladder?: ParLadder;
   /** Brightness of the scene: 1 = the environment as it is, < 1 darker, > 1 lighter. */
   brightness?: number;
   /** Start condition, shown in the briefing and on the title card (e.g. "Pistol unloaded on the table, magazines on the table"). */
@@ -97,6 +103,12 @@ export interface Stage3D {
     shake?: number;
   };
   meta?: { createdAt?: string; updatedAt?: string; source?: string };
+}
+
+export interface ParLadder {
+  /** Par time of every level, seconds. */
+  pars: number[];
+  repsPerLevel: number;
 }
 
 /** Default head movement while walking (see Stage3D.camera.shake). */
@@ -155,3 +167,18 @@ export const env3dFor = (env: EnvironmentId): Env3D => (isEnv3D(env) ? env : 'in
 
 /** Par time = time at every position + every move. */
 export const parTime3D = (s: Stage3D) => +(s.legs.reduce((t, l) => t + l.after + l.duration, 0) + s.finalTime).toFixed(2);
+
+/** Repetitions a stage really plays (a par ladder: every level × its reps). */
+export const repsOf = (s: Pick<Stage3D, 'repetitions' | 'ladder'>) => (s.ladder?.pars.length ? s.ladder.pars.length * s.ladder.repsPerLevel : s.repetitions);
+
+/** Level (1-based) of a rep (1-based) on a par ladder; 0 without a ladder. */
+export const levelOfRep = (s: Pick<Stage3D, 'ladder'>, rep: number) =>
+  s.ladder?.pars.length ? Math.min(s.ladder.pars.length, Math.floor((Math.max(1, rep) - 1) / s.ladder.repsPerLevel) + 1) : 0;
+
+/** Par time of every rep (the ladder's levels, or the stage's par for each rep). */
+export const repPars = (s: Stage3D): number[] =>
+  s.ladder?.pars.length ? s.ladder.pars.flatMap((p) => Array<number>(s.ladder!.repsPerLevel).fill(p)) : Array<number>(s.repetitions).fill(parTime3D(s));
+
+/** "par 4.5 s", or the range of a par ladder ("par 2.00 → 1.20 s"). */
+export const parLabel = (s: Stage3D) =>
+  s.ladder?.pars.length ? `par ${s.ladder.pars[0].toFixed(2)} → ${s.ladder.pars[s.ladder.pars.length - 1].toFixed(2)} s` : `par ${parTime3D(s).toFixed(1)} s`;

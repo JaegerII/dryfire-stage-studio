@@ -8,7 +8,7 @@ import { buildProgram, programCues, programFrameAt, stageStarts } from './progra
 import { drawProgramHud, loadScreenAssets, showsScene } from './screens';
 import { StageScene3D } from './StageScene3D';
 import type { Stage3D } from './types';
-import { parTime3D, shakeOf } from './types';
+import { parLabel, repsOf, shakeOf } from './types';
 
 const RESOLUTIONS = { '1080p': [1920, 1080], '1440p': [2560, 1440], '4K': [3840, 2160] } as const;
 type Res = keyof typeof RESOLUTIONS;
@@ -246,7 +246,7 @@ export const Player3D = ({ stages: stagesProp, matchName, settings, onExit }: Pr
       });
   const eta = progress && progress.done > 0 ? ((performance.now() - progress.started) / progress.done) * (progress.total - progress.done) / 1000 : null;
   const shakeShown = shake ?? shakeOf(stagesProp[0]);
-  const reps = program.stages.reduce((n, s) => n + s.repetitions, 0);
+  const reps = program.stages.reduce((n, s) => n + repsOf(s), 0);
 
   return (
     <div className="player3d">
@@ -313,7 +313,7 @@ export const Player3D = ({ stages: stagesProp, matchName, settings, onExit }: Pr
       <div className="p3-info">
         {isMatch
           ? `${matchName} · ${program.stages.length} stages · ${reps} reps · video ${fmt(program.end)}`
-          : `${stages[0]?.name} · par ${parTime3D(program.stages[0]).toFixed(1)} s · ${program.stages[0].repetitions} reps · video ${fmt(program.end)}`}
+          : `${stages[0]?.name} · ${parLabel(program.stages[0])} · ${repsOf(program.stages[0])} reps · video ${fmt(program.end)}`}
       </div>
     </div>
   );

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "repetitions": 12,
+  "resetTime": 4,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "camera": {
+    "shake": 0.8
+  },
+  "id": "stage_803",
+  "name": "Ladder 3 – Draw, Three Targets",
+  "environment": "outdoor_01",
+  "description": "Draw, one press on each target left to right. Drive the eyes to the next target before the gun.",
+  "start": "Wrists above the shoulders",
+  "finalTime": 2.4,
+  "ladder": {
+    "pars": [
+      2.4,
+      2.2,
+      2,
+      1.85,
+      1.7,
+      1.55
+    ],
+    "repsPerLevel": 2
+  },
+  "objects": [
+    {
+      "id": "l3_t1",
+      "type": "paper_full",
+      "x": -2,
+      "d": 7,
+      "note": "1"
+    },
+    {
+      "id": "l3_t2",
+      "type": "paper_full",
+      "x": 0,
+      "d": 7.5,
+      "note": "2"
+    },
+    {
+      "id": "l3_t3",
+      "type": "paper_full",
+      "x": 2,
+      "d": 7,
+      "note": "3"
+    },
+    {
+      "id": "l3_tyre1",
+      "type": "tire_stack",
+      "x": -4,
+      "d": 9
+    },
+    {
+      "id": "l3_tyre2",
+      "type": "tire_stack",
+      "x": 4,
+      "d": 9
+    }
+  ],
+  "legs": [],
+  "positions": [
+    {
+      "id": "stage_803_start",
+      "label": "START",
+      "x": 0,
+      "d": 0,
+      "heading": 0
+    }
+  ]
+}

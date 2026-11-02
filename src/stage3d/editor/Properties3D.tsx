@@ -1,9 +1,10 @@
 import { ASSETS } from '../../assets/registry';
+import { useEffect, useState } from 'react';
 import { NumberField, Row, SliderField } from '../../components/fields';
 import { MotionFields } from './MotionFields';
 import { STANDBY_VOICE_LEAD } from '../../utils/audioEngine';
 import { EYE_HEIGHT, buildVideoTimeline } from '../timeline';
-import { type Stage3D, parTime3D, shakeOf } from '../types';
+import { type ParLadder, type Stage3D, parTime3D, shakeOf } from '../types';
 import { type Selection, groupObjects, patchLeg, patchObjects, patchPosition, ungroupObjects } from './ops';
 
 interface Props {
@@ -21,6 +22,25 @@ const STANCES: [number, string][] = [
   [1.0, 'Kneeling'],
   [0.35, 'Prone'],
 ];
+
+/** A ladder from its first par, the step down per level and the number of levels. */
+export const makeLadder = (from: number, step: number, levels: number, repsPerLevel: number): ParLadder => ({
+  pars: Array.from({ length: Math.max(1, Math.round(levels)) }, (_, i) => Math.max(0.2, +(from - i * step).toFixed(2))),
+  repsPerLevel: Math.max(1, Math.round(repsPerLevel)),
+});
+
+/** The par times of a ladder as text ("2.00, 1.80, 1.60"), applied on Enter / leaving the field. */
+const ParList = ({ pars, onChange }: { pars: number[]; onChange: (pars: number[]) => void }) => {
+  const text = pars.map((p) => p.toFixed(2)).join(', ');
+  const [draft, setDraft] = useState(text);
+  useEffect(() => setDraft(text), [text]);
+  const apply = () => {
+    const next = draft.split(/[,;s]+/).map((v) => parseFloat(v.replace(',', '.'))).filter((v) => v > 0).map((v) => Math.max(0.2, +v.toFixed(2)));
+    if (next.length) onChange(next);
+    else setDraft(text);
+  };
+  return <input value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={apply} onKeyDown={(e) => e.key === 'Enter' && apply()} />;
+};
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
@@ -162,6 +182,14 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
   const par = parTime3D(stage);
   const length = buildVideoTimeline(stage, { seed: stage.id, voiceLead: STANDBY_VOICE_LEAD }).end;
   const set = (patch: Partial<Stage3D>) => onUpdate((s) => ({ ...s, ...patch }));
+  const ladder = stage.ladder;
+  // the step between the first two levels (the generator keeps it when the first par or the count changes)
+  const ladderStep = ladder && ladder.pars.length > 1 ? +(ladder.pars[0] - ladder.pars[1]).toFixed(2) : 0.2;
+  const setLadder = (l: ParLadder | undefined) =>
+    onUpdate((s) => {
+      const { ladder: _, ...rest } = s;
+      return l ? { ...rest, ladder: l, repetitions: l.pars.length * l.repsPerLevel } : rest;
+    });
   return (
     <aside className="panel properties p3d-props">
       <div className="eyebrow">3D stage</div>
@@ -183,7 +211,25 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
       {stage.legs.length === 0 && (
         <Row label="Stay at start (s)"><NumberField value={stage.finalTime} min={0.5} max={60} step={0.5} digits={1} onChange={(finalTime) => set({ finalTime })} /></Row>
       )}
-      <Row label="Repetitions"><NumberField value={stage.repetitions} min={1} max={30} step={1} digits={0} onChange={(r) => set({ repetitions: Math.round(r) })} /></Row>
+      <Row label="Par ladder" hint="The reps run level by level, every level with a shorter par. Moves and moving targets speed up with the par.">
+        <input
+          type="checkbox"
+          checked={!!stage.ladder}
+          onChange={(e) => setLadder(e.target.checked ? makeLadder(Math.max(0.6, par), Math.max(0.1, +(par * 0.1).toFixed(1)), 5, 2) : undefined)}
+        />
+      </Row>
+      {ladder ? (
+        <>
+          <Row label="Levels (par, s)" hint="Par of every level, separated by commas — e.g. 2.0, 1.8, 1.6, 1.4"><ParList pars={ladder.pars} onChange={(pars) => setLadder({ ...ladder, pars })} /></Row>
+          <Row label="First par (s)" hint="Rebuilds the levels from here down"><NumberField value={ladder.pars[0]} min={0.2} max={60} step={0.1} digits={2} onChange={(from) => setLadder(makeLadder(from, ladderStep, ladder.pars.length, ladder.repsPerLevel))} /></Row>
+          <Row label="Faster per level (s)" hint="Rebuilds the levels: the par gets this much shorter every level"><NumberField value={ladderStep} min={0} max={5} step={0.05} digits={2} onChange={(st) => setLadder(makeLadder(ladder.pars[0], st, ladder.pars.length, ladder.repsPerLevel))} /></Row>
+          <Row label="Number of levels"><NumberField value={ladder.pars.length} min={1} max={12} step={1} digits={0} onChange={(n) => setLadder(makeLadder(ladder.pars[0], ladderStep, n, ladder.repsPerLevel))} /></Row>
+          <Row label="Reps per level"><NumberField value={ladder.repsPerLevel} min={1} max={10} step={1} digits={0} onChange={(r) => setLadder({ ...ladder, repsPerLevel: Math.max(1, Math.round(r)) })} /></Row>
+          <Row label="Repetitions" hint="Levels × reps per level"><b>{stage.repetitions}</b></Row>
+        </>
+      ) : (
+        <Row label="Repetitions"><NumberField value={stage.repetitions} min={1} max={30} step={1} digits={0} onChange={(r) => set({ repetitions: Math.round(r) })} /></Row>
+      )}
       <Row label="Reset time (s)"><NumberField value={stage.resetTime} min={0} max={60} step={0.5} digits={1} onChange={(resetTime) => set({ resetTime })} /></Row>
       <Row label="Standby min (s)"><NumberField value={stage.standbyDelay.min} min={0} max={10} step={0.1} digits={1} onChange={(min) => set({ standbyDelay: { min, max: Math.max(min, stage.standbyDelay.max) } })} /></Row>
       <Row label="Standby max (s)"><NumberField value={stage.standbyDelay.max} min={0} max={10} step={0.1} digits={1} onChange={(max) => set({ standbyDelay: { min: Math.min(max, stage.standbyDelay.min), max } })} /></Row>

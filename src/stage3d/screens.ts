@@ -11,7 +11,7 @@ import { ASSETS } from '../assets/registry';
 import { drawHud, type HudOptions, hudUnit } from './hud';
 import type { Program, ProgramFrame } from './program';
 import type { Stage3D } from './types';
-import { parTime3D } from './types';
+import { parTime3D, repsOf } from './types';
 
 const C = { bg: '#050605', text: '#edede6', muted: '#949888', faint: '#5a625b', sage: '#a3a398', accent: '#ff3131', go: '#2bd96b', line: 'rgba(237, 237, 230, 0.12)' };
 const FONT = 'Montserrat, ui-sans-serif, system-ui, sans-serif';
@@ -166,7 +166,8 @@ const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
   ctx.textBaseline = 'alphabetic';
   const desc = stage.description ? (font(ctx, 500, 2.8 * u), wrap(ctx, stage.description, W * 0.7).slice(0, 3)) : [];
   // block height, centred vertically
-  const h = (matchName ? 5 * u : 0) + 6 * u + 11 * u + desc.length * 4 * u + (stage.start ? 5 * u : 0) + 20 * u;
+  const ladder = stage.ladder?.pars.length ? stage.ladder : null;
+  const h = (matchName ? 5 * u : 0) + 6 * u + 11 * u + desc.length * 4 * u + (stage.start ? 5 * u : 0) + 20 * u + (ladder ? 13 * u : 0);
   let y = (H - h) / 2;
   if (matchName) {
     font(ctx, 700, 2.3 * u);
@@ -201,13 +202,19 @@ const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
   ctx.fillStyle = C.line;
   ctx.fillRect(W / 2 - 34 * u, y, 68 * u, Math.max(1, 0.1 * u));
   const targets = stage.objects.filter((o) => ASSETS[o.type]?.scoring).length;
-  const stats: [string, string][] = [
-    ['PAR TIME', `${parTime3D(stage).toFixed(1)} s`],
-    ['REPS', String(stage.repetitions)],
-    ['TARGETS', String(targets)],
-  ];
+  const stats: [string, string][] = ladder
+    ? [
+        ['PAR LADDER', `${ladder.pars[0].toFixed(2)} → ${ladder.pars[ladder.pars.length - 1].toFixed(2)} s`],
+        ['LEVELS × REPS', `${ladder.pars.length} × ${ladder.repsPerLevel}`],
+        ['TARGETS', String(targets)],
+      ]
+    : [
+        ['PAR TIME', `${parTime3D(stage).toFixed(1)} s`],
+        ['REPS', String(repsOf(stage))],
+        ['TARGETS', String(targets)],
+      ];
   stats.forEach(([label, value], i) => {
-    const x = W / 2 + (i - 1) * 24 * u;
+    const x = W / 2 + (i - 1) * (ladder ? 28 : 24) * u;
     font(ctx, 700, 1.9 * u);
     ctx.fillStyle = C.muted;
     spaced(ctx, label, x, y + 5.5 * u, 0.22);
@@ -215,10 +222,33 @@ const titleScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local:
     ctx.fillStyle = C.text;
     ctx.fillText(value, x, y + 11.5 * u);
   });
+  // par ladder: one step per level, the last one in red
+  if (ladder) {
+    const n = ladder.pars.length;
+    const gap = 1.4 * u;
+    const bw = Math.min(11 * u, (W * 0.86 - gap * (n - 1)) / n);
+    const bh = 8.5 * u;
+    const x0 = W / 2 - (n * bw + (n - 1) * gap) / 2;
+    const by = y + 16 * u;
+    ladder.pars.forEach((p, i) => {
+      const x = x0 + i * (bw + gap);
+      const last = i === n - 1;
+      ctx.fillStyle = last ? 'rgba(255, 49, 49, 0.16)' : 'rgba(237, 237, 230, 0.06)';
+      ctx.fillRect(x, by, bw, bh);
+      ctx.fillStyle = last ? C.accent : C.faint;
+      ctx.fillRect(x, by + bh - 0.35 * u, bw, 0.35 * u);
+      font(ctx, 700, 1.6 * u);
+      ctx.fillStyle = last ? C.accent : C.muted;
+      ctx.fillText(`L${i + 1}`, x + bw / 2, by + 3 * u);
+      font(ctx, 800, 2.6 * u);
+      ctx.fillStyle = C.text;
+      ctx.fillText(p.toFixed(2), x + bw / 2, by + 6.6 * u, bw - 0.6 * u);
+    });
+  }
   ctx.restore();
 };
 
-const completeScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number, title: string, detail: string) => {
+const completeScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, local: number, title: string, detail: string, askLevel = false) => {
   const { u, oy } = block(W, H);
   background(ctx, W, H, Math.min(0.86, local / 0.8));
   ctx.save();
@@ -235,6 +265,11 @@ const completeScreen = (ctx: CanvasRenderingContext2D, W: number, H: number, loc
   font(ctx, 500, 3 * u);
   ctx.fillStyle = C.muted;
   ctx.fillText(detail, W / 2, 59 * u, W * 0.9);
+  if (askLevel) {
+    font(ctx, 800, 3.4 * u);
+    ctx.fillStyle = C.accent;
+    ctx.fillText('Which level did you make? Tell us in the comments.', W / 2, 68 * u, W * 0.9);
+  }
   ctx.restore();
 };
 
@@ -254,9 +289,11 @@ export const drawProgramHud = (
   if (seg.kind === 'brand') return brandScreen(ctx, W, H, pf.local);
   if (seg.kind === 'safety') return safetyScreen(ctx, W, H, pf.local);
   if (seg.kind === 'title') return titleScreen(ctx, W, H, pf.local, stage, seg.stageIndex, p.stages.length, p.matchName);
-  const reps = p.stages.reduce((n, s) => n + s.repetitions, 0);
-  if (p.matchName !== undefined) completeScreen(ctx, W, H, pf.local, 'Match Complete', `${p.matchName} · ${p.stages.length} stages · ${reps} reps`);
-  else completeScreen(ctx, W, H, pf.local, 'Training Complete', `${stage.name} · ${stage.repetitions} reps`);
+  const reps = p.stages.reduce((n, s) => n + repsOf(s), 0);
+  // par ladders: ask for the level reached (the comment prompt of a YouTube video)
+  const ladders = p.stages.some((s) => s.ladder?.pars.length);
+  if (p.matchName !== undefined) completeScreen(ctx, W, H, pf.local, 'Match Complete', `${p.matchName} · ${p.stages.length} stages · ${reps} reps`, ladders);
+  else completeScreen(ctx, W, H, pf.local, 'Training Complete', `${stage.name} · ${repsOf(stage)} reps`, ladders);
 };
 
 /** Whether the 3D view is visible under the HUD (title / logo / safety are opaque screens). */

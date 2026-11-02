@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "repetitions": 12,
+  "resetTime": 5,
+  "standbyDelay": {
+    "min": 1,
+    "max": 3
+  },
+  "camera": {
+    "shake": 0.8
+  },
+  "id": "stage_804",
+  "name": "Ladder 4 – Two, Reload, Two",
+  "environment": "indoor_06",
+  "description": "Draw, one press on each target, reload, one press on each target again. The final test of the ladder.",
+  "start": "Hands relaxed at the sides, pistol holstered, spare magazine on the belt",
+  "finalTime": 4,
+  "reset": 6,
+  "ladder": {
+    "pars": [
+      4,
+      3.6,
+      3.3,
+      3,
+      2.8,
+      2.6
+    ],
+    "repsPerLevel": 2
+  },
+  "objects": [
+    {
+      "id": "l4_t1",
+      "type": "paper_full",
+      "x": -1.2,
+      "d": 6.5
+    },
+    {
+      "id": "l4_t2",
+      "type": "paper_full",
+      "x": 1.2,
+      "d": 6.5
+    },
+    {
+      "id": "l4_ns",
+      "type": "no_shoot",
+      "x": 0,
+      "d": 7.5
+    },
+    {
+      "id": "l4_w1",
+      "type": "wall_black",
+      "x": -2.8,
+      "d": 4.5
+    },
+    {
+      "id": "l4_w2",
+      "type": "wall_black",
+      "x": 2.8,
+      "d": 4.5
+    }
+  ],
+  "legs": [],
+  "positions": [
+    {
+      "id": "stage_804_start",
+      "label": "START",
+      "x": 0,
+      "d": 0,
+      "heading": 0
+    }
+  ]
+}

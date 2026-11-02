@@ -51,6 +51,12 @@ Repetitions, reset time and standby delay as before.
   wooden barricade, bushes, rocks, sandbag walls, traffic cones.
   * Select a box, table or drum and add a card / steel: it goes on top. Select a rubber target stand and add a card:
     it is fixed to the stand's front.
+* **Par ladder** (stage properties → Timing): the reps run level by level, every level with a shorter par (e.g.
+  1.60 → 1.40 → 1.25 → … 0.90 s), *reps per level* each. Set the levels as a list or from a first par and a step.
+  The HUD shows PAR and LEVEL, between two levels a card announces the next one (*Level 3 / 6 · faster, Par 1.25 s*), the
+  title card shows the ladder as steps, and the end screen asks which level the viewer made. Positions, moves and target
+  motion run faster / slower with the level's par. Match-wide repetitions do not change a ladder. Built-in: *Match 08 –
+  Par Ladder* (draw, reload, three targets, two–reload–two; 6 levels × 2 reps each, about 8:45 min).
 * **Start condition** (stage properties, presets or own text, e.g. *Pistol unloaded on the table, magazines on the
   table*): shown in the briefing and on the title card. With a table right in front of the start box the shooter looks
   down at the table until the beep, then up to the targets. Built-in example: *Table Start – Rubber Stands*.

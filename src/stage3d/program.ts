@@ -58,7 +58,8 @@ export const applyOverrides = (s: Stage3D, settings?: MatchSettings): Stage3D =>
   return {
     ...s,
     ...(o.resetTime !== undefined ? { resetTime: o.resetTime } : {}),
-    ...(o.repetitions !== undefined ? { repetitions: o.repetitions } : {}),
+    // a par ladder keeps its own reps (levels × reps per level)
+    ...(o.repetitions !== undefined && !s.ladder ? { repetitions: o.repetitions } : {}),
     ...(o.standbyDelay ? { standbyDelay: { ...o.standbyDelay } } : {}),
   };
 };

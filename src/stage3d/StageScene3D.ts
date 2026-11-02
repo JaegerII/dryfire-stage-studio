@@ -11,9 +11,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { CameraPose, FrameState } from './timeline';
-import { legPath, stageBounds } from './timeline';
+import { legPath, stageBounds, stageClock } from './timeline';
 import { fallTimes, motionAt } from '../utils/motion';
-import { type Env3D, type Room, type Stage3D, type StageObject3D, parTime3D, roomOf } from './types';
+import { type Env3D, type Room, type Stage3D, type StageObject3D, roomOf } from './types';
 
 const DEG = Math.PI / 180;
 const ACCENT = new THREE.Color('#ff3131');
@@ -712,17 +712,18 @@ export class StageScene3D {
     const stage = this.stage;
     if (!stage || !this.movers.length) return;
     const rep = f.segment === 'stage' ? f.rep : null;
-    const par = parTime3D(stage);
-    const active = !!rep && (rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1));
+    const active = !!rep && (rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < rep.par + 1));
+    // the stage's own clock: a par-ladder level runs the motion faster or slower
+    const since = rep ? stageClock(stage, rep.sinceStart, rep.par) : 0;
     const falls = fallTimes(stage.objects);
     for (const mv of this.movers) {
-      const m = rep ? motionAt(mv.o.motion, rep.sinceStart, active, falls) : REST;
+      const m = rep ? motionAt(mv.o.motion, since, active, falls) : REST;
       const yaw = (mv.o.yaw ?? 0) * DEG;
       // slides run along the object's own face, bobs go up
       mv.node.position.set(mv.base.x + m.dx * Math.cos(yaw), mv.base.y + m.dy, mv.base.z + m.dx * Math.sin(yaw));
       // only up during part of the run (areas of a dynamic stage): between reps the clock is 0
       const sw = mv.o.shown;
-      const clock = active ? rep!.sinceStart : 0;
+      const clock = active ? since : 0;
       const inWindow = !rep || !sw || (clock >= (sw.from ?? -Infinity) && clock < (sw.until ?? Infinity));
       mv.node.visible = m.visible && inWindow;
       // swing: tilt in the object's own plane around its foot (+ = top to the right)

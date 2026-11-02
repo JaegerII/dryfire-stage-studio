@@ -8,7 +8,7 @@
  *   → TRAINING COMPLETE
  */
 import { type PlayerSnapshot, type Schedule, type StageTiming, buildSchedule, snapshotAt } from '../utils/schedule';
-import { DEFAULT_SHAKE, type Stage3D, parTime3D, shakeOf } from './types';
+import { DEFAULT_SHAKE, type Stage3D, parTime3D, repPars, repsOf, shakeOf } from './types';
 
 export const EYE_HEIGHT = 1.6;
 
@@ -46,7 +46,20 @@ export interface VideoTimeline {
 }
 
 /** A 3D stage as the rep scheduler sees it (par = all positions + moves). */
-export const stageTiming = (s: Stage3D): StageTiming => ({ id: s.id, parTime: parTime3D(s), repetitions: s.repetitions, resetTime: s.resetTime, standbyDelay: s.standbyDelay });
+export const stageTiming = (s: Stage3D): StageTiming => ({
+  id: s.id,
+  parTime: parTime3D(s),
+  repetitions: repsOf(s),
+  ...(s.ladder?.pars.length ? { pars: repPars(s) } : {}),
+  resetTime: s.resetTime,
+  standbyDelay: s.standbyDelay,
+});
+
+/**
+ * Seconds on the stage's own clock (positions, moves, target motion) at `sinceStart` into a rep
+ * with par `repPar`: a par ladder runs the stage faster (shorter par) or slower.
+ */
+export const stageClock = (s: Stage3D, sinceStart: number, repPar: number) => sinceStart * (parTime3D(s) / Math.max(0.05, repPar));
 
 export const buildVideoTimeline = (s: Stage3D, opts: { seed: string; voiceLead: number; timing?: Partial<VideoTiming> }): VideoTimeline => {
   const T = { ...VIDEO_TIMING, ...opts.timing };
@@ -352,10 +365,10 @@ export const frameAt = (s: Stage3D, tl: VideoTimeline, t: number, aspect = 16 / 
 export const runFrameAt = (s: Stage3D, schedule: Schedule, local: number, t = local, resetFade = VIDEO_TIMING.resetFade, aspect = 16 / 9): FrameState => {
   const timing = stageTiming(s);
   const rep = snapshotAt(schedule, local, timing);
-  const par = timing.parTime;
+  const par = rep.par;
   // during the par window and the "TIME" second the shooter is on the path; then back to the start
   const onPath = rep.phase === 'active' || (rep.phase === 'reset' && rep.sinceStart < par + 1);
-  const shooter = onPath ? shooterAt(s, Math.min(rep.sinceStart, par)) : shooterAt(s, 0);
+  const shooter = onPath ? shooterAt(s, stageClock(s, Math.min(rep.sinceStart, par), par)) : shooterAt(s, 0);
   const camera = { ...povPose(shooter, t, shakeOf(s)), fov: povFov(aspect) };
   // walking back to the start between reps happens behind a short black fade
   if (rep.phase === 'reset' && s.positions.length > 1) {

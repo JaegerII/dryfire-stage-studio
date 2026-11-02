@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "match_008",
+  "name": "Match 08 – Par Ladder",
+  "description": "Four drills, six levels each, the par gets shorter every level. Make it twice to move up – which level do you reach?",
+  "stageIds": [
+    "stage_801",
+    "stage_802",
+    "stage_803",
+    "stage_804"
+  ],
+  "meta": {
+    "author": "FORTH TRACE",
+    "tags": [
+      "ladder",
+      "skills"
+    ]
+  }
+}

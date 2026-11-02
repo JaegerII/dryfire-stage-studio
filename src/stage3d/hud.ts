@@ -5,7 +5,7 @@
  * frame height so 1080p, 1440p and 4K look identical.
  */
 import type { FrameState } from './timeline';
-import type { Stage3D } from './types';
+import { type Stage3D, levelOfRep, repsOf } from './types';
 import { alongPath, legPath } from './timeline';
 
 const C = {
@@ -177,6 +177,8 @@ const penNote = (ctx: CanvasRenderingContext2D, W: number, H: number, u: number,
 export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: FrameState, s: Stage3D, project: Project, o: HudOptions) => {
   const u = hudUnit(W, H);
   const par = s.legs.reduce((t, l) => t + l.after + l.duration, 0) + s.finalTime;
+  const ladder = s.ladder?.pars.length ? s.ladder : null;
+  const reps = repsOf(s);
 
   // ---------------------------------------------------------------- briefing
   if (f.segment === 'briefing' || f.segment === 'flyin') {
@@ -201,7 +203,10 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
     ctx.fillText(s.name, 4 * u, 13 * u, W - 8 * u);
     font(ctx, 600, 2.1 * u);
     ctx.fillStyle = C.sage;
-    ctx.fillText(`Par ${par.toFixed(1)} s · ${s.repetitions} reps · ${s.positions.length} positions`, 4 * u, 17.5 * u, W - 8 * u);
+    const parText = ladder
+      ? `Par ladder ${ladder.pars[0].toFixed(2)} → ${ladder.pars[ladder.pars.length - 1].toFixed(2)} s · ${ladder.pars.length} levels × ${ladder.repsPerLevel} reps`
+      : `Par ${par.toFixed(1)} s · ${reps} reps`;
+    ctx.fillText(`${parText} · ${s.positions.length} position${s.positions.length > 1 ? 's' : ''}`, 4 * u, 17.5 * u, W - 8 * u);
     if (s.start) {
       // start condition: a strip under the title block
       font(ctx, 700, 1.7 * u);
@@ -267,11 +272,13 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
       ctx.fillStyle = C.muted;
       spaced(ctx, label, W - 3.6 * u - vw - 1.2 * u, y - 0.4 * u, 0.22 * 1.7 * u);
     };
-    stat('PAR', `${par.toFixed(2)} s`, 6.6 * u);
-    stat('REP', `${Math.max(1, r.rep)}/${s.repetitions}`, 10.5 * u);
+    const level = levelOfRep(s, r.rep);
+    stat('PAR', `${r.par.toFixed(2)} s`, 6.6 * u);
+    if (ladder) stat('LEVEL', `${level}/${ladder.pars.length}`, 10.5 * u);
+    else stat('REP', `${Math.max(1, r.rep)}/${reps}`, 10.5 * u);
 
     // signal border
-    const afterEnd = r.phase === 'reset' && r.sinceStart < par + 1;
+    const afterEnd = r.phase === 'reset' && r.sinceStart < r.par + 1;
     const border = afterEnd ? C.accent : r.phase === 'active' ? C.go : r.phase === 'standby' ? C.standby : null;
     if (border) {
       ctx.save();
@@ -285,10 +292,16 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
 
     // centre command (same cues as the classic player)
     const cue = afterEnd ? 'time' : (r.phase === 'ready' || r.phase === 'reset') && r.untilStandby <= ASK_SECONDS ? 'ask' : r.phase;
-    const rep = `Rep ${Math.max(1, r.rep)} / ${s.repetitions}`;
+    const rep = ladder
+      ? `Level ${level} / ${ladder.pars.length} · Rep ${((Math.max(1, r.rep) - 1) % ladder.repsPerLevel) + 1} / ${ladder.repsPerLevel} · Par ${r.par.toFixed(2)} s`
+      : `Rep ${Math.max(1, r.rep)} / ${reps}`;
+    // par ladder: after the last rep of a level the next level is announced during the reset
+    const next = ladder && r.phase === 'reset' && !afterEnd && r.untilStandby > ASK_SECONDS ? levelOfRep(s, r.rep + 1) : 0;
+    const levelUp = next > level && r.rep < reps;
     // MAKE READY counts down to the first STANDBY (on through "Are you ready?")
     const count = r.phase === 'ready' && Number.isFinite(r.untilStandby) ? String(Math.max(1, Math.ceil(r.untilStandby))) : undefined;
     if (cue === 'ready') commandCard(ctx, W, H, rep, 'Make Ready', C.sage, C.accent, 1, count);
+    else if (cue === 'reset' && levelUp) commandCard(ctx, W, H, `Level ${next} / ${ladder!.pars.length} · faster`, `Par ${ladder!.pars[next - 1].toFixed(2)} s`, C.accent, C.accent);
     else if (cue === 'reset') commandCard(ctx, W, H, rep, 'Reset', C.sage);
     else if (cue === 'ask') commandCard(ctx, W, H, rep, 'Are you ready?', C.text, C.accent, 1, count);
     else if (cue === 'standby') commandCard(ctx, W, H, rep, 'Standby', C.standby, C.standby);
@@ -329,7 +342,7 @@ export const drawHud = (ctx: CanvasRenderingContext2D, W: number, H: number, f: 
   }
 
   // ---------------------------------------------------------------- end
-  if (f.segment === 'outro') commandCard(ctx, W, H, `${s.name} · ${s.repetitions} reps`, 'Training Complete', C.text);
+  if (f.segment === 'outro') commandCard(ctx, W, H, `${s.name} · ${reps} reps`, 'Training Complete', C.text);
 
   // camera fade (start, walk back to the start between reps, end)
   if (f.camera.fade > 0) {

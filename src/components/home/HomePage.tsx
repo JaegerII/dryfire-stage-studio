@@ -156,7 +156,7 @@ export const HomePage = ({ onOpenMatch, onPlayMatch, onOpenStage, onPlayStage, o
                 <div className="meta">
                   <strong>{s.name}</strong>
                   <span>
-                    par {s.par.toFixed(1)} s · {s.repetitions} reps · {s.positions} position{s.positions > 1 ? 's' : ''} · {ENVIRONMENTS[s.environment].label}
+                    {s.ladder ? `par ladder ${s.ladder[0].toFixed(2)} → ${s.ladder[s.ladder.length - 1].toFixed(2)} s` : `par ${s.par.toFixed(1)} s`} · {s.repetitions} reps · {s.positions} position{s.positions > 1 ? 's' : ''} · {ENVIRONMENTS[s.environment].label}
                     {s.builtIn ? ' · built-in' : ''}
                     {matches.filter((m) => m.stageIds.includes(s.id)).map((m) => ` · ${m.name}`).join('')}
                   </span>
