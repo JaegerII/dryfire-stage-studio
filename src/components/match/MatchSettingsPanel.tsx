@@ -13,7 +13,7 @@ interface Props {
 const TIMES: { key: keyof MatchTiming; label: string; hint: string }[] = [
   { key: 'brand', label: 'Logo screen', hint: 'FORTH TRACE logo at the start (0 = skip)' },
   { key: 'safety', label: 'Safety screen', hint: 'Safety instructions after the logo (0 = skip)' },
-  { key: 'title', label: 'Stage title card', hint: '"Stage 2 / 3" card before every stage — the break between two stages (0 = none)' },
+  { key: 'title', label: 'Stage title card', hint: '"Stage 2 / 3" card before every stage — the break between two stages (0 = none). A stage can set its own (stage properties → Title card).' },
   { key: 'lead', label: 'Make Ready lead-in', hint: 'MAKE READY at the start box (after the camera flight) before the first standby' },
 ];
 

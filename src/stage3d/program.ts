@@ -75,7 +75,8 @@ export const buildProgram = (stagesIn: Stage3D[], o: ProgramOptions): Program =>
     if (T.safety > 0) segments.push({ kind: 'safety', start: t, end: (t += T.safety) });
   }
   stages.forEach((stage, stageIndex) => {
-    if (isMatch && T.title > 0) segments.push({ kind: 'title', stageIndex, start: t, end: (t += T.title) });
+    const title = stage.titleTime ?? T.title;
+    if (isMatch && title > 0) segments.push({ kind: 'title', stageIndex, start: t, end: (t += title) });
     const tl = buildVideoTimeline(stage, { seed: `${o.seed}:${stageIndex}`, voiceLead: o.voiceLead, timing: { lead: T.lead, outro: 0 } });
     segments.push({ kind: 'stage', stageIndex, start: t, end: (t += tl.end), tl });
   });

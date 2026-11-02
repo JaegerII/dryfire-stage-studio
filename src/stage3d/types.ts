@@ -93,6 +93,11 @@ export interface Stage3D {
    * target motion are authored for the stage's own par and run faster / slower with the level's par.
    */
   ladder?: ParLadder;
+  /**
+   * Seconds of this stage's title card in a match (description, start condition, ladder steps) —
+   * replaces the match's title card time, e.g. longer for a drill with instructions to read.
+   */
+  titleTime?: number;
   /** Brightness of the scene: 1 = the environment as it is, < 1 darker, > 1 lighter. */
   brightness?: number;
   /** Start condition, shown in the briefing and on the title card (e.g. "Pistol unloaded on the table, magazines on the table"). */

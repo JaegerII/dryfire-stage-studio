@@ -230,6 +230,10 @@ export const Properties3D = ({ stage, selection, onUpdate, onDelete, onDuplicate
       ) : (
         <Row label="Repetitions"><NumberField value={stage.repetitions} min={1} max={30} step={1} digits={0} onChange={(r) => set({ repetitions: Math.round(r) })} /></Row>
       )}
+      <Row label="Title card (s)" hint="How long this stage's title card (description, start, ladder steps) shows in a match. Untick = the match's setting.">
+        <input type="checkbox" checked={stage.titleTime !== undefined} onChange={(e) => onUpdate((s) => { const { titleTime: _, ...rest } = s; return e.target.checked ? { ...rest, titleTime: 8 } : rest; })} />
+        {stage.titleTime !== undefined && <NumberField value={stage.titleTime} min={0} max={60} step={1} digits={0} onChange={(titleTime) => set({ titleTime })} />}
+      </Row>
       <Row label="Reset time (s)"><NumberField value={stage.resetTime} min={0} max={60} step={0.5} digits={1} onChange={(resetTime) => set({ resetTime })} /></Row>
       <Row label="Standby min (s)"><NumberField value={stage.standbyDelay.min} min={0} max={10} step={0.1} digits={1} onChange={(min) => set({ standbyDelay: { min, max: Math.max(min, stage.standbyDelay.max) } })} /></Row>
       <Row label="Standby max (s)"><NumberField value={stage.standbyDelay.max} min={0} max={10} step={0.1} digits={1} onChange={(max) => set({ standbyDelay: { min: Math.min(max, stage.standbyDelay.min), max } })} /></Row>

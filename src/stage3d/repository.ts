@@ -130,6 +130,7 @@ export function normalizeStage3D(raw: unknown): Stage3D {
     legs,
     finalTime: Math.max(0.5, num(r.finalTime, 5)),
     ...(typeof r.start === 'string' && r.start.trim() ? { start: r.start } : {}),
+    ...(typeof r.titleTime === 'number' && r.titleTime >= 0 ? { titleTime: Math.min(60, r.titleTime) } : {}),
     ...(typeof r.brightness === 'number' && r.brightness !== 1 ? { brightness: Math.max(0.3, Math.min(2, r.brightness)) } : {}),
     ...(r.camera && typeof r.camera === 'object' ? { camera: { shake: num((r.camera as Record<string, unknown>).shake, 1) } } : {}),
     meta: (r.meta as Stage3D['meta']) ?? undefined,
