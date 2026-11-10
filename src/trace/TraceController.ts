@@ -4,7 +4,8 @@
  * useTrace(); nothing here depends on React.
  */
 import { stage3dRepository } from '../stage3d/repository';
-import type { SessionMessage } from '../session/protocol';
+import type { BodyLinkStats, SessionMessage } from '../session/protocol';
+import { BodyCamController } from './BodyCamController';
 import { type SessionInfo, SessionClient } from '../session/SessionClient';
 import { newRoomCode, probeRelay } from '../session/transport';
 import { TrackingPipeline } from './TrackingPipeline';
@@ -16,6 +17,7 @@ export interface TvStatus {
   soundEnabled: boolean;
   sync: { offset: number; uncertainty: number; rtt: number } | null;
   outputLatencyMs: number | null;
+  body?: BodyLinkStats | null;
   at: number;
 }
 
@@ -33,6 +35,13 @@ export class TraceController {
   private version = 0;
   private listeners = new Set<() => void>();
   private offSession: (() => void)[] = [];
+
+  readonly body = new BodyCamController({
+    pipeline: this.pipeline,
+    session: () => this.session,
+    changed: () => this.bump(),
+    luma: () => this.pipeline.snap.luma,
+  });
 
   constructor() {
     this.pipeline.onChange(() => this.bump());
@@ -97,7 +106,7 @@ export class TraceController {
 
   private onMessage(m: SessionMessage) {
     if (m.type === 'tv_status') {
-      this.tv = { state: m.state, soundEnabled: m.soundEnabled, sync: m.sync, outputLatencyMs: m.outputLatencyMs, at: performance.now() };
+      this.tv = { state: m.state, soundEnabled: m.soundEnabled, sync: m.sync, outputLatencyMs: m.outputLatencyMs, body: m.body, at: performance.now() };
       this.bump();
     } else if (m.type === 'hello' && m.role === 'tv') {
       this.session?.send({ type: 'stage', stage: this.stage ?? null });
@@ -156,6 +165,7 @@ export class TraceController {
 
   dispose() {
     this.run?.stop();
+    this.body.dispose();
     this.disconnectTv();
     this.pipeline.dispose();
     this.listeners.clear();

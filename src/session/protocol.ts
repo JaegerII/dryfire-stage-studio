@@ -7,6 +7,7 @@
  * noted. The TV converts controller times with its clock-sync offset.
  */
 import type { Stage3D } from '../stage3d/types';
+import type { BodyOffset } from '../motion/bodyMapping';
 
 export const PROTOCOL = 1;
 
@@ -33,6 +34,33 @@ export interface RunPlan {
   showTimer: boolean;
 }
 
+export type BodyMode = 'off' | 'calib' | 'live';
+
+/**
+ * Body camera: one small message per tracked frame (~30 Hz). Offsets are relative to the stage's
+ * view of position `pos`, in the shooter's frame (see motion/bodyMapping). `tCap` is the phone's
+ * performance clock at frame capture; the TV converts it to measure the end-to-end latency.
+ */
+export interface BodyCamMessage extends BodyOffset {
+  seq: number;
+  tCap: number;
+  /** Position index of the stage whose view the offset applies to. */
+  pos: number;
+  /** false while the person is not tracked (the offset is then held / easing back on the phone). */
+  tracked: boolean;
+}
+
+/** Latency / rate figures the TV measured for the body camera. */
+export interface BodyLinkStats {
+  /** Frame capture on the phone to message arrival at the TV, ms (clock-sync corrected). */
+  arriveMs: { p50: number; p95: number; max: number };
+  /** Frame capture to the rendered frame that first contains it, ms. */
+  paintMs: { p50: number; p95: number; max: number };
+  rateHz: number;
+  /** Clock-sync uncertainty the numbers carry, ms. */
+  syncUncertaintyMs: number | null;
+}
+
 /** Short per-rep summary for the TV overlay (the full data stays on the phone). */
 export interface RepSummary {
   rep: number;
@@ -51,6 +79,8 @@ export type SessionMessage =
   | { type: 'stage'; from: string; stage: Stage3D | null }
   | { type: 'run_start'; from: string; plan: RunPlan }
   | { type: 'run_stop'; from: string; runId: string }
+  | { type: 'body_state'; from: string; mode: BodyMode; prompt?: string; stageId?: string }
+  | ({ type: 'body_cam'; from: string } & BodyCamMessage)
   | { type: 'rep_result'; from: string; runId: string; summary: RepSummary }
   | {
       type: 'tv_status';
@@ -61,6 +91,7 @@ export type SessionMessage =
       sync: { offset: number; uncertainty: number; rtt: number } | null;
       /** Audio output latency the TV browser reports, ms (excludes HDMI / TV processing). */
       outputLatencyMs: number | null;
+      body?: BodyLinkStats | null;
     }
   /** Sent by the relay itself. */
   | { type: 'peers'; peers: Peer[] };

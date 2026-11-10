@@ -63,6 +63,7 @@ demselben Seed denselben Ablauf und müssen nur den Startzeitpunkt teilen.
 | E. Motion Analysis | `src/motion/features.ts`, `analyzer.ts`, `calibration.ts` |
 | F. Performance Analytics | `src/analytics/trainingLog.ts`, `src/trace/tabs/AnalysisTab.tsx` |
 | Session / Sync | `src/session/protocol.ts`, `transport.ts`, `SessionClient.ts`, `clockSync.ts`, `audioClock.ts` |
+| Body Camera (Prototyp) | `src/motion/body*.ts`, `oneEuro.ts`, `src/stage3d/bodyCam.ts`, `src/trace/BodyCamController.ts` + `tabs/BodyTab.tsx`, siehe Abschnitt 10. |
 | UI (Smartphone) | `src/trace/TraceApp.tsx` + `tabs/*`, Route `#/trace/<tab>` |
 
 UI, Kamera, KI und Trainingslogik sind getrennt: `src/motion` und `src/session/clockSync`
@@ -234,3 +235,93 @@ Modelle nach `public/`, wird von dev/build automatisch ausgeführt).
 6. **Phase 5-Prototyp:** OpenCV.js-Kamerakalibrierung + ArUco-Pose des Trainingsgeräts, nur als
    Rohdaten-Logging mit Reprojektionsfehler — keine Zielpunktanzeige vor der Validierung.
 7. Stage Builder (Editor) für Tablets anpassen; der Editor ist weiterhin Desktop-orientiert.
+
+## 10. Body Camera (Prototyp): Körper steuert die TV-Kamera
+
+Der Sportler steht 2–3 m vor dem Telefon (Stativ), blickt zum Telefon/TV und bewegt sich seitlich, lehnt sich
+vor/zurück, geht in die Knie oder dreht den Oberkörper begrenzt. Die 3D-Ansicht auf dem TV folgt live als
+Augenansicht (POV) des Schützen. Reiner Web-Prototyp (Telefon-Browser = Tracker, TV/PC-Browser = Renderer); noch
+keine Capacitor-/Native-Anbindung.
+
+```
+ Telefon                                                         TV
+ Kamera → MediaPipe (poseTracker) → BodyFeatures (px)
+        → Kalibrierung (bodyCalibration)
+        → BodyCameraMapper (One-Euro → Totzone → Soft-Clamp)
+        → body_cam {seq, tCap, pos, tracked, dx, dz, dy, yaw}  ──►  TvReceiver: Offset glätten (τ = 30 ms)
+        ◄── tv_status {body: Latenz p50/p95/max, Rate}  ◄───────────  bodyFrame(Stage, pos, Offset) → StageScene3D
+```
+
+| Datei | Inhalt |
+|---|---|
+| `src/motion/bodyFeatures.ts` | Pro Frame: Hüftmitte-x, Schulterbreite, Torsolänge, Nasenversatz, Augenhöhe (alles in Bildpixeln). |
+| `src/motion/bodyCalibration.ts` | Platzierungs-Check, geführte Kalibrierung (`BodyCalibrator`), Drehwinkel aus Schulterlinie + Nase. |
+| `src/motion/bodyMapping.ts` | Reine Abbildungsfunktionen (`deadZone`, `softClamp`) und `BodyCameraMapper` (Filter, Trackingverlust). |
+| `src/motion/oneEuro.ts` | One-Euro-Filter (zeitbasiert). |
+| `src/stage3d/bodyCam.ts` | `applyBodyOffset` / `bodyFrame`: Offset auf die Startansicht einer Position der Stage. |
+| `src/trace/BodyCamController.ts`, `tabs/BodyTab.tsx` | Phone-Seite: Tab „Body cam“ (`#/trace/body`), Overlay, Regler. |
+| `src/session/protocol.ts` | Nachrichten `body_state`, `body_cam`; `tv_status.body` (Latenzmessung). |
+
+### Kalibrierung (Telefon führt, TV zeigt die Anweisung groß an, Pieptöne)
+
+1. **Platzierung** (`checkPlacement`): Person erkannt; ganzer Körper (Nase, Schultern, Hüfte, Knie, Knöchel sichtbar und im Bild);
+   Körperhöhe 55–85 % der Bildhöhe (zu weit / zu nah); Hüftmitte ±10 % um die Bildmitte; Helligkeit (Luma 60–225, Gegenlicht).
+2. **Neutral** (3 s am Mittelpunkt): Median Hüft-x (`hipX0`), Torsolänge (`torso0`), Schulterbreite (90.-Perzentil, `shoulderW0`),
+   Augenhöhe, Nasenversatz.
+3. **Links / rechts** (je 1,6 s Halten nach 3 s Anlauf): Komfortgrenzen als lateraler Pixelabstand (`limitLeftPx`, `limitRightPx`).
+   Links/Rechts sind die der **Person**; die Kamera blickt auf die Person, also ist deren rechte Seite im Bild links (`flip = −1`,
+   in der UI umschaltbar). Zu kleine Schritte (< 25 % Torso) werden gemeldet, es gilt dann ein Standardbereich.
+4. **Drehung links / rechts**: größter bequemer Körperdrehwinkel je Seite (`turnLeftDeg`, `turnRightDeg`; Standard 25°, wenn < 8° gemessen).
+5. Optional **Körpergröße** (Standard 1,78 m): nur für die Pixel→Meter-Umrechnung von Anzeige und Kopfhöhe; die Spurbreite braucht sie nicht.
+
+Gemessen wird jeweils der Median der zweiten Hälfte des Halte-Fensters, mindestens 8 getrackte Frames, sonst klare Fehlermeldung.
+
+### Abbildung Pose → Kamera (alles relativ zur Startansicht der gewählten Position, im Koordinatensystem des Schützen)
+
+| Kanal | Messgröße | Abbildung |
+|---|---|---|
+| Seitlich `dx` | Hüft-x relativ zu `hipX0`, normiert auf die Komfortgrenze der jeweiligen Seite | One-Euro → Gain → Totzone (6 %, behält den vollen Bereich) → Soft-Clamp (Knie bei 80 %, danach tanh) → × Spurhalbbreite (Standard 0,8 m). Die Komfortgrenze entspricht dem Spurrand. |
+| Vor/zurück `dz` | Torsolänge / `torso0` − 1 (näher am Telefon = vorwärts) | ±20 % ⇒ ±0,25 m, Totzone 4 %, Soft-Clamp |
+| Gieren `yaw` | Betrag: arccos(Schulterbreite / `shoulderW0`); Vorzeichen: Nasenversatz zur Schultermitte (Totband 3 % der Schulterbreite, davor bleibt das letzte Vorzeichen) | normiert auf den kalibrierten Max-Winkel je Seite, Totzone 12 %, Soft-Clamp, × ±35° |
+| Höhe `dy` | Augenhöhe relativ zu `headY0` in Torsolängen × Torsolänge (0,29 × Körpergröße) | Totzone 4 %, nach unten bis −0,5 m, nach oben +0,1 m |
+
+* **Filter:** One-Euro je Kanal auf der Messgröße (vor der nichtlinearen Formung ⇒ ruhig in der Totzone), Standard seitlich
+  `minCutoff 1,5 Hz, β 0,8`. Auf dem TV zusätzlich exponentielles Glätten mit τ = 30 ms, damit die 30-Hz-Pakete im 60-Hz-Render nicht stufig wirken.
+* **Trackingverlust:** Ansicht 400 ms halten, dann in 1,5 s (smoothstep) zur Startansicht zurück; TV zeigt „person not tracked“ bzw. „phone signal lost“ (kein Paket seit 1,5 s).
+* **Mehrere Positionen:** `pos` wählt die Position der Stage, deren Ansicht gesteuert wird (z. B. „Three Positions“). Der Wechsel zwischen
+  Positionen im Lauf ist noch nicht an den Körper gekoppelt; Training und Body Camera laufen getrennt.
+* **Parameter** (Spurbreite, Gain, Totzone, Gier-Max, Tiefe, Kniehub, Glättung, β) sind in der UI einstellbar und im Browser gespeichert.
+
+### Übertragung
+
+`body_cam` (~30 Hz, höchstens alle 24 ms): vier gerundete Zahlen + `seq`, `tCap`, `pos`, `tracked` (ca. 110 Byte JSON). `tCap` ist die Frame-Zeit
+auf der Telefon-Uhr; der TV rechnet sie mit dem vorhandenen NTP-artigen Uhrabgleich (`clockSync`) um und meldet jede Sekunde Latenz-Perzentile
+(`tv_status.body`). Gemessen werden **Aufnahme → Ankunft** und **Aufnahme → erster gerenderter Frame mit diesem Wert** (Render-Submit). Nicht messbar im
+Browser: Sensor → Frame-Zeitstempel und die Anzeigeverzögerung des Fernsehers (HDMI/Panel; Spielmodus aktivieren).
+
+### Messungen (Stand dieser Implementierung)
+
+* **Unit-Tests:** `npm test` (Mapping, Totzone, Soft-Clamp, One-Euro, Drehwinkel, Placement, Kalibrierablauf inkl. Fehlerfälle, Kamera-Offset auf allen
+  eingebauten Stages/Positionen).
+* **Transport + TV (Desktop, synthetische Frames, kein Telefon):** Phone-Tab und TV-Tab über das lokale Relay, 31 Nachrichten/s,
+  Aufnahme → Ankunft ≈ 0,4 ms (p95 0,6 ms), Aufnahme → gerenderter Frame ≈ 23 ms (p95 27 ms; Render im Desktop-Browser mit Software-GL), Uhrabgleich ±0,25 ms.
+  Die Ansicht folgte sichtbar der simulierten Seitwärts-/Drehbewegung. **Das ist nur der Transport- und Renderanteil, ohne Kamera und ohne Pose-Inferenz.**
+* **Noch nicht gemessen (braucht echtes Telefon + WLAN + TV):** Kamera-Verzögerung (Belichtung + Pufferung typ. 30–100 ms), Inferenz-FPS/Temperatur
+  des Telefons, WLAN-Jitter, Verhalten bei Gegenlicht/Dämmerung und wenn die Person das Bild verlässt. Dazu den Tab „Body cam“ im Telefon öffnen, der Block
+  „Latency & rate“ zeigt FPS, Inferenzzeit, Aufnahme → gesendet (Telefon) und die TV-Latenzen live.
+
+### Erwartete Schwächen (aus der Geometrie, vor dem Praxistest)
+
+* Gieren aus der Schulterbreite ist bei kleinen Winkeln rauschanfällig (arccos nahe 1); deshalb Totzone und Vorzeichen-Totband. Besser wäre
+  zusätzlich MediaPipes Welt-Landmarks (Schulter-Tiefendifferenz), im Lite-Modell aber ebenfalls verrauscht — Vergleich offen.
+* Tiefe (Torsogröße) ändert sich auch beim Vorbeugen/Hocken; Hocke und Rückwärtsgehen sind nicht trennbar. Daher nur ±0,25 m.
+* Seitliche Schritte ändern die Perspektive (Schulterbreite nimmt am Bildrand leicht ab) ⇒ kleiner Scheingieren-Anteil am Rand.
+* Hüft-x bewegt sich auch bei Gewichtsverlagerung/Schritt ohne Positionswechsel; die Totzone fängt Wippen ab, kostet aber Auflösung.
+
+### Nächste Schritte
+
+1. Echter Telefontest (iPhone/Android, Lite vs. Full, 720p/480p, 30/60 fps), Messwerte in diese Tabelle eintragen.
+2. Pose-Inferenz in einen Worker, Latenz der Kameraframes über `captureTime` vs. Präsentationszeit prüfen.
+3. Welt-Landmarks als zweite Gier-Quelle; adaptive Totzone nach gemessenem Jitter (wie `calibration.ts`).
+4. Positionswechsel (Stage mit mehreren Positionen) über Schritt/Geste auslösen statt über die manuelle Auswahl.
+5. Stages auf dem Telefon laden (Capacitor) — die Messgrößen und die Abbildung sind plattformneutral (`src/motion`, kein DOM).
