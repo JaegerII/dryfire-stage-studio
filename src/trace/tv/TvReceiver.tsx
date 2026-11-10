@@ -84,8 +84,10 @@ interface BodyRuntime {
   paint: number[];
   arrivals: number[];
   fresh: boolean;
+  /** Smoothed gap between messages, ms: the smoothing follows it, so a slow phone does not look steppy. */
+  dtEma: number;
 }
-const newBody = (): BodyRuntime => ({ target: ZERO_OFFSET, cur: ZERO_OFFSET, pos: 0, tracked: true, lastAt: 0, pendingCap: null, arrive: [], paint: [], arrivals: [], fresh: true });
+const newBody = (): BodyRuntime => ({ target: ZERO_OFFSET, cur: ZERO_OFFSET, pos: 0, tracked: true, lastAt: 0, pendingCap: null, arrive: [], paint: [], arrivals: [], fresh: true, dtEma: 33 });
 
 const bodyStats = (b: BodyRuntime, syncUncertaintyMs: number | null): BodyLinkStats => ({
   arriveMs: summarize(b.arrive),
@@ -208,7 +210,8 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
           b.arrive.push(now + est.offset - m.tCap);
           if (b.arrive.length > 150) b.arrive.shift();
         }
-        b.target = { dx: m.dx, dz: m.dz, dy: m.dy, yaw: m.yaw };
+        if (b.lastAt > 0 && now - b.lastAt < 500) b.dtEma = b.dtEma * 0.9 + (now - b.lastAt) * 0.1;
+        b.target = { dx: m.dx, dz: m.dz, dy: m.dy, yaw: m.yaw, roll: m.roll ?? 0 };
         b.pos = m.pos;
         b.tracked = m.tracked;
         b.lastAt = now;
@@ -315,10 +318,12 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
     const tick = () => {
       const now = performance.now();
       const b = body.current;
-      const a = smoothingAlpha((now - last) / 1000, BODY_SMOOTH_TAU);
+      // follow about one message gap behind: smooth at 30 Hz, still glides at 10-15 Hz
+      const tau = Math.min(0.12, Math.max(BODY_SMOOTH_TAU, (b.dtEma / 1000) * 0.9));
+      const a = smoothingAlpha((now - last) / 1000, tau);
       last = now;
       const lerp = (x: number, y: number) => x + (y - x) * a;
-      b.cur = { dx: lerp(b.cur.dx, b.target.dx), dz: lerp(b.cur.dz, b.target.dz), dy: lerp(b.cur.dy, b.target.dy), yaw: lerp(b.cur.yaw, b.target.yaw) };
+      b.cur = { dx: lerp(b.cur.dx, b.target.dx), dz: lerp(b.cur.dz, b.target.dz), dy: lerp(b.cur.dy, b.target.dy), yaw: lerp(b.cur.yaw, b.target.yaw), roll: lerp(b.cur.roll, b.target.roll) };
       paint(null, { pos: b.pos, offset: b.cur });
       const est = client.current?.sync.estimate;
       if (b.pendingCap !== null && est) {

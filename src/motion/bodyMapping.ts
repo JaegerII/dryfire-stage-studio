@@ -17,9 +17,11 @@ export interface BodyOffset {
   dy: number;
   /** degrees, + = look right */
   yaw: number;
+  /** degrees, head tilt, + = right ear down (leaning to the right) */
+  roll: number;
 }
 
-export const ZERO_OFFSET: BodyOffset = { dx: 0, dz: 0, dy: 0, yaw: 0 };
+export const ZERO_OFFSET: BodyOffset = { dx: 0, dz: 0, dy: 0, yaw: 0, roll: 0 };
 
 export interface BodyMapConfig {
   /** Half width of the lane in metres: the comfort limit on either side maps to this. */
@@ -38,6 +40,11 @@ export interface BodyMapConfig {
   maxYaw: number;
   /** Dead zone of the turn, share of the comfort turn. */
   yawDead: number;
+  /** Camera roll at the comfortable upper-body lean, degrees; and the sideways head shift that goes with it, metres. */
+  maxRoll: number;
+  leanShift: number;
+  leanDead: number;
+  filterLean: OneEuroParams;
   /** Eye height travel in metres (down, up); 0 disables. */
   heightDown: number;
   heightUp: number;
@@ -60,14 +67,19 @@ export const DEFAULT_BODY_MAP: BodyMapConfig = {
   knee: 0.8,
   depthRange: 0.25,
   depthDead: 0.04,
-  maxYaw: 35,
-  yawDead: 0.12,
+  // yaw from the shoulder line is the noisiest channel (arccos near 0°): calm and conservative by default
+  maxYaw: 25,
+  yawDead: 0.3,
+  maxRoll: 18,
+  leanShift: 0.2,
+  leanDead: 0.1,
+  filterLean: { minCutoff: 1.0, beta: 0.4, dCutoff: 1 },
   heightDown: 0.5,
   heightUp: 0.1,
   heightDead: 0.04,
   filterLateral: { minCutoff: 1.5, beta: 0.8, dCutoff: 1 },
   filterDepth: { minCutoff: 0.8, beta: 0.3, dCutoff: 1 },
-  filterYaw: { minCutoff: 1.2, beta: 0.5, dCutoff: 1 },
+  filterYaw: { minCutoff: 0.5, beta: 0.15, dCutoff: 1 },
   filterHeight: { minCutoff: 0.8, beta: 0.3, dCutoff: 1 },
   lostHoldMs: 400,
   returnMs: 1500,
@@ -103,6 +115,12 @@ export const lateralUnits = (f: BodyFeatures, c: BodyCalibration) => {
   return lat >= 0 ? lat / Math.max(1, c.limitRightPx) : lat / Math.max(1, -c.limitLeftPx);
 };
 
+/** Upper-body lean relative to the neutral stance in units of the comfort lean (−1 left … +1 right). */
+export const leanUnits = (f: BodyFeatures, c: BodyCalibration) => {
+  const l = c.flip * f.lean - (c.lean0 ?? 0);
+  return l >= 0 ? l / Math.max(0.05, c.leanRight ?? 0.3) : l / Math.max(0.05, -(c.leanLeft ?? -0.3));
+};
+
 /** Torso scale change relative to the neutral stance (+ = closer to the phone). */
 export const depthUnits = (f: BodyFeatures, c: BodyCalibration) => f.torso / Math.max(1, c.torso0) - 1;
 
@@ -121,7 +139,7 @@ export interface MapResult {
   /** How long tracking has been lost, ms (0 while tracked). */
   lostMs: number;
   /** Raw measurements before shaping, for the debug overlay. */
-  raw: { lateral: number; depth: number; turnDeg: number; height: number } | null;
+  raw: { lateral: number; depth: number; turnDeg: number; height: number; lean: number } | null;
 }
 
 export class BodyCameraMapper {
@@ -129,6 +147,7 @@ export class BodyCameraMapper {
   private fz = new OneEuro();
   private fy = new OneEuro();
   private fh = new OneEuro();
+  private fl = new OneEuro();
   private sign: 1 | -1 = 1;
   private lastT: number | null = null;
   private lastValidT = 0;
@@ -147,10 +166,11 @@ export class BodyCameraMapper {
     this.fz.params = this.cfg.filterDepth;
     this.fy.params = this.cfg.filterYaw;
     this.fh.params = this.cfg.filterHeight;
+    this.fl.params = this.cfg.filterLean;
   }
 
   reset() {
-    for (const f of [this.fx, this.fz, this.fy, this.fh]) f.reset();
+    for (const f of [this.fx, this.fz, this.fy, this.fh, this.fl]) f.reset();
     this.lastT = null;
     this.held = ZERO_OFFSET;
   }
@@ -163,7 +183,7 @@ export class BodyCameraMapper {
       const k = lost <= cfg.lostHoldMs ? 1 : 1 - clamp((lost - cfg.lostHoldMs) / cfg.returnMs, 0, 1);
       const e = k * k * (3 - 2 * k);
       const h = this.held;
-      return { offset: { dx: h.dx * e, dz: h.dz * e, dy: h.dy * e, yaw: h.yaw * e }, tracked: false, lostMs: Number.isFinite(lost) ? lost : 0, raw: this.lastRaw };
+      return { offset: { dx: h.dx * e, dz: h.dz * e, dy: h.dy * e, yaw: h.yaw * e, roll: h.roll * e }, tracked: false, lostMs: Number.isFinite(lost) ? lost : 0, raw: this.lastRaw };
     }
     const t = tMs / 1000;
     this.lastT = tMs;
@@ -175,16 +195,19 @@ export class BodyCameraMapper {
     const dep = this.fz.filter(depthUnits(f, c), t);
     const yaw = this.fy.filter(turn.deg, t);
     const hgt = this.fh.filter(heightUnits(f, c), t);
+    const lean = this.fl.filter(leanUnits(f, c), t);
 
-    const dx = softClamp(deadZone(clamp(lat, -3, 3), cfg.deadZone), cfg.knee) * cfg.laneHalfWidth;
+    const leanU = softClamp(deadZone(clamp(lean, -3, 3), cfg.leanDead), cfg.knee);
+    // hip movement walks the lane; the leaning upper body adds a small head shift and the tilt of the view
+    const dx = softClamp(deadZone(clamp(lat, -3, 3), cfg.deadZone), cfg.knee) * cfg.laneHalfWidth + leanU * cfg.leanShift;
     const dz = cfg.depthRange === 0 ? 0 : softClamp(deadZone(clamp(dep / 0.2, -3, 3), cfg.depthDead / 0.2), cfg.knee) * cfg.depthRange;
     const turnLim = yaw >= 0 ? c.turnRightDeg : c.turnLeftDeg;
     const ya = softClamp(deadZone(clamp(yaw / Math.max(1, turnLim), -3, 3), cfg.yawDead), cfg.knee) * cfg.maxYaw;
     const hm = hgt * torsoMeters(c);
     const dy = hm >= 0 ? softClamp(deadZone(clamp(hm / Math.max(0.01, cfg.heightUp), -3, 3), cfg.heightDead), cfg.knee) * cfg.heightUp : -softClamp(deadZone(clamp(-hm / Math.max(0.01, cfg.heightDown), -3, 3), cfg.heightDead), cfg.knee) * cfg.heightDown;
 
-    this.held = { dx, dz, dy, yaw: ya };
-    this.lastRaw = { lateral: lat, depth: dep, turnDeg: yaw, height: hgt };
+    this.held = { dx, dz, dy, yaw: ya, roll: leanU * cfg.maxRoll };
+    this.lastRaw = { lateral: lat, depth: dep, turnDeg: yaw, height: hgt, lean };
     return { offset: this.held, tracked: true, lostMs: 0, raw: this.lastRaw };
   }
 }

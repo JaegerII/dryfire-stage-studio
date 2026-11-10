@@ -19,6 +19,8 @@ export interface SynthBody {
   torso?: number;
   /** frontal shoulder width, px */
   shoulderW?: number;
+  /** upper-body lean at fixed hips, torso fractions, + = to the person's right */
+  lean?: number;
   /** degrees, + = turned to the person's right */
   turn?: number;
   /** px the eye line is raised above neutral (+ up) */
@@ -39,7 +41,8 @@ export const bodyFeatures = (b: SynthBody = {}): BodyFeatures => {
   return {
     t: b.t ?? 0,
     hipX,
-    shoulderX: hipX,
+    shoulderX: hipX - (b.lean ?? 0) * torso,
+    lean: -(b.lean ?? 0),
     shoulderW: sw,
     torso,
     noseDx: -noseLat,

@@ -17,6 +17,8 @@ export interface BodyFeatures {
   torso: number;
   /** Nose x minus shoulder centre x, px (image direction). */
   noseDx: number;
+  /** (shoulder centre x − hip centre x) / torso, image direction: sideways lean of the upper body at fixed hips. */
+  lean: number;
   /** Eye-line y (mean of both eyes, nose as fallback), px. */
   headY: number;
   /** Mean visibility of the core points (shoulders, hips, nose). */
@@ -42,5 +44,5 @@ export const extractBodyFeatures = (f: PoseFrame): BodyFeatures | null => {
   const eyesOk = p[LM.leftEye].visibility >= MIN_VISIBILITY && p[LM.rightEye].visibility >= MIN_VISIBILITY;
   const headY = eyesOk ? (p[LM.leftEye].y + p[LM.rightEye].y) / 2 * f.height : nose.y;
   const conf = (core.reduce((s, i) => s + p[i].visibility, 0) + p[LM.nose].visibility) / (core.length + 1);
-  return { t: f.t, hipX: hm.x, shoulderX: sm.x, shoulderW: dist(ls, rs), torso: dist(sm, hm), noseDx: nose.x - sm.x, headY, confidence: conf };
+  return { t: f.t, hipX: hm.x, shoulderX: sm.x, shoulderW: dist(ls, rs), torso: dist(sm, hm), lean: (sm.x - hm.x) / Math.max(1, dist(sm, hm)), noseDx: nose.x - sm.x, headY, confidence: conf };
 };

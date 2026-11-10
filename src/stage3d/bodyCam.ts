@@ -19,6 +19,7 @@ export const applyBodyOffset = (base: CameraPose, o: BodyOffset, headingDeg: num
     z: base.z + Math.sin(h) * o.dx - Math.cos(h) * o.dz,
     y: base.y + o.dy,
     yaw: base.yaw + o.yaw,
+    roll: base.roll + o.roll,
   };
 };
 

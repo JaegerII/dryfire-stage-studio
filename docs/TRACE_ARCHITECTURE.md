@@ -272,6 +272,8 @@ keine Capacitor-/Native-Anbindung.
    Links/Rechts sind die der **Person**; die Kamera blickt auf die Person, also ist deren rechte Seite im Bild links (`flip = −1`,
    in der UI umschaltbar). Zu kleine Schritte (< 25 % Torso) werden gemeldet, es gilt dann ein Standardbereich.
 4. **Drehung links / rechts**: größter bequemer Körperdrehwinkel je Seite (`turnLeftDeg`, `turnRightDeg`; Standard 25°, wenn < 8° gemessen).
+4b. **Seitneigung links / rechts** (Hüfte ruhig, Oberkörper neigen): größte bequeme Neigung je Seite (`leanLeft`, `leanRight`; Standard 0,3 Torsolängen ≈ 17°, wenn < 0,08 gemessen).
+    **Seitenerkennung:** kommt der Schritt „links“ positiv und „rechts“ negativ heraus, ist die Annahme `flip` für diese Kamera vertauscht; die Kalibrierung dreht sie selbst um (Hinweis in den Warnungen), alle Seiten (Schritt, Drehung, Neigung) werden mit korrigiert.
 5. Optional **Körpergröße** (Standard 1,78 m): nur für die Pixel→Meter-Umrechnung von Anzeige und Kopfhöhe; die Spurbreite braucht sie nicht.
 
 Gemessen wird jeweils der Median der zweiten Hälfte des Halte-Fensters, mindestens 8 getrackte Frames, sonst klare Fehlermeldung.
@@ -283,6 +285,7 @@ Gemessen wird jeweils der Median der zweiten Hälfte des Halte-Fensters, mindest
 | Seitlich `dx` | Hüft-x relativ zu `hipX0`, normiert auf die Komfortgrenze der jeweiligen Seite | One-Euro → Gain → Totzone (6 %, behält den vollen Bereich) → Soft-Clamp (Knie bei 80 %, danach tanh) → × Spurhalbbreite (Standard 0,8 m). Die Komfortgrenze entspricht dem Spurrand. |
 | Vor/zurück `dz` | Torsolänge / `torso0` − 1 (näher am Telefon = vorwärts) | ±20 % ⇒ ±0,25 m, Totzone 4 %, Soft-Clamp |
 | Gieren `yaw` | Betrag: arccos(Schulterbreite / `shoulderW0`); Vorzeichen: Nasenversatz zur Schultermitte (Totband 3 % der Schulterbreite, davor bleibt das letzte Vorzeichen) | normiert auf den kalibrierten Max-Winkel je Seite, Totzone 12 %, Soft-Clamp, × ±35° |
+| Seitneigung `roll` + Kopfversatz | Oberkörper-Neigung bei ruhiger Hüfte: (Schulter-x − Hüft-x) / Torsolänge, relativ zum Neutralwert, normiert auf die kalibrierte Komfortneigung je Seite | One-Euro, Totzone 10 %, Soft-Clamp, × ±18° Kamera-Roll und ±0,2 m seitlicher Kopfversatz (addiert sich zu `dx`). Reines Gehen mit geradem Körper rollt die Ansicht nicht (getestet). |
 | Höhe `dy` | Augenhöhe relativ zu `headY0` in Torsolängen × Torsolänge (0,29 × Körpergröße) | Totzone 4 %, nach unten bis −0,5 m, nach oben +0,1 m |
 
 * **Filter:** One-Euro je Kanal auf der Messgröße (vor der nichtlinearen Formung ⇒ ruhig in der Totzone), Standard seitlich

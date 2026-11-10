@@ -101,7 +101,7 @@ export const BodyTab = () => {
         ctx.fillStyle = '#edede6';
         ctx.font = `${Math.round(W / 40)}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText(`x ${o.dx.toFixed(2)} m   yaw ${o.yaw.toFixed(0)}°   fwd ${o.dz.toFixed(2)}   up ${o.dy.toFixed(2)}`, bx, by - lw * 9);
+        ctx.fillText(`x ${o.dx.toFixed(2)} m   yaw ${o.yaw.toFixed(0)}°   roll ${o.roll.toFixed(0)}°   fwd ${o.dz.toFixed(2)}   up ${o.dy.toFixed(2)}`, bx, by - lw * 9);
       }
     });
   }, [c.pipeline, b, mirror]);
@@ -279,6 +279,8 @@ export const BodyTab = () => {
         <Slider label="Lateral gain" value={b.cfg.gain} min={0.5} max={2} step={0.05} onChange={(v) => b.updateConfig({ gain: v })} />
         <Slider label="Dead zone" value={b.cfg.deadZone} min={0} max={0.2} step={0.01} onChange={(v) => b.updateConfig({ deadZone: v })} />
         <Slider label="Yaw at max turn" unit="°" value={b.cfg.maxYaw} min={0} max={50} step={1} onChange={(v) => b.updateConfig({ maxYaw: v })} />
+        <Slider label="Roll at max lean" unit="°" value={b.cfg.maxRoll} min={0} max={35} step={1} onChange={(v) => b.updateConfig({ maxRoll: v })} />
+        <Slider label="Head shift when leaning" unit=" m" value={b.cfg.leanShift} min={0} max={0.5} step={0.05} onChange={(v) => b.updateConfig({ leanShift: v })} />
         <Slider label="Forward / back travel" unit=" m" value={b.cfg.depthRange} min={0} max={0.6} step={0.05} onChange={(v) => b.updateConfig({ depthRange: v })} />
         <Slider label="Crouch travel" unit=" m" value={b.cfg.heightDown} min={0} max={0.8} step={0.05} onChange={(v) => b.updateConfig({ heightDown: v })} />
         <Slider

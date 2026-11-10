@@ -32,6 +32,10 @@ export interface BodyCalibration {
   /** Largest comfortable body turn, degrees (positive; each side). */
   turnLeftDeg: number;
   turnRightDeg: number;
+  /** Upper-body lean at the neutral stance and at the comfort limits (torso fractions, lateral sign: left < 0 < right). Optional: older calibrations lack it. */
+  lean0?: number;
+  leanLeft?: number;
+  leanRight?: number;
   /** Optional: body height, metres — gives px → metres (informational; the lane mapping does not need it). */
   bodyHeightM?: number;
   /** Frame size the pixel values refer to. */
@@ -125,7 +129,7 @@ export const checkPlacement = (f: PoseFrame, luma?: number): PlacementReport => 
 
 // ------------------------------------------------------------------ guided calibration
 
-export type CalStepId = 'neutral' | 'left' | 'right' | 'turnLeft' | 'turnRight';
+export type CalStepId = 'neutral' | 'left' | 'right' | 'turnLeft' | 'turnRight' | 'leanLeft' | 'leanRight';
 
 export interface CalStep {
   id: CalStepId;
@@ -143,6 +147,8 @@ export const CAL_STEPS: CalStep[] = [
   { id: 'right', prompt: 'Step RIGHT as far as is comfortable — and hold', prepMs: 3500, holdMs: 1600 },
   { id: 'turnLeft', prompt: 'Back to centre, turn your body LEFT as far as is comfortable — and hold', prepMs: 3500, holdMs: 1600 },
   { id: 'turnRight', prompt: 'Turn your body RIGHT as far as is comfortable — and hold', prepMs: 3500, holdMs: 1600 },
+  { id: 'leanLeft', prompt: 'Back to centre, keep your hips still and LEAN your upper body LEFT — and hold', prepMs: 3500, holdMs: 1600 },
+  { id: 'leanRight', prompt: 'Keep your hips still and LEAN your upper body RIGHT — and hold', prepMs: 3500, holdMs: 1600 },
 ];
 
 export type CalPhase = 'prep' | 'hold' | 'done' | 'failed';
@@ -197,6 +203,9 @@ export class BodyCalibrator {
   private right = 0;
   private turnL = 0;
   private turnR = 0;
+  private lean0 = 0;
+  private leanL = 0;
+  private leanR = 0;
   private problems: string[] = [];
   private warnings: string[] = [];
   private status: CalStatus;
@@ -262,6 +271,7 @@ export class BodyCalibrator {
     const m = (k: keyof BodyFeatures) => median(h.map((x) => x[k]));
     if (step.id === 'neutral') {
       this.neutral = { hipX0: m('hipX'), shoulderW0: percentile(h.map((x) => x.shoulderW), 0.9), torso0: m('torso'), headY0: m('headY'), noseDx0: m('noseDx') };
+      this.lean0 = this.flip * m('lean');
       return true;
     }
     const n = this.neutral!;
@@ -279,8 +289,11 @@ export class BodyCalibrator {
       return r.deg;
     });
     const a = median(angles);
-    if (step.id === 'turnLeft') this.turnL = Math.max(0, -a);
-    else this.turnR = Math.max(0, a);
+    // raw signed angles; the sign is resolved in build() (the left / right assumption may have to be swapped)
+    if (step.id === 'turnLeft') this.turnL = a;
+    else if (step.id === 'turnRight') this.turnR = a;
+    else if (step.id === 'leanLeft') this.leanL = this.flip * m('lean') - this.lean0;
+    else this.leanR = this.flip * m('lean') - this.lean0;
     return true;
   }
 
@@ -290,6 +303,15 @@ export class BodyCalibrator {
     const minStep = 0.25 * n.torso0;
     let left = this.left;
     let right = this.right;
+    // The left step came out positive and the right step negative: the left / right assumption (camera facing the
+    // person, flip) is reversed for this camera — swap it instead of working with a mirrored view.
+    const swapped = left > minStep && right < -minStep;
+    const s = swapped ? -1 : 1;
+    if (swapped) {
+      left = -left;
+      right = -right;
+      warn.push('Left and right were reversed for this camera — corrected automatically.');
+    }
     if (left > -minStep) {
       warn.push('Left limit very small or on the wrong side — the step to the left was too short; using a default range.');
       left = -0.9 * n.torso0;
@@ -300,8 +322,8 @@ export class BodyCalibrator {
     }
     const MIN_TURN = 8;
     const DEFAULT_TURN = 25;
-    let turnL = this.turnL;
-    let turnR = this.turnR;
+    let turnL = Math.max(0, -s * this.turnL);
+    let turnR = Math.max(0, s * this.turnR);
     if (turnL < MIN_TURN) {
       warn.push(`Left turn only ${turnL.toFixed(0)}° measured — using ${DEFAULT_TURN}°.`);
       turnL = DEFAULT_TURN;
@@ -310,10 +332,25 @@ export class BodyCalibrator {
       warn.push(`Right turn only ${turnR.toFixed(0)}° measured — using ${DEFAULT_TURN}°.`);
       turnR = DEFAULT_TURN;
     }
+    const MIN_LEAN = 0.08;
+    const DEFAULT_LEAN = 0.3;
+    let leanL = s * this.leanL;
+    let leanR = s * this.leanR;
+    if (leanL > -MIN_LEAN) {
+      warn.push('Left lean very small — keep the hips still and lean the upper body further; using a default.');
+      leanL = -DEFAULT_LEAN;
+    }
+    if (leanR < MIN_LEAN) {
+      warn.push('Right lean very small — keep the hips still and lean the upper body further; using a default.');
+      leanR = DEFAULT_LEAN;
+    }
     return {
       version: BODY_CAL_VERSION,
       at: Date.now(),
-      flip: this.flip,
+      flip: swapped ? (-this.flip as 1 | -1) : this.flip,
+      lean0: s * this.lean0,
+      leanLeft: leanL,
+      leanRight: leanR,
       ...n,
       limitLeftPx: left,
       limitRightPx: right,

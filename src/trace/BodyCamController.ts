@@ -220,7 +220,7 @@ export class BodyCamController {
       this.lastSent = f.t;
       const o = result.offset;
       const r = (v: number) => Math.round(v * 1000) / 1000;
-      this.d.session()?.send({ type: 'body_cam', seq: ++this.seq, tCap: f.t, pos: this.pos, tracked: result.tracked, dx: r(o.dx), dz: r(o.dz), dy: r(o.dy), yaw: Math.round(o.yaw * 100) / 100 });
+      this.d.session()?.send({ type: 'body_cam', seq: ++this.seq, tCap: f.t, pos: this.pos, tracked: result.tracked, dx: r(o.dx), dz: r(o.dz), dy: r(o.dy), yaw: Math.round(o.yaw * 100) / 100, roll: Math.round(o.roll * 100) / 100 });
       const sent = performance.now();
       this.lags.push(sent - f.t);
       if (this.lags.length > 60) this.lags.shift();

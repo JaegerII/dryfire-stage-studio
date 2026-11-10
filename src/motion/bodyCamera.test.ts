@@ -128,6 +128,8 @@ describe('BodyCalibrator', () => {
       case 'right': return { lateral: 115 };
       case 'turnLeft': return { turn: -22 };
       case 'turnRight': return { turn: 28 };
+      case 'leanLeft': return { lean: -0.3 };
+      case 'leanRight': return { lean: 0.35 };
       default: return {};
     }
   };
@@ -141,7 +143,24 @@ describe('BodyCalibrator', () => {
     expect(r.limitRightPx).toBeCloseTo(115, 0);
     expect(r.turnLeftDeg).toBeCloseTo(22, 0);
     expect(r.turnRightDeg).toBeCloseTo(28, 0);
+    expect(r.leanLeft).toBeCloseTo(-0.3, 1);
+    expect(r.leanRight).toBeCloseTo(0.35, 1);
+    expect(r.flip).toBe(-1);
     expect(r.warnings).toEqual([]);
+  });
+  it('detects reversed left / right and corrects it', () => {
+    // a camera for which the person's right is on the image's RIGHT: everything the person does appears mirrored
+    const mirrored = (id: string): SynthBody => {
+      const b = person(id);
+      return { ...b, lateral: b.lateral !== undefined ? -b.lateral : undefined, turn: b.turn !== undefined ? -b.turn : undefined, lean: b.lean !== undefined ? -b.lean : undefined };
+    };
+    const r = runCalibration(mirrored).result!;
+    expect(r.flip).toBe(1);
+    expect(r.limitLeftPx).toBeCloseTo(-90, 0);
+    expect(r.limitRightPx).toBeCloseTo(115, 0);
+    expect(r.turnLeftDeg).toBeCloseTo(22, 0);
+    expect(r.leanRight).toBeCloseTo(0.35, 1);
+    expect(r.warnings.join(' ')).toMatch(/reversed/);
   });
   it('falls back to defaults and warns when a step was too small', () => {
     const r = runCalibration((id) => (id === 'left' ? { lateral: -3 } : person(id))).result!;
@@ -154,7 +173,7 @@ describe('BodyCalibrator', () => {
     expect(st.problems[0]).toMatch(/not enough tracked frames/);
   });
   it('walks the steps in order with prompts', () => {
-    expect(CAL_STEPS.map((s) => s.id)).toEqual(['neutral', 'left', 'right', 'turnLeft', 'turnRight']);
+    expect(CAL_STEPS.map((s) => s.id)).toEqual(['neutral', 'left', 'right', 'turnLeft', 'turnRight', 'leanLeft', 'leanRight']);
   });
 });
 
@@ -196,15 +215,31 @@ describe('BodyCameraMapper', () => {
     expect(feed(mk(), { torso: NEUTRAL.torso * 0.85 }).offset.dz).toBeLessThan(-0.1);
   });
   it('turn: ±35° at the comfort limit, sign from the nose', () => {
-    expect(feed(mk(), { turn: 30 }).offset.yaw).toBeGreaterThan(28);
-    expect(feed(mk(), { turn: 30 }).offset.yaw).toBeLessThanOrEqual(35);
-    expect(feed(mk(), { turn: -25 }).offset.yaw).toBeLessThan(-28);
-    expect(feed(mk(), { turn: 70 }).offset.yaw).toBeLessThanOrEqual(35 + 1e-9);
+    expect(feed(mk(), { turn: 30 }).offset.yaw).toBeGreaterThan(DEFAULT_BODY_MAP.maxYaw * 0.8);
+    expect(feed(mk(), { turn: 30 }).offset.yaw).toBeLessThanOrEqual(DEFAULT_BODY_MAP.maxYaw);
+    expect(feed(mk(), { turn: -25 }).offset.yaw).toBeLessThan(-DEFAULT_BODY_MAP.maxYaw * 0.8);
+    expect(feed(mk(), { turn: 70 }).offset.yaw).toBeLessThanOrEqual(DEFAULT_BODY_MAP.maxYaw + 1e-9);
   });
   it('lower head = lower eye height (clamped), higher = a little up', () => {
     expect(feed(mk(), { up: -80 }).offset.dy).toBeLessThan(-0.15);
     expect(feed(mk(), { up: -2000 }).offset.dy).toBeGreaterThanOrEqual(-DEFAULT_BODY_MAP.heightDown - 1e-9);
     expect(feed(mk(), { up: 30 }).offset.dy).toBeGreaterThan(0);
+  });
+  it('leaning the upper body (hips still) tilts the view and moves the head to that side', () => {
+    const r = feed(mk(), { lean: 0.3 }).offset;
+    const l = feed(mk(), { lean: -0.3 }).offset;
+    expect(r.roll).toBeGreaterThan(8);
+    expect(r.dx).toBeGreaterThan(0.05);
+    expect(l.roll).toBeLessThan(-8);
+    expect(l.dx).toBeLessThan(-0.05);
+    expect(Math.abs(r.roll)).toBeLessThanOrEqual(DEFAULT_BODY_MAP.maxRoll + 1e-9);
+    // far less than walking to the lane edge
+    expect(r.dx).toBeLessThan(0.4);
+  });
+  it('walking sideways with a straight body does not roll the view', () => {
+    const o = feed(mk(), { lateral: 110 }).offset;
+    expect(Math.abs(o.roll)).toBeLessThan(0.5);
+    expect(o.dx).toBeGreaterThan(0.5);
   });
   it('lateral movement is independent of the turn channel', () => {
     const o = feed(mk(), { lateral: 100, turn: 0 }).offset;
