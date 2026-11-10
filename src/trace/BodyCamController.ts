@@ -13,7 +13,7 @@ import type { TrackingPipeline } from './TrackingPipeline';
 export type BodyPhase = 'idle' | 'placement' | 'calibrating' | 'live';
 
 const CAL_KEY = 'forth-trace.bodycal.v1';
-const CFG_KEY = 'forth-trace.bodycfg.v1';
+const CFG_KEY = 'forth-trace.bodycfg.v2';
 /** Minimum spacing of messages, ms (≈ 40 Hz at most; a 30 fps camera sends every frame). */
 const MIN_SEND_GAP = 24;
 

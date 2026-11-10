@@ -112,7 +112,7 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
   const [synced, setSynced] = useState(false);
   const [bodyMode, setBodyMode] = useState<BodyMode>('off');
   const [bodyPrompt, setBodyPrompt] = useState('');
-  const [bodyLive, setBodyLive] = useState<{ stale: boolean; tracked: boolean; ms: number | null }>({ stale: false, tracked: true, ms: null });
+  const [bodyLive, setBodyLive] = useState<{ stale: boolean; tracked: boolean; ms: number | null; dx: number; yaw: number; roll: number }>({ stale: false, tracked: true, ms: null, dx: 0, yaw: 0, roll: 0 });
   const body = useRef<BodyRuntime>(newBody());
 
   const client = useRef<SessionClient | null>(null);
@@ -335,7 +335,7 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
         shownAt = now;
         const stale = b.lastAt > 0 && now - b.lastAt > BODY_STALE_MS;
         const ms = b.paint.length ? Math.round(pct(b.paint, 0.5)) : null;
-        setBodyLive((p) => (p.stale === stale && p.tracked === b.tracked && p.ms === ms ? p : { stale, tracked: b.tracked, ms }));
+        setBodyLive({ stale, tracked: b.tracked, ms, dx: b.cur.dx, yaw: b.cur.yaw, roll: b.cur.roll });
       }
       id = requestAnimationFrame(tick);
     };
@@ -371,7 +371,7 @@ const TvSession = ({ room, onExit }: { room: string; onExit: () => void }) => {
           {bodyMode === 'live' && phase !== 'running' && (
             <div className="tv-pill" style={{ position: 'absolute', top: 12, left: 12 }}>
               Body camera · {bodyLive.stale ? 'phone signal lost' : bodyLive.tracked ? 'tracking' : 'person not tracked'}
-              {bodyLive.ms !== null ? ` · ${bodyLive.ms} ms` : ''}
+              {bodyLive.ms !== null ? ` · ${bodyLive.ms} ms` : ''} · x {bodyLive.dx.toFixed(2)} m · yaw {bodyLive.yaw.toFixed(0)}° · roll {bodyLive.roll.toFixed(0)}°
             </div>
           )}
           {phase === 'countdown' && (

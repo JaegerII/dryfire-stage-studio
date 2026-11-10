@@ -282,7 +282,7 @@ Gemessen wird jeweils der Median der zweiten Hälfte des Halte-Fensters, mindest
 
 | Kanal | Messgröße | Abbildung |
 |---|---|---|
-| Seitlich `dx` | Hüft-x relativ zu `hipX0`, normiert auf die Komfortgrenze der jeweiligen Seite | One-Euro → Gain → Totzone (6 %, behält den vollen Bereich) → Soft-Clamp (Knie bei 80 %, danach tanh) → × Spurhalbbreite (Standard 0,8 m). Die Komfortgrenze entspricht dem Spurrand. |
+| Seitlich `dx` | Hüft-x relativ zu `hipX0`, normiert auf die Komfortgrenze der jeweiligen Seite | One-Euro → Gain → Totzone (6 %, behält den vollen Bereich) → Soft-Clamp (Knie bei 80 %, danach tanh) → × Spurhalbbreite (Standard 1,5 m: die Ziele stehen 5–20 m entfernt, 0,8 m Kamerafahrt verschiebt das Bild kaum). Die Komfortgrenze entspricht dem Spurrand. |
 | Vor/zurück `dz` | Torsolänge / `torso0` − 1 (näher am Telefon = vorwärts) | ±20 % ⇒ ±0,25 m, Totzone 4 %, Soft-Clamp |
 | Gieren `yaw` | Betrag: arccos(Schulterbreite / `shoulderW0`); Vorzeichen: Nasenversatz zur Schultermitte (Totband 3 % der Schulterbreite, davor bleibt das letzte Vorzeichen) | normiert auf den kalibrierten Max-Winkel je Seite, Totzone 12 %, Soft-Clamp, × ±35° |
 | Seitneigung `roll` + Kopfversatz | Oberkörper-Neigung bei ruhiger Hüfte: (Schulter-x − Hüft-x) / Torsolänge, relativ zum Neutralwert, normiert auf die kalibrierte Komfortneigung je Seite | One-Euro, Totzone 10 %, Soft-Clamp, × ±18° Kamera-Roll und ±0,2 m seitlicher Kopfversatz (addiert sich zu `dx`). Reines Gehen mit geradem Körper rollt die Ansicht nicht (getestet). |

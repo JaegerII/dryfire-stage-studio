@@ -269,13 +269,19 @@ export const BodyTab = () => {
           </button>
         )}
         {!c.session && <p className="hint warn">Connect a TV first.</p>}
+        {c.sessionInfo?.kind === 'broadcast' && (
+          <p className="hint bad">
+            No relay on this address: a TV on another device will NOT follow. Open the app from the PC with <code>npm run dev:lan</code> (https://&lt;PC-IP&gt;:5180) on phone and TV.
+          </p>
+        )}
+        {c.session && tvs.length === 0 && <p className="hint warn">No TV connected to room {c.room}.</p>}
         {!b.calibration && <p className="hint warn">Calibrate first.</p>}
         {b.phase === 'live' && b.last?.result && !b.last.result.tracked && <p className="hint bad">Person not tracked — the view holds, then eases back to the start view.</p>}
       </section>
 
       <section className="tcard">
         <h3>Feel</h3>
-        <Slider label="Lane half width" unit=" m" value={b.cfg.laneHalfWidth} min={0.2} max={1.6} step={0.05} onChange={(v) => b.updateConfig({ laneHalfWidth: v })} />
+        <Slider label="Lane half width" unit=" m" value={b.cfg.laneHalfWidth} min={0.2} max={3} step={0.1} onChange={(v) => b.updateConfig({ laneHalfWidth: v })} />
         <Slider label="Lateral gain" value={b.cfg.gain} min={0.5} max={2} step={0.05} onChange={(v) => b.updateConfig({ gain: v })} />
         <Slider label="Dead zone" value={b.cfg.deadZone} min={0} max={0.2} step={0.01} onChange={(v) => b.updateConfig({ deadZone: v })} />
         <Slider label="Yaw at max turn" unit="°" value={b.cfg.maxYaw} min={0} max={50} step={1} onChange={(v) => b.updateConfig({ maxYaw: v })} />

@@ -61,7 +61,8 @@ export interface BodyMapConfig {
 }
 
 export const DEFAULT_BODY_MAP: BodyMapConfig = {
-  laneHalfWidth: 0.8,
+  // the stage targets are 5-20 m away: a lateral camera move of 0.8 m barely shifts the picture, so the default lane is wide
+  laneHalfWidth: 1.5,
   gain: 1,
   deadZone: 0.06,
   knee: 0.8,
@@ -72,7 +73,7 @@ export const DEFAULT_BODY_MAP: BodyMapConfig = {
   yawDead: 0.3,
   maxRoll: 18,
   leanShift: 0.2,
-  leanDead: 0.1,
+  leanDead: 0.06,
   filterLean: { minCutoff: 1.0, beta: 0.4, dCutoff: 1 },
   heightDown: 0.5,
   heightUp: 0.1,
